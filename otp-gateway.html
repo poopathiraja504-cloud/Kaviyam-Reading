@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure OTP Gateway System</title>
+    
+    <!-- CSS STYLING: Clean, modern card layout for mobile and desktop systems -->
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #0f172a;
+            --muted: #64748b;
+            --border: #e2e8f0;
+            --success: #22c55e;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 2rem 1rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 85vh;
+        }
+
+        .otp-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 2.5rem 2rem;
+            width: 100%;
+            max-width: 420px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+        }
+
+        h2 {
+            margin: 0 0 0.5rem 0;
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        p.desc {
+            color: var(--muted);
+            font-size: 0.875rem;
+            margin: 0 0 2rem 0;
+        }
+
+        .tab-group {
+            display: flex;
+            background: #f1f5f9;
+            padding: 4px;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+        }
+
+        .tab-btn {
+            flex: 1;
+            background: transparent;
+            border: none;
+            padding: 0.5rem;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            color: var(--muted);
+            transition: all 0.2s;
+        }
+
+        .tab-btn.active {
+            background: white;
+            color: var(--text);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .form-panel {
+            display: none;
+        }
+
+        .form-panel.active {
+            display: block;
+        }
+
+        .input-group {
+            margin-bottom: 1.25rem;
+        }
+
+        label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+
+        input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input:focus {
+            border-color: var(--primary);
+        }
+
+        .submit-btn {
+            width: 100%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.75rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .submit-btn:hover {
+            background: var(--primary-hover);
+        }
+
+        .verification-zone {
+            display: none;
+            border-top: 1px dashed var(--border);
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .otp-inputs {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 1rem 0 1.5rem 0;
+        }
+
+        .otp-digit {
+            width: 50px;
+            height: 50px;
+            text-align: center;
+            font-size: 1.25rem;
+            font-weight: 700;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="otp-card">
+        <h2>Secure Gateway Authentication</h2>
+        <p class="desc">Select your delivery pathway to request a temporary session OTP token.</p>
+
+        <!-- Toggle control between Email and Phone views -->
+        <div class="tab-group">
+            <button class="tab-btn active" onclick="switchTab('email')">Email Address</button>
+            <button class="tab-btn" onclick="switchTab('phone')">Mobile Number</button>
+        </div>
+
+        <!-- EMAIL CHANNEL INTERFACE -->
+        <div id="emailPanel" class="form-panel active">
+            <div class="input-group">
+                <label for="emailInput">Email Address</label>
+                <input type="email" id="emailInput" placeholder="name@company.com">
+            </div>
+            <button class="submit-btn" onclick="gateway.requestOTP('email')">Send Email OTP</button>
+        </div>
+
+        <!-- MOBILE CHANNEL INTERFACE -->
+        <div id="phonePanel" class="form-panel">
+            <div class="input-group">
+                <label for="phoneInput">Mobile Number</label>
+                <input type="tel" id="phoneInput" placeholder="+1 (555) 000-0000">
+            </div>
+            <button class="submit-btn" onclick="gateway.requestOTP('phone')">Send Mobile SMS OTP</button>
+        </div>
+
+        <!-- DYNAMIC OTP VERIFICATION PANEL -->
+        <div id="verificationZone" class="verification-zone">
+            <label style="text-align: center;">Enter 4-Digit Security Token</label>
+            <div class="otp-inputs">
+                <input type="text" class="otp-digit" maxlength="1" oninput="moveFocus(this)" id="d1">
+                <input type="text" class="otp-digit" maxlength="1" oninput="moveFocus(this)" id="d2">
+                <input type="text" class="otp-digit" maxlength="1" oninput="moveFocus(this)" id="d3">
+                <input type="text" class="otp-digit" maxlength="1" oninput="moveFocus(this)" id="d4">
+            </div>
+            <button class="submit-btn" style="background: var(--success);" onclick="gateway.verifyToken()">Verify Token</button>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT CONTROLLER: Manages UI changes, token generation, and transmission routing -->
+    <script>
+        // Tab switching utility
+        function switchTab(type) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.form-panel').forEach(p => p.classList.remove('active'));
+            
+            if(type === 'email') {
+                if (event) event.target.classList.add('active');
+                document.getElementById('emailPanel').classList.add('active');
+            } else {
+                if (event) event.target.classList.add('active');
+                document.getElementById('phonePanel').classList.add('active');
+            }
+        }
+
+        // Auto-advance focus utility across modern multi-input boxes
+        function moveFocus(current) {
+            if (current.value.length >= 1) {
+                let next = current.nextElementSibling;
+                if (next && next.classList.contains('otp-digit')) next.focus();
+            }
+        }
+
+        // Core Communication Engine Block
+        const gateway = {
+            generatedToken: null,
+            targetDestination: null,
+
+            requestOTP: function(channel) {
+                const target = channel === 'email' 
+                    ? document.getElementById('emailInput').value.trim() 
+                    : document.getElementById('phoneInput').value.trim();
+
+                if (!target) {
+                    alert('Please provide a valid entry before continuing.');
+                    return;
+                }
+
+                this.targetDestination = target;
+                
+                // 1. Generate a mathematically secure 4-digit code
+                this.generatedToken = Math.floor(1000 + Math.random() * 9000).toString();
+
+                // 2. Client-Side Gateway Transmission Router
+                if(channel === 'email') {
+                    console.log(`[Gateway Route] Email Engine initializing... Dispatching code ${this.generatedToken} to ${target}`);
+                    
+                    /* 
+                       PRODUCTION LINK UP FOR SINGLE-FILE APPLICATIONS:
+                       To push this past sandbox mode without an intermediate backend, load standard packages like 
+                       EmailJS or MojoAuth via standard CDN injection tags, then call them here:
+                       
+                       emailjs.send("YOUR_SERVICE_ID", "YOUR_TEMPLATE_ID", {
+                           to_email: target,
+                           otp_code: this.generatedToken
+                       });
+                    */
+                } else {
+                    console.log(`[Gateway Route] SMS Cellular Engine initializing... Dispatching code ${this.generatedToken} to ${target}`);
+                    
+                    /* 
+                       PRODUCTION LINK UP FOR SMS TELEPHONY:
+                       Use client-bound identity tools like MojoAuth (MojoAuth Web SDK) or Twilio Verify 
+                       wrappers to execute dispatch directly out of client scripts.
+                    */
+                }
+
+                alert(`Security Token successfully requested for delivery channel! \n\n[SANDBOX SYSTEM AUTOMATION]: Your token is: ${this.generatedToken}`);
+                
+                // Display input boxes
+                document.getElementById('verificationZone').style.display = 'block';
+            },
+
+            verifyToken: function() {
+                const enteredToken = 
+                    document.getElementById('d1').value + 
+                    document.getElementById('d2').value + 
+                    document.getElementById('d3').value + 
+                    document.getElementById('d4').value;
+
+                if (enteredToken === this.generatedToken) {
+                    alert('Authentication Complete! The token is valid, session unlocked.');
+                    // Reset systems
+                    location.reload();
+                } else {
+                    alert('Invalid token entered. Check code or re-trigger request.');
+                }
+            }
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,129 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default safety catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+    
+    // Shared Secure Helper Primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+    
+    function incoming() {
+      return request.resource.data;
+    }
+    
+    function existing() {
+      return resource.data;
+    }
+
+    // Validation for User Profile Entity
+    function isValidUser(data) {
+      return data.keys().hasAll(['id', 'email', 'username', 'createdAt'])
+        && data.keys().size() >= 4
+        && data.id is string && data.id.size() <= 128
+        && data.email is string && data.email.size() <= 120
+        && data.username is string && data.username.size() <= 100
+        && data.createdAt is string;
+    }
+
+    // Validation for Book Catalog Entity
+    function isValidBook(data) {
+      return data.keys().hasAll(['id', 'title', 'author', 'description', 'coverUrl', 'genre', 'chapters'])
+        && data.keys().size() >= 7
+        && data.id is string && data.id.size() <= 128
+        && data.title is string && data.title.size() <= 200
+        && data.author is string && data.author.size() <= 100
+        && data.description is string && data.description.size() <= 4000
+        && data.coverUrl is string && data.coverUrl.size() <= 1000
+        && data.genre is string && data.genre.size() <= 100
+        && data.chapters is list && data.chapters.size() <= 100;
+    }
+
+    // Validation for Bookmark Entity
+    function isValidBookmark(data) {
+      return data.keys().hasAll(['userId', 'bookId'])
+        && data.keys().size() >= 2
+        && data.userId is string && data.userId.size() <= 128
+        && data.bookId is string && data.bookId.size() <= 128;
+    }
+
+    // Validation for SecurityLog Entity
+    function isValidLog(data) {
+      return data.keys().hasAll(['id', 'action', 'timestamp', 'status'])
+        && data.keys().size() >= 4
+        && data.id is string && data.id.size() <= 128
+        && data.action is string && data.action.size() <= 100
+        && data.timestamp is string
+        && data.status is string && (data.status == 'Success' || data.status == 'Failed' || data.status == 'Blocked');
+    }
+
+    // Validation for SimulatedEmail Entity
+    function isValidEmail(data) {
+      return data.keys().hasAll(['id', 'recipient', 'subject', 'body', 'sentAt', 'category', 'read'])
+        && data.keys().size() >= 7
+        && data.id is string && data.id.size() <= 128
+        && data.recipient is string && data.recipient.size() <= 120
+        && data.subject is string && data.subject.size() <= 200
+        && data.body is string && data.body.size() <= 5000
+        && data.sentAt is string
+        && data.category is string && (data.category == 'auth' || data.category == 'security' || data.category == 'newsletter' || data.category == 'announcement')
+        && data.read is bool;
+    }
+
+    // Users Collection rules
+    match /users/{userId} {
+      allow get: if true;
+      allow list: if false; // strictly isolated, no listing of user profiles
+      allow create: if isOwner(userId) && isValidUser(incoming());
+      allow update: if isOwner(userId) && isValidUser(incoming());
+      allow delete: if false; // profiles are permanent
+
+      // Subcollection for bookmarks
+      match /bookmarks/{bookId} {
+        allow get: if isOwner(userId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(bookId) && isValidBookmark(incoming());
+        allow update: if isOwner(userId) && isValidId(bookId) && isValidBookmark(incoming());
+        allow delete: if isOwner(userId);
+      }
+    }
+
+    // Books Collection rules
+    match /books/{bookId} {
+      allow get: if true; // anyone can get a book details
+      allow list: if true; // anyone can list all books
+      allow create: if isSignedIn() && isValidId(bookId) && isValidBook(incoming());
+      allow update: if isSignedIn() && isValidId(bookId) && isValidBook(incoming());
+      allow delete: if false; // Master books are preserved
+    }
+
+    // Logs Collection rules (write only, secure system audits)
+    match /logs/{logId} {
+      allow get: if false; // no user can access other users' logs
+      allow list: if false;
+      allow create: if isValidId(logId) && isValidLog(incoming());
+      allow update: if false; // permanent audit records
+      allow delete: if false;
+    }
+
+    // Emails Collection rules
+    match /emails/{emailId} {
+      allow get: if isSignedIn() && (request.auth.token.email.lower() == resource.data.recipient.lower());
+      allow list: if isSignedIn() && (request.auth.token.email.lower() == resource.data.recipient.lower());
+      allow create: if isValidId(emailId) && isValidEmail(incoming());
+      allow update: if isSignedIn() && isValidId(emailId) && isValidEmail(incoming()) && incoming().diff(existing()).affectedKeys().hasOnly(['read']) && request.auth.token.email.lower() == existing().recipient.lower();
+      allow delete: if isSignedIn() && (request.auth.token.email.lower() == resource.data.recipient.lower());
+    }
+  }
+}
