@@ -5,30 +5,6 @@ import { BookOpen, User as UserIcon, Mail, Shield, HelpCircle, LogIn, LogOut, Ch
 import { motion, AnimatePresence } from "motion/react";
 import { toggleSecurityMetaTags, RECOMMENDED_META_TAGS } from "./utils/securityHeaders";
 
-import { auth, db, handleFirestoreError, OperationType } from "./firebase";
-import { 
-  collection, 
-  doc, 
-  setDoc, 
-  getDoc, 
-  getDocs, 
-  updateDoc, 
-  deleteDoc,
-  query,
-  where
-} from "firebase/firestore";
-import { 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, 
-  sendPasswordResetEmail, 
-  signOut,
-  onAuthStateChanged,
-  GoogleAuthProvider,
-  signInWithPopup,
-  updatePassword as firebaseUpdatePassword,
-  updateEmail as firebaseUpdateEmail
-} from "firebase/auth";
-
 import Library from "./components/Library";
 import Reader from "./components/Reader";
 import Auth from "./components/Auth";
@@ -196,7 +172,37 @@ export default function App() {
 
   // Load Initial State
   useEffect(() => {
-    // Passwords (keep in local state/storage for simulated OTP/legacy logins)
+    // Books
+    const cachedBooks = localStorage.getItem("kaviyam_books");
+    if (cachedBooks) {
+      const parsed: Book[] = JSON.parse(cachedBooks);
+      const merged = [...parsed];
+      let updated = false;
+      PRESET_BOOKS.forEach((preset) => {
+        if (!merged.some((b) => b.id === preset.id)) {
+          merged.push(preset);
+          updated = true;
+        }
+      });
+      setBooks(merged);
+      if (updated) {
+        localStorage.setItem("kaviyam_books", JSON.stringify(merged));
+      }
+    } else {
+      setBooks(PRESET_BOOKS);
+      localStorage.setItem("kaviyam_books", JSON.stringify(PRESET_BOOKS));
+    }
+
+    // Users
+    const cachedUsers = localStorage.getItem("kaviyam_users");
+    if (cachedUsers) {
+      setUsers(JSON.parse(cachedUsers));
+    } else {
+      setUsers(INITIAL_USERS);
+      localStorage.setItem("kaviyam_users", JSON.stringify(INITIAL_USERS));
+    }
+
+    // Passwords
     const cachedPasswords = localStorage.getItem("kaviyam_passwords");
     if (cachedPasswords) {
       setPasswords(JSON.parse(cachedPasswords));
@@ -205,214 +211,41 @@ export default function App() {
       localStorage.setItem("kaviyam_passwords", JSON.stringify(INITIAL_PASSWORDS));
     }
 
-    // Sync Books from Firestore
-    const syncBooksOnStartup = async () => {
-      try {
-        const snapshot = await getDocs(collection(db, "books"));
-        if (snapshot.empty) {
-          // Database is empty. Let's seed our preset books so the application is instantly ready!
-          // ONLY write if authenticated, otherwise use local presets and they'll be synced when someone logs in
-          if (auth.currentUser) {
-            for (const book of PRESET_BOOKS) {
-              await setDoc(doc(db, "books", book.id), book);
-            }
-          }
-          setBooks(PRESET_BOOKS);
-          localStorage.setItem("kaviyam_books", JSON.stringify(PRESET_BOOKS));
-        } else {
-          const fetchedBooks: Book[] = [];
-          snapshot.forEach((docSnap) => {
-            fetchedBooks.push(docSnap.data() as Book);
-          });
-          setBooks(fetchedBooks);
-          localStorage.setItem("kaviyam_books", JSON.stringify(fetchedBooks));
-        }
-      } catch (error) {
-        console.error("Failed to fetch books from Firestore, using local fallback:", error);
-        const cachedBooks = localStorage.getItem("kaviyam_books");
-        if (cachedBooks) {
-          setBooks(JSON.parse(cachedBooks));
-        } else {
-          setBooks(PRESET_BOOKS);
-        }
-      }
-    };
-    syncBooksOnStartup();
-  }, []);
+    // Bookmarks
+    const cachedBookmarks = localStorage.getItem("kaviyam_bookmarks");
+    if (cachedBookmarks) setBookmarks(JSON.parse(cachedBookmarks));
 
-  // Sync Emails and Security Logs from Firestore on active login session or startup
-  useEffect(() => {
-    if (!currentUser) {
-      // If no user is logged in, use local state/storage fallback
-      const cachedEmails = localStorage.getItem("kaviyam_emails");
-      if (cachedEmails) {
-        setEmails(JSON.parse(cachedEmails));
-      } else {
-        const initialEmails: SimulatedEmail[] = [
-          {
-            id: "mail-welcome",
-            recipient: "rajaboopathi1021@gmail.com",
-            subject: "Welcome to Kaviyam Reading Platform!",
-            body: "Hello Rajaboopathi!\n\nWelcome to Kaviyam Reading—an eye-safe, quiet digital library tailored for creative minds. Enjoy our custom, responsive design, sepia-paper readers, and AI custom novel generators. Try registering or logging in to explore the platform to the fullest!",
-            sentAt: new Date().toISOString(),
-            category: "announcement",
-            read: false
-          }
-        ];
-        setEmails(initialEmails);
-        localStorage.setItem("kaviyam_emails", JSON.stringify(initialEmails));
-      }
-
-      const cachedLogs = localStorage.getItem("kaviyam_logs");
-      if (cachedLogs) {
-        setSecurityLogs(JSON.parse(cachedLogs));
-      } else {
-        const initialLogs: SecurityLog[] = [
-          { id: "log-1", action: "System Boot", timestamp: new Date().toISOString(), device: "Linux Server Node", ip: "127.0.0.1", status: "Success" }
-        ];
-        setSecurityLogs(initialLogs);
-        localStorage.setItem("kaviyam_logs", JSON.stringify(initialLogs));
-      }
-      return;
+    // Security Logs
+    const cachedLogs = localStorage.getItem("kaviyam_logs");
+    if (cachedLogs) {
+      setSecurityLogs(JSON.parse(cachedLogs));
+    } else {
+      const initialLogs: SecurityLog[] = [
+        { id: "log-1", action: "System Boot", timestamp: new Date().toISOString(), device: "Linux Server Node", ip: "127.0.0.1", status: "Success" }
+      ];
+      setSecurityLogs(initialLogs);
+      localStorage.setItem("kaviyam_logs", JSON.stringify(initialLogs));
     }
 
-    const fetchEmailsAndLogs = async () => {
-      const userEmailLower = currentUser.email.toLowerCase();
-
-      try {
-        // Sync Emails: Each user only queries their own emails to adhere to strict firestore rules
-        const emailsQuery = query(collection(db, "emails"), where("recipient", "==", userEmailLower));
-        const emailSnapshot = await getDocs(emailsQuery);
-
-        const fetchedEmails: SimulatedEmail[] = [];
-        emailSnapshot.forEach((docSnap) => {
-          fetchedEmails.push(docSnap.data() as SimulatedEmail);
-        });
-        fetchedEmails.sort((a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime());
-
-        if (fetchedEmails.length === 0) {
-          const initialEmails: SimulatedEmail[] = [
-            {
-              id: "mail-welcome",
-              recipient: currentUser.email,
-              subject: "Welcome to Kaviyam Reading Platform!",
-              body: `Hello ${currentUser.username || "Reader"}!\n\nWelcome to Kaviyam Reading—an eye-safe, quiet digital library tailored for creative minds. Enjoy our custom, responsive design, sepia-paper readers, and AI custom novel generators. Try registering or logging in to explore the platform to the fullest!`,
-              sentAt: new Date().toISOString(),
-              category: "announcement",
-              read: false
-            }
-          ];
-          for (const email of initialEmails) {
-            await setDoc(doc(db, "emails", email.id), email);
-          }
-          setEmails(initialEmails);
-        } else {
-          setEmails(fetchedEmails);
+    // Emails
+    const cachedEmails = localStorage.getItem("kaviyam_emails");
+    if (cachedEmails) {
+      setEmails(JSON.parse(cachedEmails));
+    } else {
+      const initialEmails: SimulatedEmail[] = [
+        {
+          id: "mail-welcome",
+          recipient: "rajaboopathi1021@gmail.com",
+          subject: "Welcome to Kaviyam Reading Platform!",
+          body: "Hello Rajaboopathi!\n\nWelcome to Kaviyam Reading—an eye-safe, quiet digital library tailored for creative minds. Enjoy our custom, responsive design, sepia-paper readers, and AI custom novel generators. Try registering or logging in to explore the platform to the fullest!",
+          sentAt: new Date().toISOString(),
+          category: "announcement",
+          read: false
         }
-      } catch (error) {
-        console.error("Failed to load emails from Firestore:", error);
-        const cachedEmails = localStorage.getItem("kaviyam_emails");
-        if (cachedEmails) setEmails(JSON.parse(cachedEmails));
-      }
-
-      // Sync Logs: Security logs collection has "allow list: if false" rules to prevent telemetry/log access leaks.
-      // Therefore, the frontend loads security logs securely from local storage, while successfully submitting system alerts to Firestore in a write-only fashion.
-      const cachedLogs = localStorage.getItem("kaviyam_logs");
-      if (cachedLogs) {
-        setSecurityLogs(JSON.parse(cachedLogs));
-      } else {
-        const initialLogs: SecurityLog[] = [
-          { id: "log-1", action: "System Boot", timestamp: new Date().toISOString(), device: "Linux Server Node", ip: "127.0.0.1", status: "Success" }
-        ];
-        setSecurityLogs(initialLogs);
-        localStorage.setItem("kaviyam_logs", JSON.stringify(initialLogs));
-      }
-    };
-
-    fetchEmailsAndLogs();
-  }, [currentUser]);
-
-  // Sync Bookmarks from Firestore when currentUser changes
-  useEffect(() => {
-    if (!currentUser) {
-      setBookmarks([]);
-      return;
+      ];
+      setEmails(initialEmails);
+      localStorage.setItem("kaviyam_emails", JSON.stringify(initialEmails));
     }
-
-    const loadBookmarks = async () => {
-      try {
-        const bookmarksRef = collection(db, "users", currentUser.id, "bookmarks");
-        const snapshot = await getDocs(bookmarksRef);
-        const fetchedBms: string[] = [];
-        snapshot.forEach((docSnap) => {
-          fetchedBms.push(docSnap.id);
-        });
-        setBookmarks(fetchedBms);
-      } catch (error) {
-        handleFirestoreError(error, OperationType.LIST, `users/${currentUser.id}/bookmarks`);
-      }
-    };
-
-    loadBookmarks();
-  }, [currentUser]);
-
-  // Firebase Auth Listener
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser && firebaseUser.email) {
-        const uid = firebaseUser.uid;
-        const emailInput = firebaseUser.email.toLowerCase();
-        const fallbackUsername = firebaseUser.displayName || emailInput.split("@")[0];
-
-        try {
-          const userDocRef = doc(db, "users", uid);
-          const userDocSnap = await getDoc(userDocRef);
-
-          if (userDocSnap.exists()) {
-            const userData = userDocSnap.data() as User;
-            setCurrentUser(userData);
-
-            setUsers((prev) => {
-              const exists = prev.some((u) => u.id === uid);
-              if (!exists) return [...prev, userData];
-              return prev.map((u) => (u.id === uid ? userData : u));
-            });
-          } else {
-            // Synthesize and register new profile in Firestore
-            const newUser: User = {
-              id: uid,
-              email: emailInput,
-              username: fallbackUsername,
-              isVerified: firebaseUser.emailVerified,
-              profile: {
-                username: fallbackUsername,
-                bio: "Reader Patron",
-                profilePhoto: firebaseUser.photoURL || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100",
-                dob: "2000-01-01",
-                gender: "Not Specified",
-                privacy: { publicBookshelf: true, showActivity: true }
-              },
-              security: { is2FAEnabled: false, isBlocked: false, loginAttempts: 0 },
-              createdAt: new Date().toISOString()
-            };
-
-            await setDoc(userDocRef, newUser);
-            setCurrentUser(newUser);
-            setUsers((prev) => {
-              const exists = prev.some((u) => u.id === uid);
-              if (!exists) return [...prev, newUser];
-              return prev.map((u) => (u.id === uid ? newUser : u));
-            });
-          }
-        } catch (error) {
-          handleFirestoreError(error, OperationType.GET, `users/${uid}`);
-        }
-      } else {
-        setCurrentUser(null);
-      }
-    });
-
-    return () => unsubscribe();
   }, []);
 
   // Save changes to localStorage helper
@@ -421,21 +254,9 @@ export default function App() {
     localStorage.setItem("kaviyam_books", JSON.stringify(updatedBooks));
   };
 
-  const saveUsers = async (updatedUsers: User[]) => {
+  const saveUsers = (updatedUsers: User[]) => {
     setUsers(updatedUsers);
     localStorage.setItem("kaviyam_users", JSON.stringify(updatedUsers));
-
-    // Also, if currentUser matches, sync active user profile back to Firestore
-    if (currentUser) {
-      const match = updatedUsers.find((u) => u.id === currentUser.id);
-      if (match) {
-        try {
-          await setDoc(doc(db, "users", currentUser.id), match);
-        } catch (error) {
-          handleFirestoreError(error, OperationType.WRITE, `users/${currentUser.id}`);
-        }
-      }
-    }
   };
 
   const savePasswords = (updatedPass: Record<string, string>) => {
@@ -443,40 +264,9 @@ export default function App() {
     localStorage.setItem("kaviyam_passwords", JSON.stringify(updatedPass));
   };
 
-  const saveBookmarks = async (updatedBms: string[]) => {
+  const saveBookmarks = (updatedBms: string[]) => {
     setBookmarks(updatedBms);
     localStorage.setItem("kaviyam_bookmarks", JSON.stringify(updatedBms));
-
-    if (currentUser) {
-      const currentSet = new Set(bookmarks);
-      const updatedSet = new Set(updatedBms);
-
-      // Save newly added bookmarks
-      for (const bId of updatedBms) {
-        if (!currentSet.has(bId)) {
-          try {
-            await setDoc(doc(db, "users", currentUser.id, "bookmarks", bId), {
-              userId: currentUser.id,
-              bookId: bId,
-              savedAt: new Date().toISOString()
-            });
-          } catch (error) {
-            handleFirestoreError(error, OperationType.WRITE, `users/${currentUser.id}/bookmarks/${bId}`);
-          }
-        }
-      }
-
-      // Remove deleted bookmarks
-      for (const bId of bookmarks) {
-        if (!updatedSet.has(bId)) {
-          try {
-            await deleteDoc(doc(db, "users", currentUser.id, "bookmarks", bId));
-          } catch (error) {
-            handleFirestoreError(error, OperationType.DELETE, `users/${currentUser.id}/bookmarks/${bId}`);
-          }
-        }
-      }
-    }
   };
 
   const saveLogs = (updatedLogs: SecurityLog[]) => {
@@ -509,7 +299,7 @@ export default function App() {
   };
 
   // Helper to add system and security logs
-  const addSystemLog = async (action: string, status: "Success" | "Failed" | "Blocked") => {
+  const addSystemLog = (action: string, status: "Success" | "Failed" | "Blocked") => {
     const newLog: SecurityLog = {
       id: `log-${Date.now()}`,
       action,
@@ -519,15 +309,10 @@ export default function App() {
       status
     };
     saveLogs([newLog, ...securityLogs]);
-    try {
-      await setDoc(doc(db, "logs", newLog.id), newLog);
-    } catch (error) {
-      console.error("Failed to save system log to Firestore:", error);
-    }
   };
 
   // Helper to trigger outbound email simulation
-  const triggerOutboundEmail = async (recipient: string, subject: string, body: string, category: "auth" | "security" | "newsletter" | "announcement") => {
+  const triggerOutboundEmail = (recipient: string, subject: string, body: string, category: "auth" | "security" | "newsletter" | "announcement") => {
     const newMail: SimulatedEmail = {
       id: `mail-${Date.now()}`,
       recipient,
@@ -538,211 +323,187 @@ export default function App() {
       read: false
     };
     saveEmails([newMail, ...emails]);
-    try {
-      await setDoc(doc(db, "emails", newMail.id), newMail);
-    } catch (error) {
-      console.error("Failed to save outbound email to Firestore:", error);
-    }
   };
 
   // Authentication Logics
-  const handleLogin = async (emailInput: string, passwordInput: string, otpInput?: string) => {
+  const handleLogin = (emailInput: string, passwordInput: string, otpInput?: string) => {
     // STRICT SECURITY POLICY: Only allow rajaboopathi1021@gmail.com or predefined admin/reader accounts
     const allowedEmails = ["rajaboopathi1021@gmail.com", "admin@kaviyam.com", "reader@kaviyam.com"];
     if (!allowedEmails.includes(emailInput.toLowerCase())) {
       addSystemLog(`Access Denied (Unauthorized email login attempt: ${emailInput})`, "Blocked");
-      return { success: false, error: "Access Denied: This application and its secure SMTP integrations are strictly restricted to rajaboopathi1021@gmail.com. Other mail addresses are not granted access." };
+      return { success: false, error: "Access Denied: This application is strictly restricted to rajaboopathi1021@gmail.com. Other mail addresses are not granted access." };
     }
 
-    try {
-      // Connect and authorize via Firebase Authentication
-      const userCredential = await signInWithEmailAndPassword(auth, emailInput.toLowerCase(), passwordInput);
-      const firebaseUser = userCredential.user;
+    const foundUserIndex = users.findIndex((u) => u.email.toLowerCase() === emailInput.toLowerCase());
+    
+    if (foundUserIndex === -1) {
+      addSystemLog(`Login attempt (Email not found: ${emailInput})`, "Failed");
+      return { success: false, error: "Invalid email credentials." };
+    }
 
-      let foundUserIndex = users.findIndex((u) => u.email.toLowerCase() === emailInput.toLowerCase());
-      let foundUser: User;
+    const foundUser = users[foundUserIndex];
 
-      if (foundUserIndex === -1) {
-        // Synthesize user profile locally if they exist in Firebase Auth but not in local state
-        const fallbackUsername = emailInput.split("@")[0];
-        foundUser = {
-          id: firebaseUser.uid,
-          email: emailInput.toLowerCase(),
-          username: fallbackUsername,
-          isVerified: firebaseUser.emailVerified,
-          profile: {
-            username: fallbackUsername,
-            bio: "Reader Patron",
-            profilePhoto: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100",
-            dob: "2000-01-01",
-            gender: "Not Specified",
-            privacy: { publicBookshelf: true, showActivity: true }
-          },
-          security: { is2FAEnabled: false, isBlocked: false, loginAttempts: 0 },
-          createdAt: new Date().toISOString()
-        };
-        const updatedUsersList = [...users, foundUser];
-        saveUsers(updatedUsersList);
-        foundUserIndex = updatedUsersList.length - 1;
-      } else {
-        foundUser = users[foundUserIndex];
-      }
+    // Check Block state
+    if (foundUser.security.isBlocked) {
+      addSystemLog(`Login Blocked (Account locked: ${emailInput})`, "Blocked");
+      return { success: false, error: "This account has been locked due to multiple failed login attempts or security block." };
+    }
 
-      // Check Block state
-      if (foundUser.security.isBlocked) {
-        addSystemLog(`Login Blocked (Account locked: ${emailInput})`, "Blocked");
-        return { success: false, error: "This account has been locked due to security block." };
-      }
+    // Password Check
+    const storedPassword = passwords[emailInput.toLowerCase()] || "reader123";
+    const isCorrectPass = storedPassword === passwordInput;
+    if (!isCorrectPass) {
+      const updatedAttempts = foundUser.security.loginAttempts + 1;
+      const remains = 3 - updatedAttempts;
 
-      // 2FA Flow (if user explicitly enabled it)
-      if (foundUser.security.is2FAEnabled) {
-        if (!otpInput) {
-          // Issue OTP code
-          const code = Math.floor(100000 + Math.random() * 900000).toString();
-          setPendingOtpSession({ email: emailInput, code });
-
-          triggerOutboundEmail(
-            emailInput,
-            "Two-Factor Security Code: Kaviyam Reading Auth",
-            `Hello ${foundUser.username},\n\nA login request was made for your account.\n\nYour 2FA security verification code is: ${code}\n\nDo not share this code. Input it inside the security prompt to finalize login.`,
-            "auth"
-          );
-          addSystemLog(`2FA Token Issued (${emailInput})`, "Success");
-          return { success: true, require2FA: true };
-        } else {
-          // Validate OTP code
-          const isOtpValid = pendingOtpSession && pendingOtpSession.email === emailInput && pendingOtpSession.code === otpInput;
-          if (!isOtpValid) {
-            addSystemLog(`2FA Verification Failed (${emailInput})`, "Failed");
-            return { success: false, error: "The Two-Factor security verification code is incorrect." };
-          }
-          // OTP Success!
-          setPendingOtpSession(null);
-        }
-      }
-
-      // Successful login!
-      const resetUserAttempts = [...users];
-      resetUserAttempts[foundUserIndex] = {
+      const updatedUsersList = [...users];
+      updatedUsersList[foundUserIndex] = {
         ...foundUser,
-        security: { ...foundUser.security, loginAttempts: 0 }
+        security: {
+          ...foundUser.security,
+          loginAttempts: updatedAttempts,
+          isBlocked: updatedAttempts >= 3 ? true : foundUser.security.isBlocked
+        }
       };
-      saveUsers(resetUserAttempts);
 
-      setCurrentUser(foundUser);
-      setActiveTab("library");
-      setIsGuestMode(false);
-      addSystemLog(`Login Success via Firebase Auth (${emailInput})`, "Success");
-      
-      // Trigger login alert email
-      triggerOutboundEmail(
-        emailInput,
-        "Security Alert: New Account Sign-in Detected",
-        `Hello ${foundUser.username},\n\nA successful sign-in was recorded for your account via Firebase Auth today.\n\nPlatform Node: Firebase Auth Node\n\nIf this wasn't you, please change your password instantly.`,
-        "security"
-      );
+      saveUsers(updatedUsersList);
 
-      return { success: true };
-    } catch (err: any) {
-      addSystemLog(`Login Failed (${emailInput}): ${err?.message || err}`, "Failed");
-      let friendlyError = "Invalid email credentials.";
-      if (err?.code === "auth/wrong-password" || err?.code === "auth/invalid-credential") {
-        friendlyError = "Incorrect password. Please try again.";
-      } else if (err?.code === "auth/user-not-found") {
-        friendlyError = "No registered profile found matching this email address.";
-      } else if (err?.code === "auth/too-many-requests") {
-        friendlyError = "This account has been temporarily locked due to too many failed login attempts. You can try again later or reset your password.";
-      } else if (err?.message) {
-        friendlyError = err.message;
+      if (updatedAttempts >= 3) {
+        addSystemLog(`Account Auto-Lock (Failed attempts: ${emailInput})`, "Blocked");
+        triggerOutboundEmail(
+          emailInput,
+          "Kaviyam Platform Security Alert: Account Locked",
+          `Hello ${foundUser.username},\n\nYour account has been locked after 3 consecutive incorrect password attempts.\n\nTo restore access, please initiate a password reset action immediately.`,
+          "security"
+        );
+        return { success: false, error: "Account locked after 3 failed attempts. A security lock notification has been issued to your mailbox." };
       }
-      return { success: false, error: friendlyError };
+
+      addSystemLog(`Incorrect Password Attempt (${emailInput})`, "Failed");
+      return { success: false, error: `Incorrect password. ${remains} attempt(s) remaining before security lockout.` };
     }
+
+    // 2FA Flow
+    if (foundUser.security.is2FAEnabled) {
+      if (!otpInput) {
+        // Issue OTP code
+        const code = Math.floor(100000 + Math.random() * 900000).toString();
+        setPendingOtpSession({ email: emailInput, code });
+
+        triggerOutboundEmail(
+          emailInput,
+          "Two-Factor Security Code: Kaviyam Reading Auth",
+          `Hello ${foundUser.username},\n\nA login request was made for your account.\n\nYour 2FA security verification code is: ${code}\n\nDo not share this code. Input it inside the security prompt to finalize login.`,
+          "auth"
+        );
+        addSystemLog(`2FA Token Issued (${emailInput})`, "Success");
+        return { success: true, require2FA: true };
+      } else {
+        // Validate OTP code
+        const isOtpValid = pendingOtpSession && pendingOtpSession.email === emailInput && pendingOtpSession.code === otpInput;
+        if (!isOtpValid) {
+          addSystemLog(`2FA Verification Failed (${emailInput})`, "Failed");
+          return { success: false, error: "The Two-Factor security verification code is incorrect." };
+        }
+        // OTP Success!
+        setPendingOtpSession(null);
+      }
+    }
+
+    // Successful login!
+    const resetUserAttempts = [...users];
+    resetUserAttempts[foundUserIndex] = {
+      ...foundUser,
+      security: { ...foundUser.security, loginAttempts: 0 }
+    };
+    saveUsers(resetUserAttempts);
+
+    setCurrentUser(foundUser);
+    setActiveTab("library");
+    setIsGuestMode(false);
+    addSystemLog(`Login Success (${emailInput})`, "Success");
+    
+    // Trigger login alert email
+    triggerOutboundEmail(
+      emailInput,
+      "Security Alert: New Account Sign-in Detected",
+      `Hello ${foundUser.username},\n\nA successful sign-in was recorded for your account today.\n\nPlatform Node: Linux Sandbox Container\nIP Address: 127.0.0.1\n\nIf this wasn't you, please change your password instantly.`,
+      "security"
+    );
+
+    return { success: true };
   };
 
-  const handleRegister = async (emailInput: string, usernameInput: string, dobInput: string, genderInput: string, passwordInput?: string) => {
+  const handleRegister = (emailInput: string, usernameInput: string, dobInput: string, genderInput: string, passwordInput?: string) => {
     // STRICT SECURITY POLICY: Only allow rajaboopathi1021@gmail.com to register
     if (emailInput.toLowerCase() !== "rajaboopathi1021@gmail.com") {
       addSystemLog(`Registration Blocked (Unauthorized email: ${emailInput})`, "Blocked");
       return { success: false, error: "Access Denied: Registration on this platform is strictly restricted to rajaboopathi1021@gmail.com." };
     }
 
-    const userPassword = passwordInput || "reader123";
-
-    try {
-      // Connect and register account on Firebase Authentication
-      const userCredential = await createUserWithEmailAndPassword(auth, emailInput.toLowerCase(), userPassword);
-      const firebaseUser = userCredential.user;
-
-      const newUser: User = {
-        id: firebaseUser.uid,
-        email: emailInput.toLowerCase(),
-        username: usernameInput,
-        isVerified: firebaseUser.emailVerified,
-        profile: {
-          username: usernameInput,
-          bio: "Just joined the amazing community of Kaviyam Readers!",
-          profilePhoto: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100",
-          dob: dobInput,
-          gender: genderInput,
-          privacy: { publicBookshelf: true, showActivity: true }
-        },
-        security: { is2FAEnabled: false, isBlocked: false, loginAttempts: 0 },
-        createdAt: new Date().toISOString()
-      };
-
-      const updatedUsers = [...users.filter((u) => u.email.toLowerCase() !== emailInput.toLowerCase()), newUser];
-      saveUsers(updatedUsers);
-
-      addSystemLog(`Registration Success via Firebase (${emailInput})`, "Success");
-
-      // Send simulated welcome and verification emails
-      triggerOutboundEmail(
-        emailInput,
-        "Welcome to Kaviyam Reading: Confirm Registration",
-        `Hello ${usernameInput}!\n\nThank you for signing up to Kaviyam Reading.\n\nPlease verify your email by clicking the link below to unlock all creative AI features:\n\n[Action: VerifyEmail; email=${emailInput}]`,
-        "auth"
-      );
-
-      return { success: true };
-    } catch (err: any) {
-      addSystemLog(`Registration Failed (${emailInput}): ${err?.message || err}`, "Failed");
-      let friendlyError = "Account synthesis failed.";
-      if (err?.code === "auth/email-already-in-use") {
-        friendlyError = "This email address is already registered in Firebase.";
-      } else if (err?.code === "auth/weak-password") {
-        friendlyError = "Password is too weak. Please choose a stronger password.";
-      } else if (err?.message) {
-        friendlyError = err.message;
-      }
-      return { success: false, error: friendlyError };
+    const isEmailTaken = users.some((u) => u.email.toLowerCase() === emailInput.toLowerCase());
+    if (isEmailTaken) {
+      return { success: false, error: "This email address is already registered." };
     }
+
+    const newUser: User = {
+      id: `user-${Date.now()}`,
+      email: emailInput,
+      username: usernameInput,
+      isVerified: false,
+      profile: {
+        username: usernameInput,
+        bio: "Just joined the amazing community of Kaviyam Readers!",
+        profilePhoto: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100",
+        dob: dobInput,
+        gender: genderInput,
+        privacy: { publicBookshelf: true, showActivity: true }
+      },
+      security: { is2FAEnabled: false, isBlocked: false, loginAttempts: 0 },
+      createdAt: new Date().toISOString()
+    };
+
+    const userPassword = passwordInput || "reader123";
+    const updatedUsers = [...users, newUser];
+    const updatedPasswords = { ...passwords, [emailInput.toLowerCase()]: userPassword };
+
+    saveUsers(updatedUsers);
+    savePasswords(updatedPasswords);
+
+    addSystemLog(`Registration Success (${emailInput})`, "Success");
+
+    // Send simulated welcome and verification emails
+    triggerOutboundEmail(
+      emailInput,
+      "Welcome to Kaviyam Reading: Confirm Registration",
+      `Hello ${usernameInput}!\n\nThank you for signing up to Kaviyam Reading.\n\nPlease verify your email by clicking the link below to unlock all creative AI features:\n\n[Action: VerifyEmail; email=${emailInput}]`,
+      "auth"
+    );
+
+    return { success: true };
   };
 
-  const handleForgotPassword = async (emailInput: string) => {
+  const handleForgotPassword = (emailInput: string) => {
     // STRICT SECURITY POLICY: Only allow rajaboopathi1021@gmail.com
     if (emailInput.toLowerCase() !== "rajaboopathi1021@gmail.com") {
       return { success: false, error: "Access Denied: This operation is strictly restricted to rajaboopathi1021@gmail.com." };
     }
 
-    try {
-      await sendPasswordResetEmail(auth, emailInput.toLowerCase());
-      addSystemLog(`Password Reset Issued via Firebase (${emailInput})`, "Success");
-
-      const foundUser = users.find((u) => u.email.toLowerCase() === emailInput.toLowerCase());
-      const username = foundUser ? foundUser.username : "Reader";
-
-      triggerOutboundEmail(
-        emailInput,
-        "Secret Link: Reset Password Request",
-        `Hello ${username},\n\nA password reset email has been dispatched via Firebase Auth to your real mailbox.\n\nWe have also logged this recovery request under your secure security center profile.`,
-        "auth"
-      );
-
-      return { success: true };
-    } catch (err: any) {
-      addSystemLog(`Password Reset Failed (${emailInput}): ${err?.message || err}`, "Failed");
-      return { success: false, error: err?.message || "Failed to issue password recovery request via Firebase." };
+    const foundUser = users.find((u) => u.email.toLowerCase() === emailInput.toLowerCase());
+    if (!foundUser) {
+      return { success: false, error: "This email address is not registered in our database." };
     }
+
+    const token = `reset-token-${emailInput.toLowerCase()}-${Date.now()}`;
+    triggerOutboundEmail(
+      emailInput,
+      "Secret Link: Reset Password Request",
+      `Hello ${foundUser.username},\n\nWe received a request to change your secret password.\n\nPlease click the link below to enter your new credentials securely:\n\n[Action: ResetPassword; token=${token}]`,
+      "auth"
+    );
+
+    addSystemLog(`Password Reset Issued (${emailInput})`, "Success");
+    return { success: true };
   };
 
   const handleResetPasswordWithToken = (token: string, newPass: string) => {
@@ -787,96 +548,134 @@ export default function App() {
     return { success: true };
   };
 
+  const handleSendEmailOtp = (recipientEmail: string, otp: string) => {
+    triggerOutboundEmail(
+      recipientEmail,
+      "Your Secure Kaviyam OTP Verification Code",
+      `Hello,
 
+Your requested 4-digit security verification OTP code is:
 
-  const handleGoogleLogin = async () => {
-    try {
-      const provider = new GoogleAuthProvider();
-      // Configure prompt to select account on every click
-      provider.setCustomParameters({
-        prompt: "select_account"
-      });
+👉  ${otp}  👈
 
-      const result = await signInWithPopup(auth, provider);
-      const firebaseUser = result.user;
-      const googleEmail = firebaseUser.email;
-      const googleName = firebaseUser.displayName || "Google Reader";
+Please enter this code in the login screen to authorize access to your account. This code is active for a single session.
 
-      if (!googleEmail) {
-        throw new Error("Failed to retrieve your email address from the authenticated Google account.");
-      }
+Best regards,
+The Kaviyam Security Node`,
+      "auth"
+    );
+    addSystemLog(`Email OTP Dispatched to ${recipientEmail}`, "Success");
+  };
 
-      // STRICT SECURITY POLICY: Only allow rajaboopathi1021@gmail.com
-      const allowedEmails = ["rajaboopathi1021@gmail.com"];
-      if (!allowedEmails.includes(googleEmail.toLowerCase())) {
-        addSystemLog(`Google Sign-In Blocked (Unauthorized email: ${googleEmail})`, "Blocked");
-        await signOut(auth); // Sign out of Firebase as well so they aren't authenticated
-        alert(`Access Denied: This application and its secure SMTP integrations are strictly restricted to rajaboopathi1021@gmail.com. Other mail addresses are not granted access.`);
-        return;
-      }
+  const handleEmailOtpLogin = (emailAddress: string) => {
+    let foundUser = users.find((u) => u.email.toLowerCase() === emailAddress.toLowerCase());
 
-      let foundUser = users.find((u) => u.email.toLowerCase() === googleEmail.toLowerCase());
-
-      if (!foundUser) {
+    if (!foundUser) {
+      const generatedUsername = emailAddress.split("@")[0] || `Patron-${Date.now().toString().slice(-4)}`;
+      foundUser = {
+        id: `email-otp-${Date.now()}`,
+        email: emailAddress,
+        username: generatedUsername,
+        isVerified: true,
+        profile: {
+          username: generatedUsername,
+          bio: "Patron reader authorized via secure email OTP authentication.",
+          profilePhoto: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100",
+          phoneNumber: "",
+          dob: "2000-01-01",
+          gender: "Not Specified",
+          privacy: { publicBookshelf: true, showActivity: true }
+        },
+        security: { is2FAEnabled: false, isBlocked: false, loginAttempts: 0 },
+        createdAt: new Date().toISOString()
+      };
+      saveUsers([...users, foundUser]);
+    } else {
+      // If user exists and has blocked status or failed attempts, reset them on successful OTP verification
+      if (!foundUser.isVerified || foundUser.security.isBlocked || foundUser.security.loginAttempts > 0) {
         foundUser = {
-          id: firebaseUser.uid,
-          email: googleEmail.toLowerCase(),
-          username: googleName,
-          isVerified: firebaseUser.emailVerified,
-          profile: {
-            username: googleName,
-            bio: "Avid reader signed in securely via Google Authentication.",
-            profilePhoto: firebaseUser.photoURL || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100",
-            phoneNumber: firebaseUser.phoneNumber || "",
-            dob: "2000-01-01",
-            gender: "Not Specified",
-            privacy: { publicBookshelf: true, showActivity: true }
-          },
+          ...foundUser,
+          isVerified: true,
           security: {
-            is2FAEnabled: false,
-            loginAttempts: 0,
+            ...foundUser.security,
             isBlocked: false,
-            lastActive: new Date().toLocaleTimeString(),
-            securityQuestions: []
-          },
-          createdAt: new Date().toISOString()
+            loginAttempts: 0
+          }
         };
-        
-        const updatedUsersList = [...users, foundUser];
+        const updatedUsersList = users.map((u) => 
+          u.email.toLowerCase() === emailAddress.toLowerCase() 
+            ? { ...u, isVerified: true, security: { ...u.security, isBlocked: false, loginAttempts: 0 } } 
+            : u
+        );
         saveUsers(updatedUsersList);
-      } else {
-        // If user is already registered but blocked/unverified, unblock them on successful Google Authentication
-        if (!foundUser.isVerified || foundUser.security.isBlocked || foundUser.security.loginAttempts > 0) {
-          foundUser = {
-            ...foundUser,
-            isVerified: true,
-            security: {
-              ...foundUser.security,
-              isBlocked: false,
-              loginAttempts: 0
-            }
-          };
-          const updatedUsersList = users.map((u) => 
-            u.email.toLowerCase() === googleEmail.toLowerCase()
-              ? { ...u, isVerified: true, security: { ...u.security, isBlocked: false, loginAttempts: 0 } }
-              : u
-          );
-          saveUsers(updatedUsersList);
-        }
-      }
-
-      setCurrentUser(foundUser);
-      setActiveTab("library");
-      setIsGuestMode(false);
-      addSystemLog(`Google Sign-In Success via Firebase Auth (${googleEmail})`, "Success");
-    } catch (err: any) {
-      addSystemLog(`Google Sign-In Failed: ${err?.message || err}`, "Failed");
-      if (err?.code === "auth/popup-blocked" || err?.code === "auth/iframe-userAgent-redirect" || err?.code === "auth/popup-closed-by-user") {
-        alert("Sign-in popup was blocked, closed, or unsupported inside this sandbox iframe. Please open the app in a new browser tab or verify browser popups are allowed, or continue with standard email & password login.");
-      } else if (err?.message) {
-        alert("Google Sign-In Error: " + err.message);
       }
     }
+
+    setCurrentUser(foundUser);
+    setActiveTab("library");
+    setIsGuestMode(false);
+    addSystemLog(`Email OTP Auth Success (${emailAddress})`, "Success");
+  };
+
+  const handleGoogleLogin = () => {
+    // Simulated Google Sign-In with your real email address
+    const googleEmail = "rajaboopathi1021@gmail.com";
+    const googleName = "Rajaboopathi";
+    
+    let foundUser = users.find((u) => u.email.toLowerCase() === googleEmail.toLowerCase());
+
+    if (!foundUser) {
+      foundUser = {
+        id: `google-${Date.now()}`,
+        email: googleEmail,
+        username: googleName,
+        isVerified: true,
+        profile: {
+          username: googleName,
+          bio: "Avid reader signed in securely via Google Authentication.",
+          profilePhoto: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100",
+          phoneNumber: "",
+          dob: "2000-01-01",
+          gender: "Male",
+          privacy: { publicBookshelf: true, showActivity: true }
+        },
+        security: {
+          is2FAEnabled: false,
+          loginAttempts: 0,
+          isBlocked: false,
+          lastActive: new Date().toLocaleTimeString(),
+          securityQuestions: []
+        },
+        createdAt: new Date().toISOString()
+      };
+      
+      const updatedUsersList = [...users, foundUser];
+      saveUsers(updatedUsersList);
+    } else {
+      // If user is already registered but blocked/unverified, unblock them on successful Google Authentication
+      if (!foundUser.isVerified || foundUser.security.isBlocked || foundUser.security.loginAttempts > 0) {
+        foundUser = {
+          ...foundUser,
+          isVerified: true,
+          security: {
+            ...foundUser.security,
+            isBlocked: false,
+            loginAttempts: 0
+          }
+        };
+        const updatedUsersList = users.map((u) => 
+          u.email.toLowerCase() === googleEmail.toLowerCase()
+            ? { ...u, isVerified: true, security: { ...u.security, isBlocked: false, loginAttempts: 0 } }
+            : u
+        );
+        saveUsers(updatedUsersList);
+      }
+    }
+
+    setCurrentUser(foundUser);
+    setActiveTab("library");
+    setIsGuestMode(false);
+    addSystemLog(`Google Sign-In Success (${googleEmail})`, "Success");
   };
 
   const handleGuestLogin = () => {
@@ -1062,17 +861,12 @@ export default function App() {
     saveBookmarks(updatedBms);
   };
 
-  const handleAddCustomBook = async (newBook: Book) => {
+  const handleAddCustomBook = (newBook: Book) => {
     const updatedBooksList = [...books, newBook];
     saveBooks(updatedBooksList);
-    try {
-      await setDoc(doc(db, "books", newBook.id), newBook);
-    } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, `books/${newBook.id}`);
-    }
   };
 
-  const handleAddReview = async (bookId: string, ratingValue: number, commentText: string) => {
+  const handleAddReview = (bookId: string, ratingValue: number, commentText: string) => {
     if (!currentUser) return;
 
     const bookIdx = books.findIndex((b) => b.id === bookId);
@@ -1093,24 +887,16 @@ export default function App() {
       const sumRatings = updatedReviews.reduce((acc, curr) => acc + curr.rating, 0);
       const avg = sumRatings / updatedReviews.length;
 
-      const updatedBook: Book = {
+      const updatedBooksList = [...books];
+      updatedBooksList[bookIdx] = {
         ...targetBook,
         reviews: updatedReviews,
         rating: avg,
         ratingCount: updatedReviews.length
       };
 
-      const updatedBooksList = [...books];
-      updatedBooksList[bookIdx] = updatedBook;
-
       saveBooks(updatedBooksList);
       addSystemLog(`Submitted Novel Review (Book: ${targetBook.title})`, "Success");
-
-      try {
-        await setDoc(doc(db, "books", bookId), updatedBook);
-      } catch (error) {
-        handleFirestoreError(error, OperationType.WRITE, `books/${bookId}`);
-      }
     }
   };
 
@@ -1416,6 +1202,8 @@ export default function App() {
                     resetToken={resetToken}
                     setResetToken={setResetToken}
                     addSystemLog={addSystemLog}
+                    onEmailOtpLogin={handleEmailOtpLogin}
+                    onSendEmailOtp={handleSendEmailOtp}
                     onGoogleLogin={handleGoogleLogin}
                     onGuestLogin={handleGuestLogin}
                     isDarkMode={isDarkMode}
@@ -1474,6 +1262,8 @@ export default function App() {
                         resetToken={resetToken}
                         setResetToken={setResetToken}
                         addSystemLog={addSystemLog}
+                        onEmailOtpLogin={handleEmailOtpLogin}
+                        onSendEmailOtp={handleSendEmailOtp}
                         onGoogleLogin={handleGoogleLogin}
                         onGuestLogin={handleGuestLogin}
                         isDarkMode={isDarkMode}
@@ -1491,23 +1281,13 @@ export default function App() {
               >
                 <EmailInbox
                   emails={emails}
-                  onReadEmail={async (id) => {
+                  onReadEmail={(id) => {
                     const updated = emails.map((m) => (m.id === id ? { ...m, read: true } : m));
                     saveEmails(updated);
-                    try {
-                      await updateDoc(doc(db, "emails", id), { read: true });
-                    } catch (error) {
-                      handleFirestoreError(error, OperationType.UPDATE, `emails/${id}`);
-                    }
                   }}
-                  onDeleteEmail={async (id) => {
+                  onDeleteEmail={(id) => {
                     const remaining = emails.filter((m) => m.id !== id);
                     saveEmails(remaining);
-                    try {
-                      await deleteDoc(doc(db, "emails", id));
-                    } catch (error) {
-                      handleFirestoreError(error, OperationType.DELETE, `emails/${id}`);
-                    }
                   }}
                   onTriggerLink={handleTriggerEmailActionLink}
                 />

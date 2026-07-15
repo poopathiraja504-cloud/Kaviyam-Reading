@@ -20,8 +20,6 @@
         "./*"
       ]
     },
-    "resolveJsonModule": true,
-    "allowSyntheticDefaultImports": true,
     "allowImportingTsExtensions": true,
     "noEmit": true
   }
