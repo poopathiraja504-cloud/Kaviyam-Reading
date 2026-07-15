@@ -844,11 +844,7 @@ export default function App() {
       addSystemLog(`Google Sign-In Success via Firebase Auth (${googleEmail})`, "Success");
     } catch (err: any) {
       addSystemLog(`Google Sign-In Failed: ${err?.message || err}`, "Failed");
-      if (err?.code === "auth/popup-blocked" || err?.code === "auth/iframe-userAgent-redirect" || err?.code === "auth/popup-closed-by-user") {
-        alert("Sign-in popup was blocked, closed, or unsupported inside this sandbox iframe. Please open the app in a new browser tab or verify browser popups are allowed, or continue with standard email & password login.");
-      } else if (err?.message) {
-        alert("Google Sign-In Error: " + err.message);
-      }
+      throw err;
     }
   };
 

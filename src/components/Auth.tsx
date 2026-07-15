@@ -16,7 +16,7 @@ interface AuthProps {
   onEmailOtpLogin?: (email: string) => void;
   onSendEmailOtp?: (email: string, otp: string) => void;
   onGuestLogin?: () => void;
-  onGoogleLogin?: () => void;
+  onGoogleLogin?: () => Promise<void> | void;
   isDarkMode?: boolean;
 }
 
@@ -48,12 +48,40 @@ export default function Auth({
   const [otpCode, setOtpCode] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [showGoogleConfigHelp, setShowGoogleConfigHelp] = useState(false);
 
   useEffect(() => {
     if (resetToken) {
       setView("reset");
     }
   }, [resetToken]);
+
+  const handleGoogleLoginClick = async () => {
+    if (!onGoogleLogin) return;
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    setShowGoogleConfigHelp(false);
+    try {
+      await onGoogleLogin();
+    } catch (err: any) {
+      console.error("Google login error in Auth.tsx:", err);
+      const code = err?.code || "";
+      const message = err?.message || String(err);
+      
+      if (code === "auth/internal-error" || message.includes("auth/internal-error") || message.includes("internal-error")) {
+        setErrorMsg(
+          "Firebase Google Sign-In Error (auth/internal-error). Google Authentication is not enabled or authorized for this custom domain in the Firebase console."
+        );
+        setShowGoogleConfigHelp(true);
+      } else if (code === "auth/popup-blocked" || code === "auth/popup-closed-by-user" || message.includes("popup")) {
+        setErrorMsg(
+          "Google Sign-In popup was blocked, closed, or is unsupported in this sandboxed iframe. Please open the app in a new browser tab or verify browser popups are allowed, or continue with standard email & password login."
+        );
+      } else {
+        setErrorMsg("Google Sign-In Error: " + message);
+      }
+    }
+  };
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -207,7 +235,55 @@ export default function Auth({
       {errorMsg && (
         <div className="mb-4 p-3.5 bg-red-50 border border-red-100 text-red-700 text-[11px] rounded-xl flex items-start gap-2 animate-shake" id="auth-error-banner">
           <AlertTriangle size={14} className="mt-0.5 flex-shrink-0 text-red-500" />
-          <span className="leading-relaxed">{errorMsg}</span>
+          <div className="flex-1">
+            <span className="leading-relaxed block whitespace-pre-line font-medium">{errorMsg}</span>
+            {showGoogleConfigHelp && (
+              <div className="mt-3.5 p-3.5 bg-white border border-stone-200 text-stone-800 rounded-lg text-[10px] space-y-2.5 shadow-sm">
+                <p className="font-bold text-red-600 flex items-center gap-1.5">
+                  🛠️ Step-by-Step Fix for Your Firebase Project:
+                </p>
+                
+                <div className="space-y-2 font-sans text-stone-750">
+                  <div className="flex gap-2">
+                    <span className="font-bold text-[#bfa030] flex-shrink-0">1.</span>
+                    <span>
+                      Go to the <strong>Firebase Console</strong> for your project:<br/>
+                      <code className="bg-stone-100 text-stone-800 px-1 py-0.5 rounded select-all font-mono font-bold block mt-0.5">ai-studio-novalreading-3ea26efa-f5b4-4412-8fcf-e35e298695c2</code>
+                    </span>
+                  </div>
+                  
+                  <div className="flex gap-2 border-t pt-2 border-stone-100">
+                    <span className="font-bold text-[#bfa030] flex-shrink-0">2.</span>
+                    <span>
+                      Enable Google Sign-In:<br/>
+                      Go to <strong>Authentication</strong> &rarr; <strong>Sign-in method</strong> &rarr; click <strong>Add new provider</strong> &rarr; select <strong>Google</strong> &rarr; Toggle <strong>Enable</strong> and click Save.
+                    </span>
+                  </div>
+                  
+                  <div className="flex gap-2 border-t pt-2 border-stone-100">
+                    <span className="font-bold text-[#bfa030] flex-shrink-0">3.</span>
+                    <span>
+                      Authorize Your Netlify Domain:<br/>
+                      In <strong>Authentication</strong> &rarr; click the <strong>Settings</strong> tab &rarr; select <strong>Authorized domains</strong> &rarr; click <strong>Add domain</strong> and add:
+                      <br/>
+                      <code className="bg-stone-100 text-red-600 px-1 py-0.5 rounded font-mono select-all font-bold block mt-0.5">kaviyam-reading.netlify.app</code>
+                    </span>
+                  </div>
+
+                  <div className="flex gap-2 border-t pt-2 border-stone-100">
+                    <span className="font-bold text-[#bfa030] flex-shrink-0">4.</span>
+                    <span>
+                      Configure OAuth Consent Screen under API & Services in Google Cloud Console with external user support.
+                    </span>
+                  </div>
+                </div>
+
+                <div className="bg-stone-50 p-2.5 rounded border border-stone-150 text-[9.5px] text-stone-600 leading-relaxed">
+                  <strong>💡 Instant Fallback:</strong> While configuring Firebase, you can immediately log in using standard credentials below (e.g. <code className="font-bold">reader@kaviyam.com</code> with password <code className="font-bold">reader</code>) or register a new reader account!
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -307,7 +383,7 @@ export default function Auth({
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
-                onClick={onGoogleLogin}
+                onClick={handleGoogleLoginClick}
                 className={`flex items-center justify-center gap-1.5 py-2.5 px-3 border rounded-xl font-bold transition duration-200 text-xs shadow-sm ${
                   isDarkMode 
                     ? "border-stone-800 bg-stone-900/40 text-stone-200 hover:bg-stone-850" 
