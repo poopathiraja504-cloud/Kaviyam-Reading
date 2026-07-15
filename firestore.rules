@@ -5,6 +5,11 @@ service cloud.firestore {
     match /{document=**} {
       allow read, write: if false;
     }
+
+    // Test collection rule for connection checks
+    match /test/{id} {
+      allow get: if true;
+    }
     
     // Shared Secure Helper Primitives
     function isSignedIn() {
