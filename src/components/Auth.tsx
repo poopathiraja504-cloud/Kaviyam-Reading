@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { User } from "../types";
 import { Shield, Key, Mail, Lock, User as UserIcon, HelpCircle, Eye, EyeOff, AlertTriangle, CheckCircle, Smartphone } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import LiquidOTP from "./LiquidOTP";
 
 interface AuthProps {
   currentUser: User | null;
@@ -648,19 +649,12 @@ export default function Auth({
             className="space-y-4 text-xs"
           >
             <div>
-              <label className="block font-bold text-stone-600 mb-1.5">2FA Security OTP Code</label>
-              <div className="relative">
-                <Key size={15} className="absolute left-3 top-3 text-stone-400" />
-                <input
-                  type="text"
-                  required
-                  placeholder="Enter 6-digit OTP code"
-                  value={otpCode}
-                  onChange={(e) => setOtpCode(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-stone-200 rounded-xl bg-stone-50/50 text-stone-800 placeholder-stone-400 focus:outline-none focus:border-stone-400 tracking-widest text-center font-mono font-extrabold text-sm"
-                  id="2fa-otp-input"
-                />
-              </div>
+              <label className="block font-bold text-stone-600 mb-1.5 text-center">2FA Security OTP Code</label>
+              <LiquidOTP
+                value={otpCode}
+                onChange={setOtpCode}
+                isDarkMode={isDarkMode}
+              />
             </div>
 
             <button

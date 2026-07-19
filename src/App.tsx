@@ -348,8 +348,17 @@ export default function App() {
           fetchedBms.push(docSnap.id);
         });
         setBookmarks(fetchedBms);
+        localStorage.setItem("kaviyam_bookmarks", JSON.stringify(fetchedBms));
       } catch (error) {
-        handleFirestoreError(error, OperationType.LIST, `users/${currentUser.id}/bookmarks`);
+        console.error("Failed to fetch bookmarks from Firestore, using local fallback:", error);
+        const cachedBookmarks = localStorage.getItem("kaviyam_bookmarks");
+        if (cachedBookmarks) {
+          try {
+            setBookmarks(JSON.parse(cachedBookmarks));
+          } catch (e) {
+            setBookmarks([]);
+          }
+        }
       }
     };
 
