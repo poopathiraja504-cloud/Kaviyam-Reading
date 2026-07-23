@@ -16,6 +16,8 @@ interface AuthProps {
   addSystemLog: (action: string, status: "Success" | "Failed" | "Blocked") => void;
   onEmailOtpLogin?: (email: string) => void;
   onSendEmailOtp?: (email: string, otp: string) => void;
+  onPhoneLogin?: (phone: string, otp: string) => Promise<{ success: boolean; error?: string }> | { success: boolean; error?: string };
+  onSendPhoneOtp?: (phone: string) => Promise<{ success: boolean; otp?: string; error?: string }> | { success: boolean; otp?: string; error?: string };
   onGuestLogin?: () => void;
   onGoogleLogin?: () => Promise<void> | void;
   isDarkMode?: boolean;
@@ -33,11 +35,13 @@ export default function Auth({
   addSystemLog,
   onEmailOtpLogin,
   onSendEmailOtp,
+  onPhoneLogin,
+  onSendPhoneOtp,
   onGuestLogin,
   onGoogleLogin,
   isDarkMode = false,
 }: AuthProps) {
-  const [view, setView] = useState<"login" | "register" | "forgot" | "reset" | "require2FA">("login");
+  const [view, setView] = useState<"login" | "phoneLogin" | "register" | "forgot" | "reset" | "require2FA">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [registerPassword, setRegisterPassword] = useState("");
@@ -50,6 +54,25 @@ export default function Auth({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [showGoogleConfigHelp, setShowGoogleConfigHelp] = useState(false);
+
+  // Phone Login State
+  const [phoneCountryCode, setPhoneCountryCode] = useState("+1");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [phoneStep, setPhoneStep] = useState<"enterPhone" | "verifyOtp">("enterPhone");
+  const [phoneOtp, setPhoneOtp] = useState("");
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [phoneCountdown, setPhoneCountdown] = useState(0);
+
+  const fullPhoneNumber = `${phoneCountryCode} ${phoneNumber.trim()}`;
+
+  useEffect(() => {
+    if (phoneCountdown <= 0) return;
+    const timer = setInterval(() => {
+      setPhoneCountdown((prev) => prev - 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [phoneCountdown]);
 
   useEffect(() => {
     if (resetToken) {
@@ -65,21 +88,21 @@ export default function Auth({
     try {
       await onGoogleLogin();
     } catch (err: any) {
-      console.error("Google login error in Auth.tsx:", err);
+      console.warn("Google login prompt or initialization status:", err);
       const code = err?.code || "";
       const message = err?.message || String(err);
       
       if (code === "auth/internal-error" || message.includes("auth/internal-error") || message.includes("internal-error")) {
         setErrorMsg(
-          "Firebase Google Sign-In Error (auth/internal-error). Google Authentication is not enabled or authorized for this custom domain in the Firebase console."
+          "Firebase Google Sign-In Status: Google Authentication provider needs to be enabled in your Firebase project console."
         );
         setShowGoogleConfigHelp(true);
       } else if (code === "auth/popup-blocked" || code === "auth/popup-closed-by-user" || message.includes("popup")) {
         setErrorMsg(
-          "Google Sign-In popup was blocked, closed, or is unsupported in this sandboxed iframe. Please open the app in a new browser tab or verify browser popups are allowed, or continue with standard email & password login."
+          "Google Sign-In popup was closed or unhandled in this environment. Please open the app in a new tab or log in with standard credentials below."
         );
       } else {
-        setErrorMsg("Google Sign-In Error: " + message);
+        setErrorMsg("Google Sign-In Notice: " + message);
       }
     }
   };
@@ -101,6 +124,80 @@ export default function Auth({
       }
     } catch (err: any) {
       setErrorMsg(err?.message || "An unexpected error occurred during login.");
+    }
+  };
+
+  const handleSendPhoneOtpSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    if (!phoneNumber.trim() || phoneNumber.trim().length < 5) {
+      setErrorMsg("Please enter a valid phone number.");
+      return;
+    }
+
+    setIsSendingOtp(true);
+    try {
+      if (onSendPhoneOtp) {
+        const res = await onSendPhoneOtp(fullPhoneNumber);
+        if (res.success) {
+          setPhoneStep("verifyOtp");
+          setPhoneCountdown(30);
+          setSuccessMsg(`📱 Verification code dispatched to ${fullPhoneNumber}! (Code: ${res.otp || "Check Inbox/Logs"})`);
+        } else {
+          setErrorMsg(res.error || "Failed to send SMS verification code.");
+        }
+      } else {
+        setPhoneStep("verifyOtp");
+        setPhoneCountdown(30);
+        setSuccessMsg(`📱 Verification code dispatched to ${fullPhoneNumber}!`);
+      }
+    } catch (err: any) {
+      setErrorMsg(err?.message || "Error sending phone verification code.");
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  const handleResendPhoneOtp = async () => {
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    if (onSendPhoneOtp) {
+      const res = await onSendPhoneOtp(fullPhoneNumber);
+      if (res.success) {
+        setPhoneCountdown(30);
+        setSuccessMsg(`📱 Resent verification code to ${fullPhoneNumber}! (Code: ${res.otp || "Check Inbox/Logs"})`);
+      } else {
+        setErrorMsg(res.error || "Failed to resend OTP.");
+      }
+    }
+  };
+
+  const handleVerifyPhoneOtpSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    if (phoneOtp.length < 6) {
+      setErrorMsg("Please enter the complete 6-digit OTP code.");
+      return;
+    }
+
+    setIsVerifyingOtp(true);
+    try {
+      if (onPhoneLogin) {
+        const res = await onPhoneLogin(fullPhoneNumber, phoneOtp);
+        if (res.success) {
+          setSuccessMsg("Phone authorization confirmed! Redirecting...");
+        } else {
+          setErrorMsg(res.error || "Invalid verification OTP code.");
+        }
+      }
+    } catch (err: any) {
+      setErrorMsg(err?.message || "Error verifying phone authorization.");
+    } finally {
+      setIsVerifyingOtp(false);
     }
   };
 
@@ -209,6 +306,7 @@ export default function Auth({
         </div>
         <h2 className={`font-serif text-xl font-extrabold ${isDarkMode ? "text-stone-100" : "text-stone-800"}`}>
           {view === "login" && "Authorize Credentials"}
+          {view === "phoneLogin" && "Phone Number Sign-In"}
           {view === "register" && "Synthesize Profile"}
           {view === "forgot" && "Recover Account"}
           {view === "reset" && "Set Secure Password"}
@@ -216,6 +314,7 @@ export default function Auth({
         </h2>
         <p className={`text-xs mt-1 leading-relaxed ${isDarkMode ? "text-stone-400" : "text-stone-500"}`}>
           {view === "login" && "Sign in to access your custom bookshelves and bookmarks."}
+          {view === "phoneLogin" && "Sign in securely via SMS mobile phone verification code."}
           {view === "register" && "Register to review books, track history, and write stories with Gemini."}
           {view === "forgot" && "We will dispatch a recovery packet to your Simulated Mailbox."}
           {view === "reset" && "Establish a robust password combination to secure your credentials."}
@@ -226,12 +325,46 @@ export default function Auth({
         <div className={`mt-3 p-2.5 rounded-xl border flex items-start gap-2 text-[10px] leading-relaxed ${
           isDarkMode ? "bg-stone-900 border-stone-800 text-stone-300" : "bg-emerald-50 border-emerald-200 text-emerald-900"
         }`}>
-          <span className="font-bold flex-shrink-0">🚀 OPEN REGISTRATION:</span>
+          <span className="font-bold flex-shrink-0">🚀 OPEN ACCESS:</span>
           <span>
-            All email addresses are authorized to log in, register, and read books.
+            {view === "phoneLogin" 
+              ? "All active phone numbers can request and verify SMS verification codes." 
+              : "All email addresses are authorized to log in, register, and read books."}
           </span>
         </div>
       </div>
+
+      {/* Login Mode Switcher Tabs */}
+      {(view === "login" || view === "phoneLogin") && (
+        <div className={`flex rounded-xl p-1 mb-4 border ${isDarkMode ? "bg-stone-900/80 border-stone-800" : "bg-stone-100/80 border-stone-200"}`}>
+          <button
+            type="button"
+            onClick={() => { setErrorMsg(null); setSuccessMsg(null); setView("login"); }}
+            className={`flex-1 py-1.5 px-3 rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 transition-all ${
+              view === "login"
+                ? "bg-[#bfa030] text-black shadow-sm"
+                : isDarkMode ? "text-stone-400 hover:text-stone-200" : "text-stone-600 hover:text-stone-900"
+            }`}
+            id="tab-login-email"
+          >
+            <Mail size={13} />
+            Email & Pass
+          </button>
+          <button
+            type="button"
+            onClick={() => { setErrorMsg(null); setSuccessMsg(null); setView("phoneLogin"); }}
+            className={`flex-1 py-1.5 px-3 rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 transition-all ${
+              view === "phoneLogin"
+                ? "bg-[#bfa030] text-black shadow-sm"
+                : isDarkMode ? "text-stone-400 hover:text-stone-200" : "text-stone-600 hover:text-stone-900"
+            }`}
+            id="tab-login-phone"
+          >
+            <Smartphone size={13} />
+            Phone Number
+          </button>
+        </div>
+      )}
 
       {errorMsg && (
         <div className="mb-4 p-3.5 bg-red-50 border border-red-100 text-red-700 text-[11px] rounded-xl flex items-start gap-2 animate-shake" id="auth-error-banner">
@@ -440,6 +573,186 @@ export default function Auth({
               </button>
             </p>
           </motion.form>
+        )}
+
+        {view === "phoneLogin" && (
+          <motion.div
+            key="phone-login-form"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="space-y-4 text-xs"
+          >
+            {phoneStep === "enterPhone" ? (
+              <form onSubmit={handleSendPhoneOtpSubmit} className="space-y-4">
+                <div>
+                  <label className={`block font-bold mb-1.5 ${isDarkMode ? "text-stone-300" : "text-stone-600"}`}>
+                    Mobile Phone Number
+                  </label>
+                  <div className="flex gap-2">
+                    <select
+                      value={phoneCountryCode}
+                      onChange={(e) => setPhoneCountryCode(e.target.value)}
+                      className={`py-2 px-2.5 border rounded-xl font-bold focus:outline-none transition-all text-xs cursor-pointer ${
+                        isDarkMode
+                          ? "border-stone-800 bg-stone-900/60 text-stone-100"
+                          : "border-stone-200 bg-stone-50/50 text-stone-800"
+                      }`}
+                      id="phone-country-select"
+                    >
+                      <option value="+1">🇺🇸 +1 (US/CA)</option>
+                      <option value="+91">🇮🇳 +91 (India)</option>
+                      <option value="+44">🇬🇧 +44 (UK)</option>
+                      <option value="+61">🇦🇺 +61 (Aus)</option>
+                      <option value="+81">🇯🇵 +81 (Japan)</option>
+                      <option value="+49">🇩🇪 +49 (Germany)</option>
+                      <option value="+33">🇫🇷 +33 (France)</option>
+                      <option value="+65">🇸🇬 +65 (SG)</option>
+                      <option value="+971">🇦🇪 +971 (UAE)</option>
+                    </select>
+                    <div className="relative flex-1">
+                      <Smartphone size={15} className="absolute left-3 top-3 text-stone-400" />
+                      <input
+                        type="tel"
+                        required
+                        placeholder="555 019 2834"
+                        value={phoneNumber}
+                        onChange={(e) => setPhoneNumber(e.target.value)}
+                        className={`w-full pl-10 pr-4 py-2 border rounded-xl focus:outline-none transition-all text-xs ${
+                          isDarkMode
+                            ? "border-stone-800 bg-stone-900/60 text-stone-100 placeholder-stone-500 focus:border-stone-700"
+                            : "border-stone-200 bg-stone-50/50 text-stone-800 placeholder-stone-400 focus:border-stone-400"
+                        }`}
+                        id="phone-number-input"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-stone-500 mt-1.5 leading-relaxed">
+                    We will dispatch a 6-digit SMS verification code to authorize your account.
+                  </p>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isSendingOtp}
+                  className="w-full bg-[#bfa030] hover:bg-[#a38725] text-black font-extrabold py-2.5 rounded-xl transition shadow-sm flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+                  id="send-phone-otp-btn"
+                >
+                  <Smartphone size={14} />
+                  {isSendingOtp ? "Dispatching SMS OTP..." : "Send Verification OTP"}
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleVerifyPhoneOtpSubmit} className="space-y-4">
+                <div className={`text-center p-3 rounded-2xl border ${
+                  isDarkMode ? "bg-stone-900/60 border-stone-800" : "bg-stone-50 border-stone-200"
+                }`}>
+                  <p className="text-[10px] text-stone-500 font-bold uppercase tracking-wider">SMS Code Sent To</p>
+                  <p className="font-extrabold text-sm text-[#bfa030] mt-0.5">{fullPhoneNumber}</p>
+                  <button
+                    type="button"
+                    onClick={() => { setPhoneStep("enterPhone"); setPhoneOtp(""); setErrorMsg(null); }}
+                    className="text-[10px] text-stone-400 hover:text-[#bfa030] underline mt-1 font-bold cursor-pointer"
+                  >
+                    Change Phone Number
+                  </button>
+                </div>
+
+                <div>
+                  <label className={`block font-bold text-center mb-2.5 ${isDarkMode ? "text-stone-300" : "text-stone-600"}`}>
+                    Enter 6-Digit SMS Verification Code
+                  </label>
+                  <LiquidOTP
+                    value={phoneOtp}
+                    onChange={(val) => setPhoneOtp(val)}
+                    isDarkMode={isDarkMode}
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={phoneOtp.length < 6 || isVerifyingOtp}
+                  className="w-full bg-[#bfa030] hover:bg-[#a38725] text-black font-extrabold py-2.5 rounded-xl transition shadow-sm disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
+                  id="verify-phone-otp-btn"
+                >
+                  <CheckCircle size={15} />
+                  {isVerifyingOtp ? "Verifying Token..." : "Verify & Sign In"}
+                </button>
+
+                <div className="flex justify-between items-center text-[11px] text-stone-500 pt-1">
+                  <span>Didn't receive SMS?</span>
+                  {phoneCountdown > 0 ? (
+                    <span className="font-mono text-[#bfa030] font-bold">Resend in {phoneCountdown}s</span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleResendPhoneOtp}
+                      className="text-[#bfa030] hover:underline font-bold cursor-pointer"
+                    >
+                      Resend SMS OTP
+                    </button>
+                  )}
+                </div>
+              </form>
+            )}
+
+            {/* Divider */}
+            <div className="relative my-4 flex items-center justify-center">
+              <div className="absolute inset-x-0 h-px bg-stone-200 dark:bg-stone-800" />
+              <span className={`relative px-3 text-[10px] font-bold uppercase tracking-wider ${
+                isDarkMode ? "bg-[#1c1a16] text-stone-500" : "bg-white text-stone-400"
+              }`}>
+                or continue with
+              </span>
+            </div>
+
+            {/* Google and Guest Auth Option Buttons */}
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={handleGoogleLoginClick}
+                className={`flex items-center justify-center gap-1.5 py-2.5 px-3 border rounded-xl font-bold transition duration-200 text-xs shadow-sm ${
+                  isDarkMode 
+                    ? "border-stone-800 bg-stone-900/40 text-stone-200 hover:bg-stone-850" 
+                    : "border-stone-200 bg-white text-stone-700 hover:bg-stone-50"
+                }`}
+                id="phone-google-signin-btn"
+              >
+                <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                </svg>
+                <span className="truncate">Google</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={onGuestLogin}
+                className={`flex items-center justify-center gap-1.5 py-2.5 px-3 border rounded-xl font-bold transition duration-200 text-xs shadow-sm ${
+                  isDarkMode 
+                    ? "border-stone-800 bg-stone-900/40 text-stone-200 hover:bg-stone-850" 
+                    : "border-stone-200 bg-white text-stone-700 hover:bg-stone-50"
+                }`}
+                id="phone-guest-signin-btn"
+              >
+                <UserIcon size={14} className="text-stone-400 flex-shrink-0" />
+                <span className="truncate">Guest Mode</span>
+              </button>
+            </div>
+
+            <p className="text-center text-stone-500 mt-4 text-[11px]">
+              Don't have an account?{" "}
+              <button
+                type="button"
+                onClick={() => setView("register")}
+                className="text-[#bfa030] hover:underline font-extrabold cursor-pointer"
+              >
+                Synthesize Profile
+              </button>
+            </p>
+          </motion.div>
         )}
 
         {view === "register" && (
