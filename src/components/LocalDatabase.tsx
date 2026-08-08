@@ -207,90 +207,35 @@ export default function LocalDatabase() {
           <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center mx-auto text-amber-600">
             <Database size={22} className="animate-pulse" />
           </div>
-          <h1 className="font-serif text-2xl font-bold text-stone-800">Local Database & OTP</h1>
+          <h1 className="font-serif text-2xl font-bold text-stone-800">Reading Journal & Notes</h1>
           <p className="text-stone-500 text-xs leading-relaxed max-w-sm mx-auto">
-            Manage high-speed reading journals and inspect production-grade Java OTP or HTML gateway codes.
+            Manage your personal reading notes, highlights, and journal entries.
           </p>
         </div>
 
         {/* Database Mode Switcher */}
-        <div className="bg-stone-50 p-1 rounded-2xl border border-stone-200/60 grid grid-cols-2 sm:grid-cols-7 gap-1 text-[9px] sm:text-xs">
+        <div className="bg-stone-50 p-1 rounded-2xl border border-stone-200/60 grid grid-cols-2 gap-1 text-xs max-w-xs mx-auto">
           <button
             onClick={() => setDbMode("local")}
-            className={`py-2 rounded-xl font-bold flex items-center justify-center gap-0.5 transition-all ${
+            className={`py-2 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-all ${
               dbMode === "local"
                 ? "bg-white text-stone-900 shadow-sm border border-stone-200/50"
                 : "text-stone-400 hover:text-stone-700"
             }`}
           >
-            <HardDrive size={11} />
-            <span className="truncate">Client DB</span>
+            <HardDrive size={13} />
+            <span className="truncate">Local Storage</span>
           </button>
           <button
             onClick={() => setDbMode("backend")}
-            className={`py-2 rounded-xl font-bold flex items-center justify-center gap-0.5 transition-all ${
+            className={`py-2 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-all ${
               dbMode === "backend"
                 ? "bg-stone-900 text-white shadow-sm"
                 : "text-stone-400 hover:text-stone-700"
             }`}
           >
-            <Server size={11} />
-            <span className="truncate">Server DB</span>
-          </button>
-          <button
-            onClick={() => setDbMode("java_otp")}
-            className={`py-2 rounded-xl font-bold flex items-center justify-center gap-0.5 transition-all ${
-              dbMode === "java_otp"
-                ? "bg-amber-100 text-amber-800 shadow-sm border border-amber-200/50"
-                : "text-stone-400 hover:text-stone-700"
-            }`}
-          >
-            <FileCode size={11} />
-            <span className="truncate">Java OTP</span>
-          </button>
-          <button
-            onClick={() => setDbMode("python_smtp")}
-            className={`py-2 rounded-xl font-bold flex items-center justify-center gap-0.5 transition-all ${
-              dbMode === "python_smtp"
-                ? "bg-emerald-100 text-emerald-800 shadow-sm border border-emerald-200/50"
-                : "text-stone-400 hover:text-stone-700"
-            }`}
-          >
-            <FileCode size={11} />
-            <span className="truncate">Python Mail</span>
-          </button>
-          <button
-            onClick={() => setDbMode("node_smtp")}
-            className={`py-2 rounded-xl font-bold flex items-center justify-center gap-0.5 transition-all ${
-              dbMode === "node_smtp"
-                ? "bg-blue-100 text-blue-800 shadow-sm border border-blue-200/50"
-                : "text-stone-400 hover:text-stone-700"
-            }`}
-          >
-            <FileCode size={11} />
-            <span className="truncate">Node Mail</span>
-          </button>
-          <button
-            onClick={() => setDbMode("mailercloud_api")}
-            className={`py-2 rounded-xl font-bold flex items-center justify-center gap-0.5 transition-all ${
-              dbMode === "mailercloud_api"
-                ? "bg-violet-100 text-violet-800 shadow-sm border border-violet-200/50"
-                : "text-stone-400 hover:text-stone-700"
-            }`}
-          >
-            <Sparkles size={11} />
-            <span className="truncate">Email API</span>
-          </button>
-          <button
-            onClick={() => setDbMode("html_gateway")}
-            className={`py-2 rounded-xl font-bold flex items-center justify-center gap-0.5 transition-all col-span-2 sm:col-span-1 ${
-              dbMode === "html_gateway"
-                ? "bg-indigo-100 text-indigo-800 shadow-sm border border-indigo-200/50"
-                : "text-stone-400 hover:text-stone-700"
-            }`}
-          >
-            <Sparkles size={11} />
-            <span className="truncate">HTML Portal</span>
+            <Server size={13} />
+            <span className="truncate">Cloud Sync</span>
           </button>
         </div>
 

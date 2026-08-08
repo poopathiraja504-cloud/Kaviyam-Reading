@@ -11,7 +11,6 @@ interface ReaderProps {
   onAddReview: (bookId: string, rating: number, comment: string) => void;
   downloadedBookIds?: string[];
   onToggleDownload?: (bookId: string) => void;
-  isOfflineMode?: boolean;
 }
 
 interface ChatMessage {
@@ -26,7 +25,6 @@ export default function Reader({
   onAddReview,
   downloadedBookIds = [],
   onToggleDownload = () => {},
-  isOfflineMode = false,
 }: ReaderProps) {
   const [currentChapterIdx, setCurrentChapterIdx] = useState(0);
   const [fontSize, setFontSize] = useState<"sm" | "base" | "lg" | "xl">("base");

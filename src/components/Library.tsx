@@ -1,5 +1,5 @@
 import { Book } from "../types";
-import { Search, Sparkles, Filter, Bookmark, Star, BookOpen, ChevronRight, Loader2, BookMarked, TrendingUp, Flame, Compass, History, Download, Wifi, WifiOff } from "lucide-react";
+import { Search, Sparkles, Filter, Bookmark, Star, BookOpen, ChevronRight, Loader2, BookMarked, TrendingUp, Flame, Compass, History, Download } from "lucide-react";
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import TamilDashboard from "./TamilDashboard";
@@ -13,7 +13,6 @@ interface LibraryProps {
   currentUser: any;
   downloadedBookIds?: string[];
   onToggleDownload?: (bookId: string) => void;
-  isOfflineMode?: boolean;
 }
 
 export default function Library({
@@ -25,7 +24,6 @@ export default function Library({
   currentUser,
   downloadedBookIds = [],
   onToggleDownload = () => {},
-  isOfflineMode = false,
 }: LibraryProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedGenre, setSelectedGenre] = useState("All");
@@ -782,10 +780,6 @@ export default function Library({
                     <option value="long">Long Extended Tale (Maximum Depth)</option>
                   </select>
                 </div>
-              </div>
-
-              <div className="bg-amber-50/45 border border-amber-100 rounded-xl p-4 text-[11px] text-amber-900 leading-relaxed font-sans">
-                <strong>Compiling and Structuring:</strong> Custom generation relies on the Gemini 3.5 Flash model server-side. The system will automatically build structural plots, write full literary text, and create multi-chapter divisions.
               </div>
 
               <button

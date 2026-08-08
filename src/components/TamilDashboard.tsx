@@ -267,16 +267,13 @@ export default function TamilDashboard({
               <div className="flex items-center gap-2">
                 <Search size={18} className="text-[#003366]" />
                 <h2 className="font-serif text-base font-bold text-stone-800">
-                  📖 Open Archive: Instant Book Ingestion
+                  Search & Fetch Novel
                 </h2>
               </div>
-              <span className="text-[9px] font-mono font-bold text-[#bfa030] uppercase tracking-wider bg-amber-50 px-2 py-0.5 rounded border border-amber-100">
-                No Login Required
-              </span>
             </div>
             
             <p className="text-stone-600 text-xs leading-relaxed font-serif">
-              Access the open literary archives immediately! Simply enter the specific name of any Tamil classic, contemporary, or modern novel below. The system will securely locate, translate, format, and ingest it into your offline reading tray instantly.
+              Enter the title of any Tamil classic or modern novel to add it to your reading tray instantly.
             </p>
 
             <form onSubmit={handleIngestBook} className="space-y-3 pt-1">
@@ -474,38 +471,7 @@ export default function TamilDashboard({
                 );
               })}
             </div>
-
-            <div className="p-3 bg-stone-50 border border-stone-150 rounded-xl text-[10px] text-stone-500 leading-relaxed font-serif">
-              <strong>Local Path Configuration:</strong> In your downloaded HTML collection dashboard, you can substitute `#` links with paths like <code>file:///C:/Books/Ponniyin_Selvan.pdf</code> to access hard-drive copies seamlessly.
-            </div>
           </div>
-
-          {/* Standalone Dashboard Download Card */}
-          <div className="bg-[#f0f4f8] border border-blue-100 rounded-2xl p-5 text-left space-y-3.5 shadow-sm">
-            <span className="text-[9px] font-mono font-bold text-[#003366] uppercase tracking-wider block">Standalone Asset</span>
-            <h4 className="font-serif font-bold text-xs text-stone-800">My Tamil Novel Collection Dashboard</h4>
-            <p className="text-[10px] text-stone-600 leading-relaxed font-serif">
-              You can export the original styled, self-contained HTML dashboard file to run offline directly from your computer.
-            </p>
-            <button
-              onClick={downloadHTMLDashboard}
-              className="w-full py-2 bg-[#003366] hover:bg-[#002244] text-white text-xs font-bold rounded-xl transition duration-200 flex items-center justify-center gap-1.5 shadow-sm"
-              id="download-html-dashboard-btn"
-            >
-              <Download size={13} />
-              Download Offline HTML
-            </button>
-          </div>
-
-          {/* Quick Info Box */}
-          <div className="bg-[#fdfcf7] border border-amber-100 rounded-2xl p-5 text-left space-y-2.5 shadow-sm">
-            <span className="text-[9px] font-mono font-bold text-amber-800 uppercase tracking-wider block">Platform Integration</span>
-            <h4 className="font-serif font-bold text-xs text-stone-800">Bilingual Reading Engine</h4>
-            <p className="text-[10px] text-stone-600 leading-relaxed font-serif">
-              Kaviyam Reading's built-in reader parses authentic Tamil Unicode scripts perfectly. Choose the sepia theme for an authentic historical paper feel!
-            </p>
-          </div>
-
         </div>
 
       </div>
