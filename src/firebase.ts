@@ -3,14 +3,21 @@ import { getAuth } from "firebase/auth";
 import { getFirestore, doc, getDocFromServer } from "firebase/firestore";
 import rawConfig from "../firebase-applet-config.json";
 
-// Web app's Firebase configuration with VITE_ environment variable support
+// Web app's Firebase configuration with VITE_ environment variable support and safe fallback
+const getValidConfigValue = (envVal: string | undefined, fallback: string): string => {
+  if (envVal && typeof envVal === "string" && envVal.trim() !== "" && !envVal.includes("YOUR_") && !envVal.includes("MY_")) {
+    return envVal.trim();
+  }
+  return fallback;
+};
+
 export const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || rawConfig.apiKey,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || rawConfig.authDomain,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || rawConfig.projectId,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || rawConfig.storageBucket,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || rawConfig.messagingSenderId,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || rawConfig.appId,
+  apiKey: getValidConfigValue(import.meta.env.VITE_FIREBASE_API_KEY, "AIzaSyBJ_f6R3qRYq_wpivOTc_e_e-tcVhGLP2k"),
+  authDomain: getValidConfigValue(import.meta.env.VITE_FIREBASE_AUTH_DOMAIN, "kaviyam-reading-72cf2.firebaseapp.com"),
+  projectId: getValidConfigValue(import.meta.env.VITE_FIREBASE_PROJECT_ID, "kaviyam-reading-72cf2"),
+  storageBucket: getValidConfigValue(import.meta.env.VITE_FIREBASE_STORAGE_BUCKET, "kaviyam-reading-72cf2.firebasestorage.app"),
+  messagingSenderId: getValidConfigValue(import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID, "693498239772"),
+  appId: getValidConfigValue(import.meta.env.VITE_FIREBASE_APP_ID, "1:693498239772:web:c2e28c37d025684df938d9"),
 };
 
 // Initialize Firebase App
