@@ -272,16 +272,23 @@
 
                 alert(`Security Token successfully requested for delivery channel! \n\n[SANDBOX SYSTEM AUTOMATION]: Your token is: ${this.generatedToken}`);
                 
-                // Display input boxes
-                document.getElementById('verificationZone').style.display = 'block';
+                // Display input boxes safely
+                const zone = document.getElementById('verificationZone');
+                if (zone && zone.style) {
+                    zone.style.display = 'block';
+                }
             },
 
             verifyToken: function() {
-                const enteredToken = 
-                    document.getElementById('d1').value + 
-                    document.getElementById('d2').value + 
-                    document.getElementById('d3').value + 
-                    document.getElementById('d4').value;
+                var d1 = document.getElementById('d1');
+                var d2 = document.getElementById('d2');
+                var d3 = document.getElementById('d3');
+                var d4 = document.getElementById('d4');
+                var enteredToken = 
+                    (d1 ? d1.value : '') + 
+                    (d2 ? d2.value : '') + 
+                    (d3 ? d3.value : '') + 
+                    (d4 ? d4.value : '');
 
                 if (enteredToken === this.generatedToken) {
                     alert('Authentication Complete! The token is valid, session unlocked.');

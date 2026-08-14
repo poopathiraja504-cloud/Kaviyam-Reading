@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { User, Book, SimulatedEmail, SecurityLog, Review } from "./types";
 import { PRESET_BOOKS } from "./booksData";
 import { BookOpen, User as UserIcon, Mail, Shield, HelpCircle, LogIn, LogOut, ChevronRight, Sun, Moon, Database } from "lucide-react";
@@ -11,10 +11,11 @@ import {
   createUserWithEmailAndPassword, 
   signOut,
   onAuthStateChanged,
-  RecaptchaVerifier,
-  signInWithPhoneNumber,
-  ConfirmationResult
+  ConfirmationResult,
+  GoogleAuthProvider,
+  signInWithPopup
 } from "firebase/auth";
+import { sendPhoneOtp, verifyPhoneOtp, clearRecaptchaVerifier } from "./lib/phoneAuth";
 import { 
   collection, 
   doc, 
@@ -187,20 +188,6 @@ export default function App() {
 
   // Phone Auth Confirmation Result
   const [phoneConfirmationResult, setPhoneConfirmationResult] = useState<ConfirmationResult | null>(null);
-
-  // Setup reCAPTCHA for Phone Auth
-  const setupRecaptcha = () => {
-    if (!(window as any).recaptchaVerifier) {
-      (window as any).recaptchaVerifier = new RecaptchaVerifier(auth, "recaptcha-container", {
-        size: "invisible",
-        callback: () => {},
-        "expired-callback": () => {
-          (window as any).recaptchaVerifier = null;
-        }
-      });
-    }
-    return (window as any).recaptchaVerifier;
-  };
 
   // Listen to Firebase Auth state
   useEffect(() => {
@@ -507,7 +494,7 @@ export default function App() {
     try {
       await setDoc(doc(db, "logs", newLog.id), newLog);
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, `logs/${newLog.id}`);
+      console.warn("Log Firestore sync notice:", error);
     }
   };
 
@@ -529,7 +516,7 @@ export default function App() {
     try {
       await setDoc(doc(db, "emails", newMail.id), newMail);
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, `emails/${newMail.id}`);
+      console.warn("Email Firestore sync notice:", error);
     }
   };
 
@@ -775,8 +762,49 @@ export default function App() {
     return { success: true };
   };
 
-  const handleGoogleLogin = async () => {
-    handleGuestLogin();
+  const isGooglePopupActiveRef = useRef(false);
+
+  const handleGoogleLogin = async (): Promise<void> => {
+    if (isGooglePopupActiveRef.current) return;
+    isGooglePopupActiveRef.current = true;
+
+    try {
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: "select_account" });
+      const result = await signInWithPopup(auth, provider);
+      if (result?.user) {
+        addSystemLog(`Google Sign-In Success (${result.user.email || result.user.uid})`, "Success");
+        setActiveTab("library");
+        setIsGuestMode(false);
+      }
+    } catch (err: any) {
+      console.warn("Google Sign-In error:", err?.message || err);
+      const errCode = err?.code || "";
+      let userFriendlyMessage = "";
+
+      if (errCode === "auth/popup-closed-by-user") {
+        userFriendlyMessage = "The Google sign-in window was closed before completing authentication. Please try again.";
+      } else if (errCode === "auth/popup-blocked") {
+        userFriendlyMessage = "The sign-in popup was blocked by your browser. Please allow popups for this site or open the app in a new tab.";
+      } else if (errCode === "auth/cancelled-popup-request") {
+        userFriendlyMessage = "A sign-in request was already in progress and has been reset. Please click again.";
+      } else if (errCode === "auth/unauthorized-domain") {
+        userFriendlyMessage = "This domain is not authorized in your Firebase Authentication settings. Please add this domain to 'Authorized domains' in Firebase Console (Authentication > Settings > Authorized domains).";
+      } else if (
+        errCode === "auth/internal-error" ||
+        errCode.includes("internal-error") ||
+        (typeof window !== "undefined" && window.self !== window.top && (errCode.includes("network-request-failed") || err?.message?.includes("iframe")))
+      ) {
+        userFriendlyMessage = "Google Sign-In popup could not complete within the embedded iframe environment. Please open the app in a new browser tab to sign in with Google, or use Email or Phone login.";
+      } else {
+        userFriendlyMessage = err?.message || (typeof err === "string" ? err : "Google Sign-In failed.");
+      }
+
+      addSystemLog(`Google Sign-In Failed: ${errCode || userFriendlyMessage}`, "Failed");
+      throw new Error(userFriendlyMessage);
+    } finally {
+      isGooglePopupActiveRef.current = false;
+    }
   };
 
   const handleGuestLogin = () => {
@@ -784,139 +812,88 @@ export default function App() {
     addSystemLog("Guest Session Authorized", "Success");
   };
 
-  const handleSendPhoneOtp = async (phone: string): Promise<{ success: boolean; otp?: string; simulatedOtp?: string; error?: string }> => {
+  const handleSendPhoneOtp = async (phone: string): Promise<void> => {
     const cleanPhone = phone.trim().replace(/\s+/g, "");
     if (!cleanPhone || cleanPhone.length < 6) {
-      return { success: false, error: "Please enter a valid phone number with country code (e.g. +1... or +91...)." };
+      throw new Error("Please enter a valid phone number with country code (e.g. +1... or +91...).");
     }
 
-    // Generate fallback 6-digit OTP code in advance
-    const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
-    localStorage.setItem(
-      "kaviyam_pending_phone_otp",
-      JSON.stringify({ phone: cleanPhone, otp: generatedOtp, timestamp: Date.now() })
-    );
-
     try {
-      const appVerifier = setupRecaptcha();
-      const confirmation = await signInWithPhoneNumber(auth, cleanPhone, appVerifier);
+      const confirmation = await sendPhoneOtp(cleanPhone);
       setPhoneConfirmationResult(confirmation);
-
       addSystemLog(`Firebase Phone SMS OTP Dispatched (${cleanPhone})`, "Success");
-      return { success: true };
     } catch (err: any) {
-      console.warn("Firebase Phone Auth fallback activated:", err?.message || err);
-      if ((window as any).recaptchaVerifier) {
-        try {
-          (window as any).recaptchaVerifier.clear();
-        } catch (_) {}
-        (window as any).recaptchaVerifier = null;
+      console.error("Firebase Phone Auth error:", err);
+      const errCode = err?.code || "";
+      let errMsg = "";
+      if (errCode === "auth/firebase-app-check-token-is-invalid" || err?.message?.includes("firebase-app-check-token-is-invalid")) {
+        errMsg = "SMS verification could not complete because App Check or reCAPTCHA is not configured for this domain in Firebase Console. Please add this domain to Authorized domains in Firebase Console (Authentication > Settings > Authorized domains) or use Email/Password sign in.";
+      } else if (errCode === "auth/captcha-check-failed" || err?.message?.includes("captcha-check-failed")) {
+        errMsg = "reCAPTCHA verification failed. Please try requesting a new SMS verification code.";
+      } else if (errCode === "auth/quota-exceeded" || errCode === "auth/too-many-requests") {
+        errMsg = "SMS limit exceeded or too many requests. Please wait a few minutes or sign in with Email/Password.";
+      } else if (errCode === "auth/invalid-phone-number") {
+        errMsg = "The phone number format is invalid. Please enter a valid number with country code (e.g. +91... or +1...).";
+      } else {
+        errMsg = err?.message || (typeof err === "string" ? err : "Failed to send SMS verification code.");
       }
-
-      // Record simulated SMS delivery in user's captured mailbox & security audit logs
-      const rawDigits = cleanPhone.replace(/[^0-9]/g, "");
-      triggerOutboundEmail(
-        `${rawDigits}@phone.kaviyam.com`,
-        "📱 SMS Verification Code: Kaviyam Reading",
-        `Hello Reader!\n\nYour 6-digit phone verification OTP code is:\n\n${generatedOtp}\n\nEnter this code into the prompt to authorize your login session.`,
-        "auth"
-      );
-
-      addSystemLog(`Phone SMS OTP Dispatched (${cleanPhone}) [Code: ${generatedOtp}]`, "Success");
-      return { success: true, otp: generatedOtp, simulatedOtp: generatedOtp };
+      addSystemLog(`Phone OTP Dispatch Failed (${cleanPhone}): ${errCode || errMsg}`, "Failed");
+      throw new Error(errMsg);
     }
   };
 
-  const handlePhoneLogin = async (phone: string, otp: string): Promise<{ success: boolean; error?: string }> => {
+  const handlePhoneLogin = async (phone: string, otp: string): Promise<void> => {
     const cleanPhone = phone.trim().replace(/\s+/g, "");
     const enteredOtp = otp.trim();
 
     try {
-      let isVerified = false;
-      let firebaseUid: string | null = null;
+      const userCredential = await verifyPhoneOtp(enteredOtp);
+      if (userCredential?.user) {
+        const firebaseUser = userCredential.user;
+        const uid = firebaseUser.uid;
+        const phoneNum = firebaseUser.phoneNumber || cleanPhone;
+        const rawDigits = phoneNum.replace(/[^0-9]/g, "");
+        const last4 = rawDigits.slice(-4) || "Mobile";
+        const phoneEmail = `${rawDigits}@phone.kaviyam.com`;
 
-      // 1. Try Firebase confirmation result if available
-      if (phoneConfirmationResult) {
-        try {
-          const userCredential = await phoneConfirmationResult.confirm(enteredOtp);
-          if (userCredential?.user) {
-            isVerified = true;
-            firebaseUid = userCredential.user.uid;
-          }
-        } catch (firebaseErr: any) {
-          console.warn("Firebase confirmation check failed, verifying fallback OTP:", firebaseErr?.message || firebaseErr);
-        }
-      }
+        let foundUser = users.find(
+          (u) => u.id === uid || u.profile?.phoneNumber === phoneNum || u.email.toLowerCase() === phoneEmail.toLowerCase()
+        );
 
-      // 2. Check local pending OTP fallback or standard demo codes
-      if (!isVerified) {
-        const cachedOtpStr = localStorage.getItem("kaviyam_pending_phone_otp");
-        if (cachedOtpStr) {
-          try {
-            const cachedOtp = JSON.parse(cachedOtpStr);
-            if (cachedOtp && cachedOtp.otp === enteredOtp) {
-              isVerified = true;
-            }
-          } catch (_) {}
-        }
-        if (enteredOtp === "123456" || enteredOtp === "888888") {
-          isVerified = true;
-        }
-      }
-
-      if (!isVerified) {
-        return { success: false, error: "Invalid SMS code entered. Please check your code or enter the 6-digit OTP displayed." };
-      }
-
-      const rawDigits = cleanPhone.replace(/[^0-9]/g, "");
-      const last4 = rawDigits.slice(-4) || "Mobile";
-      const phoneEmail = `${rawDigits}@phone.kaviyam.com`;
-      const uid = firebaseUid || `usr-phone-${rawDigits}`;
-
-      let foundUser = users.find(
-        (u) => u.id === uid || u.profile?.phoneNumber === cleanPhone || u.email.toLowerCase() === phoneEmail.toLowerCase()
-      );
-
-      if (!foundUser) {
-        foundUser = {
-          id: uid,
-          email: phoneEmail,
-          username: `Reader +${last4}`,
-          isVerified: true,
-          profile: {
+        if (!foundUser) {
+          foundUser = {
+            id: uid,
+            email: phoneEmail,
             username: `Reader +${last4}`,
-            bio: `Phone authenticated reader (+${last4})`,
-            profilePhoto: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=100",
-            phoneNumber: cleanPhone,
-            dob: "2000-01-01",
-            gender: "Not Specified",
-            privacy: { publicBookshelf: true, showActivity: true },
-          },
-          security: { is2FAEnabled: false, isBlocked: false, loginAttempts: 0 },
-          createdAt: new Date().toISOString(),
-        };
+            isVerified: true,
+            profile: {
+              username: `Reader +${last4}`,
+              bio: `Phone authenticated reader (+${last4})`,
+              profilePhoto: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=100",
+              phoneNumber: phoneNum,
+              dob: "2000-01-01",
+              gender: "Not Specified",
+              privacy: { publicBookshelf: true, showActivity: true },
+            },
+            security: { is2FAEnabled: false, isBlocked: false, loginAttempts: 0 },
+            createdAt: new Date().toISOString(),
+          };
 
-        const updatedUsersList = [...users, foundUser];
-        saveUsers(updatedUsersList);
+          const updatedUsersList = [...users, foundUser];
+          saveUsers(updatedUsersList);
+        }
+
+        setCurrentUser(foundUser);
+        localStorage.setItem("kaviyam_current_user", JSON.stringify(foundUser));
+        setActiveTab("library");
+        setIsGuestMode(false);
+        addSystemLog(`Phone Login Authorized (${phoneNum})`, "Success");
       }
-
-      setCurrentUser(foundUser);
-      localStorage.setItem("kaviyam_current_user", JSON.stringify(foundUser));
-      setActiveTab("library");
-      setIsGuestMode(false);
-      addSystemLog(`Phone Login Authorized (${cleanPhone})`, "Success");
-      return { success: true };
     } catch (err: any) {
-      addSystemLog(`Phone Login Failed (${cleanPhone}): ${err?.message || err}`, "Failed");
-      let friendly = "The verification code is incorrect.";
-      if (err?.code === "auth/invalid-verification-code") {
-        friendly = "Invalid SMS code entered. Please double check and try again.";
-      } else if (err?.code === "auth/code-expired") {
-        friendly = "The SMS code has expired. Please request a new code.";
-      } else if (err?.message) {
-        friendly = err.message;
-      }
-      return { success: false, error: friendly };
+      console.error("Phone OTP Verification error:", err);
+      const errMsg = err?.message || (typeof err === "string" ? err : "Invalid SMS verification code.");
+      addSystemLog(`Phone Login Failed (${cleanPhone}): ${errMsg}`, "Failed");
+      throw err;
     }
   };
 
@@ -1461,6 +1438,8 @@ export default function App() {
                         setResetToken={setResetToken}
                         addSystemLog={addSystemLog}
                         onGoogleLogin={handleGoogleLogin}
+                        onPhoneLogin={handlePhoneLogin}
+                        onSendPhoneOtp={handleSendPhoneOtp}
                         onGuestLogin={handleGuestLogin}
                         isDarkMode={isDarkMode}
                       />

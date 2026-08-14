@@ -16,10 +16,10 @@ service cloud.firestore {
       }
     }
 
-    // User emails: readable and writable only if recipient matches authenticated user's email
+    // User emails: readable and writable only if recipient matches authenticated user's email; create allowed for notifications
     match /emails/{emailId} {
       allow read, delete: if request.auth != null && request.auth.token.email != null && resource.data.recipient.lower() == request.auth.token.email.lower();
-      allow create: if request.auth != null && request.auth.token.email != null && request.resource.data.recipient.lower() == request.auth.token.email.lower();
+      allow create: if true;
       allow update: if request.auth != null && request.auth.token.email != null && resource.data.recipient.lower() == request.auth.token.email.lower() && request.resource.data.recipient.lower() == request.auth.token.email.lower();
     }
 
@@ -29,9 +29,10 @@ service cloud.firestore {
       allow write: if request.auth != null;
     }
 
-    // Security logs: accessible to authenticated users for system audit logging
+    // Security logs: unauthenticated clients can write audit entries (e.g. login attempts, dispatches, system events), authenticated users can read/write
     match /logs/{logId} {
-      allow read, write: if request.auth != null;
+      allow create: if true;
+      allow read, update, delete: if request.auth != null;
     }
 
     // Test connection doc: public read for connection checks

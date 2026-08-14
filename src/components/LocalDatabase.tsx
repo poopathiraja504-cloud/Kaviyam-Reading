@@ -980,17 +980,19 @@ const OTP_GATEWAY_HTML_CODE = `<!DOCTYPE html>
             document.querySelectorAll('.form-panel').forEach(p => p.classList.remove('active'));
             
             if(type === 'email') {
-                if (window.event) window.event.target.classList.add('active');
-                document.getElementById('emailPanel').classList.add('active');
+                if (window.event && window.event.target) window.event.target.classList.add('active');
+                const p = document.getElementById('emailPanel');
+                if (p) p.classList.add('active');
             } else {
-                if (window.event) window.event.target.classList.add('active');
-                document.getElementById('phonePanel').classList.add('active');
+                if (window.event && window.event.target) window.event.target.classList.add('active');
+                const p = document.getElementById('phonePanel');
+                if (p) p.classList.add('active');
             }
         }
 
         // Auto-advance focus utility across modern multi-input boxes
         function moveFocus(current) {
-            if (current.value.length >= 1) {
+            if (current && current.value && current.value.length >= 1) {
                 let next = current.nextElementSibling;
                 if (next && next.classList.contains('otp-digit')) next.focus();
             }
@@ -1002,9 +1004,11 @@ const OTP_GATEWAY_HTML_CODE = `<!DOCTYPE html>
             targetDestination: null,
 
             requestOTP: function(channel) {
+                const emailEl = document.getElementById('emailInput');
+                const phoneEl = document.getElementById('phoneInput');
                 const target = channel === 'email' 
-                    ? document.getElementById('emailInput').value.trim() 
-                    : document.getElementById('phoneInput').value.trim();
+                    ? (emailEl ? emailEl.value.trim() : '') 
+                    : (phoneEl ? phoneEl.value.trim() : '');
 
                 if (!target) {
                     alert('Please provide a valid entry before continuing.');
@@ -1025,18 +1029,25 @@ const OTP_GATEWAY_HTML_CODE = `<!DOCTYPE html>
 
                 alert(\`Security Token successfully requested for delivery channel! \\n\\n[SANDBOX SYSTEM AUTOMATION]: Your token is: \${this.generatedToken}\`);
                 
-                // Display input boxes
-                document.getElementById('verificationZone').style.display = 'block';
+                // Display input boxes safely
+                const zone = document.getElementById('verificationZone');
+                if (zone && zone.style) {
+                    zone.style.display = 'block';
+                }
             },
 
             verifyToken: function() {
+                const d1 = document.getElementById('d1');
+                const d2 = document.getElementById('d2');
+                const d3 = document.getElementById('d3');
+                const d4 = document.getElementById('d4');
                 const enteredToken = 
-                    document.getElementById('d1').value + 
-                    document.getElementById('d2').value + 
-                    document.getElementById('d3').value + 
-                    document.getElementById('d4').value;
+                    (d1 ? d1.value : '') + 
+                    (d2 ? d2.value : '') + 
+                    (d3 ? d3.value : '') + 
+                    (d4 ? d4.value : '');
 
-                if (enteredToken === this.generatedToken) {
+                if (enteredToken && enteredToken === this.generatedToken) {
                     alert('Authentication Complete! The token is valid, session unlocked.');
                     // Reset systems
                     location.reload();
