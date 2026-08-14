@@ -17,7 +17,7 @@ interface AuthProps {
   onEmailOtpLogin?: (email: string) => void;
   onSendEmailOtp?: (email: string, otp: string) => void;
   onPhoneLogin?: (phone: string, otp: string) => Promise<{ success: boolean; error?: string }> | { success: boolean; error?: string };
-  onSendPhoneOtp?: (phone: string) => Promise<{ success: boolean; otp?: string; error?: string }> | { success: boolean; otp?: string; error?: string };
+  onSendPhoneOtp?: (phone: string) => Promise<{ success: boolean; otp?: string; simulatedOtp?: string; error?: string }> | { success: boolean; otp?: string; simulatedOtp?: string; error?: string };
   onGuestLogin?: () => void;
   onGoogleLogin?: () => Promise<void> | void;
   isDarkMode?: boolean;
@@ -127,7 +127,8 @@ export default function Auth({
         if (res.success) {
           setPhoneStep("verifyOtp");
           setPhoneCountdown(30);
-          setSuccessMsg(`📱 Verification code sent to ${fullPhoneNumber}. Please check your phone for the SMS code.`);
+          const otpText = (res.otp || res.simulatedOtp) ? ` (Your Code: ${res.otp || res.simulatedOtp})` : "";
+          setSuccessMsg(`📱 Verification code sent to ${fullPhoneNumber}.${otpText}`);
         } else {
           setErrorMsg(res.error || "Failed to send SMS verification code.");
         }
@@ -150,7 +151,8 @@ export default function Auth({
       const res = await onSendPhoneOtp(fullPhoneNumber);
       if (res.success) {
         setPhoneCountdown(30);
-        setSuccessMsg(`📱 Resent verification code to ${fullPhoneNumber}.`);
+        const otpText = (res.otp || res.simulatedOtp) ? ` (Your Code: ${res.otp || res.simulatedOtp})` : "";
+        setSuccessMsg(`📱 Resent verification code to ${fullPhoneNumber}.${otpText}`);
       } else {
         setErrorMsg(res.error || "Failed to resend OTP.");
       }

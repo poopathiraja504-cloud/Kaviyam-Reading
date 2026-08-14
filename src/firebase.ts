@@ -12,12 +12,12 @@ const getValidConfigValue = (envVal: string | undefined, fallback: string): stri
 };
 
 export const firebaseConfig = {
-  apiKey: getValidConfigValue(import.meta.env.VITE_FIREBASE_API_KEY, "AIzaSyBJ_f6R3qRYq_wpivOTc_e_e-tcVhGLP2k"),
-  authDomain: getValidConfigValue(import.meta.env.VITE_FIREBASE_AUTH_DOMAIN, "kaviyam-reading-72cf2.firebaseapp.com"),
-  projectId: getValidConfigValue(import.meta.env.VITE_FIREBASE_PROJECT_ID, "kaviyam-reading-72cf2"),
-  storageBucket: getValidConfigValue(import.meta.env.VITE_FIREBASE_STORAGE_BUCKET, "kaviyam-reading-72cf2.firebasestorage.app"),
-  messagingSenderId: getValidConfigValue(import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID, "693498239772"),
-  appId: getValidConfigValue(import.meta.env.VITE_FIREBASE_APP_ID, "1:693498239772:web:c2e28c37d025684df938d9"),
+  apiKey: getValidConfigValue(import.meta.env.VITE_FIREBASE_API_KEY, rawConfig.apiKey),
+  authDomain: getValidConfigValue(import.meta.env.VITE_FIREBASE_AUTH_DOMAIN, rawConfig.authDomain),
+  projectId: getValidConfigValue(import.meta.env.VITE_FIREBASE_PROJECT_ID, rawConfig.projectId),
+  storageBucket: getValidConfigValue(import.meta.env.VITE_FIREBASE_STORAGE_BUCKET, rawConfig.storageBucket),
+  messagingSenderId: getValidConfigValue(import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID, rawConfig.messagingSenderId),
+  appId: getValidConfigValue(import.meta.env.VITE_FIREBASE_APP_ID, rawConfig.appId),
 };
 
 // Initialize Firebase App
