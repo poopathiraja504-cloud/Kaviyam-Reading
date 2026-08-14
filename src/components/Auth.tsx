@@ -116,7 +116,6 @@ export default function Auth({
         await signInWithPopup(auth, provider);
       }
     } catch (err: any) {
-      console.error("Google Sign-In error:", err);
       const errCode = err?.code || "";
       let errMsg = "";
       if (errCode === "auth/popup-closed-by-user") {
@@ -136,7 +135,7 @@ export default function Auth({
         errMsg = err?.message || (typeof err === "string" ? err : "Google Sign-In failed.");
       }
       setErrorMsg(errMsg);
-      addSystemLog(`Google Sign-In Failed: ${errCode || errMsg}`, "Failed");
+      addSystemLog(`Google Sign-In Notice: ${errCode || errMsg}`, "Blocked");
     } finally {
       isGooglePopupActiveRef.current = false;
     }

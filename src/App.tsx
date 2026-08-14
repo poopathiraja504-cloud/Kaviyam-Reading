@@ -778,7 +778,6 @@ export default function App() {
         setIsGuestMode(false);
       }
     } catch (err: any) {
-      console.warn("Google Sign-In error:", err?.message || err);
       const errCode = err?.code || "";
       let userFriendlyMessage = "";
 
@@ -800,7 +799,7 @@ export default function App() {
         userFriendlyMessage = err?.message || (typeof err === "string" ? err : "Google Sign-In failed.");
       }
 
-      addSystemLog(`Google Sign-In Failed: ${errCode || userFriendlyMessage}`, "Failed");
+      addSystemLog(`Google Sign-In Notice: ${errCode || userFriendlyMessage}`, "Blocked");
       throw new Error(userFriendlyMessage);
     } finally {
       isGooglePopupActiveRef.current = false;
@@ -1361,8 +1360,8 @@ export default function App() {
               >
                 {/* Visual Header inside center stage */}
                 <div className="space-y-2 text-center">
-                  <h1 className={`font-serif text-3xl md:text-4xl font-extrabold leading-tight ${isDarkMode ? "text-stone-100" : "text-stone-800"}`}>
-                    Kaviyam <span className="text-[#f0c15c]">Tamil Literary Platform</span>
+                  <h1 className="font-serif text-3xl md:text-4xl font-extrabold leading-tight text-stone-900">
+                    Kaviyam Tamil Literary Platform
                   </h1>
                 </div>
 
