@@ -243,6 +243,35 @@ export default function App() {
     return () => unsubscribe();
   }, [users]);
 
+  // Auto-trigger Google Auth if opened with ?auth=google in a top-level window tab
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const isTopWindow = window.self === window.top;
+    const urlParams = new URLSearchParams(window.location.search);
+    if (isTopWindow && urlParams.get("auth") === "google" && !currentUser) {
+      const newUrl = window.location.pathname + window.location.hash;
+      window.history.replaceState({}, document.title, newUrl);
+
+      const timer = setTimeout(() => {
+        const provider = new GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: "select_account" });
+        signInWithPopup(auth, provider)
+          .then((result) => {
+            if (result?.user) {
+              addSystemLog(`Google Sign-In Success (${result.user.email || result.user.uid})`, "Success");
+              setActiveTab("library");
+              setIsGuestMode(false);
+            }
+          })
+          .catch((err) => {
+            console.warn("Auto-triggered Google Sign-In notice:", err?.message || err);
+          });
+      }, 500);
+
+      return () => clearTimeout(timer);
+    }
+  }, [currentUser]);
+
   // Load Initial Local & Firestore State
   useEffect(() => {
     const cachedPasswords = localStorage.getItem("kaviyam_passwords");
@@ -766,6 +795,9 @@ export default function App() {
 
   const handleGoogleLogin = async (): Promise<void> => {
     if (isGooglePopupActiveRef.current) return;
+
+    const isIframe = typeof window !== "undefined" && window.self !== window.top;
+
     isGooglePopupActiveRef.current = true;
 
     try {
@@ -792,9 +824,10 @@ export default function App() {
       } else if (
         errCode === "auth/internal-error" ||
         errCode.includes("internal-error") ||
-        (typeof window !== "undefined" && window.self !== window.top && (errCode.includes("network-request-failed") || err?.message?.includes("iframe")))
+        isIframe ||
+        (typeof window !== "undefined" && (errCode.includes("network-request-failed") || err?.message?.includes("iframe")))
       ) {
-        userFriendlyMessage = "Google Sign-In popup could not complete within the embedded iframe environment. Please open the app in a new browser tab to sign in with Google, or use Email or Phone login.";
+        userFriendlyMessage = "Google Sign-In popup cannot complete within an embedded iframe environment. Please open the app in a new browser tab to sign in with Google, or use Email or Phone login.";
       } else {
         userFriendlyMessage = err?.message || (typeof err === "string" ? err : "Google Sign-In failed.");
       }

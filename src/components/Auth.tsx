@@ -105,6 +105,9 @@ export default function Auth({
     if (isGooglePopupActiveRef.current) return;
     setErrorMsg(null);
     setSuccessMsg(null);
+
+    const isIframe = typeof window !== "undefined" && window.self !== window.top;
+
     isGooglePopupActiveRef.current = true;
 
     try {
@@ -128,9 +131,10 @@ export default function Auth({
         errMsg = "This domain is not authorized in your Firebase Authentication settings. Please add this domain to 'Authorized domains' in Firebase Console (Authentication > Settings > Authorized domains).";
       } else if (
         errCode === "auth/internal-error" ||
-        (typeof window !== "undefined" && window.self !== window.top && (errCode.includes("internal-error") || err?.message?.includes("iframe") || errCode.includes("network-request-failed")))
+        isIframe ||
+        (typeof window !== "undefined" && (errCode.includes("internal-error") || err?.message?.includes("iframe") || errCode.includes("network-request-failed")))
       ) {
-        errMsg = "Google Sign-In popup could not complete within the embedded iframe environment. Please click the button below to open the application in a new browser tab to sign in with Google, or sign in using Email or Phone login.";
+        errMsg = "Google Sign-In popup could not complete within the embedded iframe environment. Google OAuth blocks popups inside embedded frames for security. Please click the button below to open the application in a new browser tab to sign in with Google, or sign in using Email or Phone login.";
       } else {
         errMsg = err?.message || (typeof err === "string" ? err : "Google Sign-In failed.");
       }
@@ -472,16 +476,16 @@ export default function Auth({
             <AlertTriangle size={14} className="mt-0.5 flex-shrink-0 text-red-400" />
             <div className="flex-1">
               <span className="leading-relaxed block whitespace-pre-line font-medium">{errorMsg}</span>
-              {typeof window !== "undefined" && window.self !== window.top && errorMsg.includes("iframe") && (
+              {(typeof window !== "undefined" && window.self !== window.top || errorMsg.includes("iframe") || errorMsg.includes("Google")) && (
                 <a
-                  href={window.location.href}
+                  href={`${window.location.origin}${window.location.pathname}?auth=google`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#f0c15c] text-stone-950 font-bold text-[11px] hover:bg-[#f5ca6a] transition-all shadow-sm cursor-pointer"
+                  className="mt-2.5 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#f0c15c] via-[#f2a93b] to-[#d48c1a] text-stone-950 font-extrabold text-[11px] hover:brightness-110 transition-all shadow-md cursor-pointer"
                   id="open-in-new-tab-auth-btn"
                 >
-                  <ExternalLink size={12} />
-                  Open App in New Tab
+                  <ExternalLink size={13} />
+                  Open App in New Tab to Sign In with Google
                 </a>
               )}
             </div>
