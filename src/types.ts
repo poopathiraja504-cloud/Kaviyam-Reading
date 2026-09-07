@@ -2,6 +2,7 @@ export interface UserProfile {
   username: string;
   bio: string;
   profilePhoto: string;
+  photoFileName?: string;
   phoneNumber?: string;
   dob: string;
   gender: string;

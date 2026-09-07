@@ -1,65 +1,22 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore, doc, getDocFromServer } from "firebase/firestore";
-import rawConfig from "../firebase-applet-config.json";
 
-// Web app's Firebase configuration with VITE_ environment variable support and fallback to applet config
-const isValidValue = (val: string | undefined): boolean => {
-  if (!val || typeof val !== "string") return false;
-  const trimmed = val.trim();
-  if (trimmed === "") return false;
-  const lower = trimmed.toLowerCase();
-  if (
-    lower.includes("your_") ||
-    lower.includes("my_") ||
-    lower.includes("placeholder") ||
-    lower.includes("example") ||
-    lower.startsWith("<") ||
-    lower === "undefined" ||
-    lower === "null"
-  ) {
-    return false;
-  }
-  return true;
-};
-
-const getValidConfigValue = (envVal: string | undefined, fallback: string): string => {
-  if (isValidValue(envVal)) {
-    return envVal!.trim();
-  }
-  return fallback;
-};
-
-// Validate that the Firebase API key is a genuine Firebase Web API key (starts with AIza and has appropriate length)
-const getValidApiKey = (envVal: string | undefined, fallback: string): string => {
-  if (isValidValue(envVal) && envVal!.trim().startsWith("AIza") && envVal!.trim().length >= 20) {
-    return envVal!.trim();
-  }
-  return fallback;
-};
-
+// Firebase configuration directly from the provided SDK snippet
 export const firebaseConfig = {
-  apiKey: getValidApiKey(import.meta.env.VITE_FIREBASE_API_KEY, rawConfig.apiKey),
-  authDomain: getValidConfigValue(import.meta.env.VITE_FIREBASE_AUTH_DOMAIN, rawConfig.authDomain),
-  databaseURL: getValidConfigValue(import.meta.env.VITE_FIREBASE_DATABASE_URL, (rawConfig as any).databaseURL || "https://kaviyam-reading-default-rtdb.asia-southeast1.firebasedatabase.app"),
-  projectId: getValidConfigValue(import.meta.env.VITE_FIREBASE_PROJECT_ID, rawConfig.projectId),
-  storageBucket: getValidConfigValue(import.meta.env.VITE_FIREBASE_STORAGE_BUCKET, rawConfig.storageBucket),
-  messagingSenderId: getValidConfigValue(import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID, rawConfig.messagingSenderId),
-  appId: getValidConfigValue(import.meta.env.VITE_FIREBASE_APP_ID, rawConfig.appId),
-  measurementId: getValidConfigValue(import.meta.env.VITE_FIREBASE_MEASUREMENT_ID, rawConfig.measurementId || "G-SYPERY4MH2"),
+  apiKey: "AIzaSyDjN-YXYzE9ifVaabwIZHVVybFKa6IU4As",
+  authDomain: "kaviyam-reading-b3e8e.firebaseapp.com",
+  projectId: "kaviyam-reading-b3e8e",
+  storageBucket: "kaviyam-reading-b3e8e.firebasestorage.app",
+  messagingSenderId: "1062572384882",
+  appId: "1:1062572384882:web:a954fe295ab9e1111098eb",
 };
 
 // Initialize Firebase App instance
 export const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
-// Initialize Firestore Database with custom database ID
-const customDbId = import.meta.env.VITE_FIREBASE_DATABASE_ID;
-const databaseId = isValidValue(customDbId) && !/^\d{10}$/.test(customDbId!.trim()) 
-  ? customDbId!.trim() 
-  : rawConfig.firestoreDatabaseId;
-export const db = databaseId ? getFirestore(app, databaseId) : getFirestore(app);
-
-// Initialize Firebase Authentication
+// Initialize Firestore + Auth using the configured app
+export const db = getFirestore(app);
 export const auth = getAuth(app);
 
 

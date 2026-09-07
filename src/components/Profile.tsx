@@ -12,6 +12,7 @@ interface ProfileProps {
   onToggle2FA: () => void;
   onClearLogs: () => void;
   onLogout: () => void;
+  onDeleteAccount: () => Promise<void> | void;
 }
 
 export default function Profile({
@@ -23,6 +24,7 @@ export default function Profile({
   onToggle2FA,
   onClearLogs,
   onLogout,
+  onDeleteAccount,
 }: ProfileProps) {
   const [activeTab, setActiveTab] = useState<"overview" | "settings" | "security" | "devices">("overview");
 
@@ -137,12 +139,21 @@ export default function Profile({
     }
   };
 
+  const handleDeleteAccount = async () => {
+    if (!window.confirm("Delete your account permanently? This cannot be undone.")) return;
+    try {
+      await onDeleteAccount();
+    } catch (error: any) {
+      setSecErrorMsg(error?.message || "Unable to delete your account.");
+    }
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 text-left" id="profile-panel-root">
-      
+
       {/* Sidebar Account Navigation */}
       <div className="lg:col-span-3 space-y-4">
-        
+
         {/* User Card */}
         <div className="bg-white rounded-3xl border border-stone-200 p-5 text-center space-y-4 shadow-sm relative overflow-hidden">
           <div className="absolute top-0 inset-x-0 h-1.5 bg-[#bfa030]" />
@@ -186,9 +197,8 @@ export default function Profile({
         <nav className="bg-white rounded-2xl border border-stone-200 p-2 space-y-1 shadow-sm">
           <button
             onClick={() => setActiveTab("overview")}
-            className={`w-full flex items-center gap-2.5 px-4 py-2 rounded-xl text-xs font-bold text-left transition ${
-              activeTab === "overview" ? "bg-stone-900 text-white" : "text-stone-500 hover:bg-stone-50 hover:text-stone-800"
-            }`}
+            className={`w-full flex items-center gap-2.5 px-4 py-2 rounded-xl text-xs font-bold text-left transition ${activeTab === "overview" ? "bg-stone-900 text-white" : "text-stone-500 hover:bg-stone-50 hover:text-stone-800"
+              }`}
             id="profile-tab-overview"
           >
             <Award size={14} className="text-[#bfa030]" />
@@ -197,9 +207,8 @@ export default function Profile({
 
           <button
             onClick={() => setActiveTab("settings")}
-            className={`w-full flex items-center gap-2.5 px-4 py-2 rounded-xl text-xs font-bold text-left transition ${
-              activeTab === "settings" ? "bg-stone-900 text-white" : "text-stone-500 hover:bg-stone-50 hover:text-stone-800"
-            }`}
+            className={`w-full flex items-center gap-2.5 px-4 py-2 rounded-xl text-xs font-bold text-left transition ${activeTab === "settings" ? "bg-stone-900 text-white" : "text-stone-500 hover:bg-stone-50 hover:text-stone-800"
+              }`}
             id="profile-tab-settings"
           >
             <UserIcon size={14} />
@@ -208,9 +217,8 @@ export default function Profile({
 
           <button
             onClick={() => setActiveTab("security")}
-            className={`w-full flex items-center gap-2.5 px-4 py-2 rounded-xl text-xs font-bold text-left transition ${
-              activeTab === "security" ? "bg-stone-900 text-white" : "text-stone-500 hover:bg-stone-50 hover:text-stone-800"
-            }`}
+            className={`w-full flex items-center gap-2.5 px-4 py-2 rounded-xl text-xs font-bold text-left transition ${activeTab === "security" ? "bg-stone-900 text-white" : "text-stone-500 hover:bg-stone-50 hover:text-stone-800"
+              }`}
             id="profile-tab-security"
           >
             <Shield size={14} />
@@ -219,9 +227,8 @@ export default function Profile({
 
           <button
             onClick={() => setActiveTab("devices")}
-            className={`w-full flex items-center gap-2.5 px-4 py-2 rounded-xl text-xs font-bold text-left transition ${
-              activeTab === "devices" ? "bg-stone-900 text-white" : "text-stone-500 hover:bg-stone-50 hover:text-stone-800"
-            }`}
+            className={`w-full flex items-center gap-2.5 px-4 py-2 rounded-xl text-xs font-bold text-left transition ${activeTab === "devices" ? "bg-stone-900 text-white" : "text-stone-500 hover:bg-stone-50 hover:text-stone-800"
+              }`}
             id="profile-tab-devices"
           >
             <Smartphone size={14} />
@@ -233,7 +240,7 @@ export default function Profile({
       {/* Main Settings Display Stage */}
       <div className="lg:col-span-9 bg-white rounded-3xl border border-stone-200 p-6 shadow-sm min-h-[500px]">
         <AnimatePresence mode="wait">
-          
+
           {activeTab === "overview" && (
             <motion.div
               key="profile-overview"
@@ -296,15 +303,13 @@ export default function Profile({
                   {achievements.map((ach) => (
                     <div
                       key={ach.id}
-                      className={`p-4 rounded-2xl border transition duration-300 flex items-start gap-3 text-left ${
-                        ach.unlocked 
-                          ? `${ach.color} shadow-sm hover:scale-101` 
+                      className={`p-4 rounded-2xl border transition duration-300 flex items-start gap-3 text-left ${ach.unlocked
+                          ? `${ach.color} shadow-sm hover:scale-101`
                           : "bg-stone-50/50 border-stone-100 text-stone-400 opacity-60"
-                      }`}
+                        }`}
                     >
-                      <div className={`p-2 rounded-xl border flex-shrink-0 ${
-                        ach.unlocked ? "bg-white border-stone-200/50 shadow-inner" : "bg-stone-100 border-stone-200"
-                      }`}>
+                      <div className={`p-2 rounded-xl border flex-shrink-0 ${ach.unlocked ? "bg-white border-stone-200/50 shadow-inner" : "bg-stone-100 border-stone-200"
+                        }`}>
                         {ach.icon}
                       </div>
                       <div className="space-y-1">
@@ -489,11 +494,10 @@ export default function Profile({
 
                 <button
                   onClick={handleToggle2FAAction}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm border ${
-                    is2FAEnabled
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm border ${is2FAEnabled
                       ? "bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100"
                       : "bg-[#bfa030] border-[#aa8e28] text-black hover:bg-[#a68b23]"
-                  }`}
+                    }`}
                   id="toggle-2fa-btn"
                 >
                   <ShieldCheck size={14} />
@@ -571,6 +575,21 @@ export default function Profile({
                     Update Password
                   </button>
                 </form>
+              </div>
+
+              <div className="border border-red-200 bg-red-50/40 rounded-2xl p-5 text-left space-y-3">
+                <div>
+                  <h4 className="font-serif font-bold text-xs text-red-800">Delete Account</h4>
+                  <p className="text-[10px] text-red-700 mt-1">Permanently remove your Firebase account and profile record.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleDeleteAccount}
+                  className="bg-red-700 hover:bg-red-800 text-white font-bold px-4 py-2 rounded-xl transition text-xs"
+                  id="delete-account-btn"
+                >
+                  Delete My Account
+                </button>
               </div>
 
             </motion.div>

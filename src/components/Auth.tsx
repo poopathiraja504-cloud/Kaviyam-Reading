@@ -18,9 +18,9 @@ import LiquidOTP from "./LiquidOTP";
 
 interface AuthProps {
   currentUser: User | null;
-  onLogin: (email: string, password: string, otp?: string) => Promise<{ success: boolean; error?: string; require2FA?: boolean }> | { success: boolean; error?: string; require2FA?: boolean };
-  onRegister: (email: string, username: string, dob: string, gender: string, password?: string) => Promise<{ success: boolean; error?: string }> | { success: boolean; error?: string };
-  onForgotPassword: (email: string) => Promise<{ success: boolean; error?: string }> | { success: boolean; error?: string };
+  onLogin: (email: string, password: string, otp?: string) => Promise<{ success: boolean; error?: string; require2FA?: boolean; requireEmailVerification?: boolean; verificationEmail?: string }> | { success: boolean; error?: string; require2FA?: boolean; requireEmailVerification?: boolean; verificationEmail?: string };
+  onRegister: (email: string, username: string, dob: string, gender: string, password?: string, photoFileName?: string) => Promise<{ success: boolean; error?: string; requireEmailVerification?: boolean; verificationEmail?: string }> | { success: boolean; error?: string; requireEmailVerification?: boolean; verificationEmail?: string };
+  onForgotPassword: (email: string) => Promise<{ success: boolean; error?: string; resetEmail?: string }> | { success: boolean; error?: string; resetEmail?: string };
   onResetPasswordWithToken: (token: string, newPass: string) => Promise<{ success: boolean; error?: string }> | { success: boolean; error?: string };
   onResendVerification: (email: string) => void;
   resetToken: string | null;
@@ -53,15 +53,20 @@ export default function Auth({
   onGoogleLogin,
   isDarkMode = false,
 }: AuthProps) {
-  const [view, setView] = useState<"login" | "phoneLogin" | "register" | "forgot" | "reset" | "require2FA">("login");
+  const [view, setView] = useState<"login" | "phoneLogin" | "register" | "forgot" | "reset" | "require2FA" | "verifyEmail" | "passwordResetSent">("login");
+  const [verificationEmail, setVerificationEmail] = useState("");
+  const [resetEmail, setResetEmail] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [registerPassword, setRegisterPassword] = useState("");
-  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
   const [username, setUsername] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [dob, setDob] = useState("");
   const [gender, setGender] = useState("Not Specified");
   const [showPassword, setShowPassword] = useState(false);
+  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [selectedPhotoName, setSelectedPhotoName] = useState("");
   const [otpCode, setOtpCode] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -150,6 +155,9 @@ export default function Auth({
       const res = await onLogin(email, password);
       if (res.success) {
         setSuccessMsg("Welcome to Kaviyam Reading! Redirecting...");
+      } else if (res.requireEmailVerification) {
+        setVerificationEmail(res.verificationEmail || email);
+        setView("verifyEmail");
       } else if (res.require2FA) {
         setView("require2FA");
         setSuccessMsg("Two-factor security protocol triggered. A simulated one-shot OTP has been generated inside your Captured Mailbox.");
@@ -314,11 +322,16 @@ export default function Auth({
       return;
     }
 
+    if (registerPassword !== confirmPassword) {
+      setErrorMsg("Passwords do not match.");
+      return;
+    }
+
     try {
-      const res = await onRegister(email, username, dob, gender, registerPassword);
+      const res = await onRegister(email, username, dob, gender, registerPassword, selectedPhotoName);
       if (res.success) {
-        setSuccessMsg("Account synthesized! A verification link is now resting inside your Captured Mailbox. Please verify your address to compile AI stories.");
-        setView("login");
+        setVerificationEmail(res.verificationEmail || email);
+        setView("verifyEmail");
       } else {
         setErrorMsg(res.error || "Account synthesis failed.");
       }
@@ -335,8 +348,8 @@ export default function Auth({
     try {
       const res = await onForgotPassword(email);
       if (res.success) {
-        setSuccessMsg("A password recovery package has been dispatched. Review the Simulated Mailbox to proceed.");
-        setView("login");
+        setResetEmail(res.resetEmail || email);
+        setView("passwordResetSent");
       } else {
         setErrorMsg(res.error || "No active account profile matches this email node.");
       }
@@ -417,8 +430,8 @@ export default function Auth({
             <div>
               <span className="font-extrabold text-[#f0c15c] block text-[11px] uppercase tracking-wider">SECURE AUTH:</span>
               <span className="text-stone-300 text-[11px]">
-                {view === "phoneLogin" 
-                  ? "Firebase Phone Authentication with SMS verification code." 
+                {view === "phoneLogin"
+                  ? "Firebase Phone Authentication with SMS verification code."
                   : "Firebase Authentication enabled with Email/Password & Google Sign-In."}
               </span>
             </div>
@@ -436,11 +449,10 @@ export default function Auth({
                 clearRecaptchaVerifier();
                 setView("login");
               }}
-              className={`flex-1 py-2.5 px-3 rounded-xl font-extrabold text-xs md:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                view === "login"
-                  ? "bg-gradient-to-r from-[#f0c15c] via-[#f2a93b] to-[#d48c1a] text-stone-950 shadow-md scale-[1.02]"
-                  : "text-stone-300 hover:text-white hover:bg-[#122347]"
-              }`}
+              className={`flex-1 py-2.5 px-3 rounded-xl font-extrabold text-xs md:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer ${view === "login"
+                ? "bg-gradient-to-r from-[#f0c15c] via-[#f2a93b] to-[#d48c1a] text-stone-950 shadow-md scale-[1.02]"
+                : "text-stone-300 hover:text-white hover:bg-[#122347]"
+                }`}
               id="tab-login-email"
             >
               <Mail size={15} />
@@ -454,11 +466,10 @@ export default function Auth({
                 clearRecaptchaVerifier();
                 setView("phoneLogin");
               }}
-              className={`flex-1 py-2.5 px-3 rounded-xl font-extrabold text-xs md:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                view === "phoneLogin"
-                  ? "bg-gradient-to-r from-[#f0c15c] via-[#f2a93b] to-[#d48c1a] text-stone-950 shadow-md scale-[1.02]"
-                  : "text-stone-300 hover:text-white hover:bg-[#122347]"
-              }`}
+              className={`flex-1 py-2.5 px-3 rounded-xl font-extrabold text-xs md:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer ${view === "phoneLogin"
+                ? "bg-gradient-to-r from-[#f0c15c] via-[#f2a93b] to-[#d48c1a] text-stone-950 shadow-md scale-[1.02]"
+                : "text-stone-300 hover:text-white hover:bg-[#122347]"
+                }`}
               id="tab-login-phone"
             >
               <Smartphone size={15} />
@@ -610,6 +621,64 @@ export default function Auth({
                 </button>
               </p>
             </motion.form>
+          )}
+
+          {view === "verifyEmail" && (
+            <motion.div
+              key="verify-email"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              className="space-y-5 text-xs relative z-10 text-center"
+            >
+              <div className="rounded-2xl border border-[#1e3258] bg-[#0d1c38]/80 p-5">
+                <Mail size={30} className="mx-auto mb-3 text-[#f0c15c]" />
+                <p className="text-stone-200 text-sm leading-relaxed">
+                  We have sent you a verification email to <span className="font-bold text-[#f0c15c] break-all">{verificationEmail}</span>. Verify it and log in
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setErrorMsg(null);
+                  setSuccessMsg(null);
+                  setView("login");
+                }}
+                className="w-full bg-gradient-to-r from-[#f0c15c] via-[#e8a32a] to-[#d48c1a] hover:from-[#f5ca6a] hover:to-[#e09825] text-stone-950 font-extrabold py-3.5 rounded-2xl transition shadow-lg cursor-pointer text-sm"
+                id="email-verification-login-btn"
+              >
+                Login
+              </button>
+            </motion.div>
+          )}
+
+          {view === "passwordResetSent" && (
+            <motion.div
+              key="password-reset-sent"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              className="space-y-5 text-xs relative z-10 text-center"
+            >
+              <div className="rounded-2xl border border-[#1e3258] bg-[#0d1c38]/80 p-5">
+                <Mail size={30} className="mx-auto mb-3 text-[#f0c15c]" />
+                <p className="text-stone-200 text-sm leading-relaxed">
+                  We sent you a password change link to <span className="font-bold text-[#f0c15c] break-all">{resetEmail}</span>.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setErrorMsg(null);
+                  setSuccessMsg(null);
+                  setView("login");
+                }}
+                className="w-full bg-gradient-to-r from-[#f0c15c] via-[#e8a32a] to-[#d48c1a] hover:from-[#f5ca6a] hover:to-[#e09825] text-stone-950 font-extrabold py-3.5 rounded-2xl transition shadow-lg cursor-pointer text-sm"
+                id="password-reset-signin-btn"
+              >
+                Sign In
+              </button>
+            </motion.div>
           )}
 
           {view === "phoneLogin" && (
@@ -801,19 +870,33 @@ export default function Auth({
               </div>
 
               <div>
-                <label className="block font-bold text-stone-200 mb-1.5">Username (Pen Name)</label>
+                <label className="block font-bold text-stone-200 mb-1.5">Name</label>
                 <div className="relative">
                   <UserIcon size={15} className="absolute left-3.5 top-3.5 text-[#f0c15c]/60" />
                   <input
                     type="text"
                     required
-                    placeholder="Choose an author moniker"
+                    placeholder="Enter your full name"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     className="w-full pl-10 pr-4 py-3 border border-[#1e3258] bg-[#0a152d] text-stone-100 placeholder-stone-500 rounded-xl focus:outline-none focus:border-[#f0c15c] transition-all text-xs md:text-sm"
                     id="register-username-input"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-stone-200 mb-1.5">Profile Photo</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setSelectedPhotoName(e.target.files?.[0]?.name || "")}
+                  className="w-full px-3 py-2.5 border border-[#1e3258] bg-[#0a152d] text-stone-100 rounded-xl focus:outline-none focus:border-[#f0c15c] text-xs"
+                  id="register-photo-input"
+                />
+                {selectedPhotoName && (
+                  <p className="text-[10px] text-stone-400 mt-1.5">Selected: {selectedPhotoName}</p>
+                )}
               </div>
 
               <div>
@@ -834,6 +917,28 @@ export default function Auth({
                     className="absolute right-3.5 top-3.5 text-stone-400 hover:text-stone-200 cursor-pointer"
                   >
                     {showRegisterPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-stone-200 mb-1.5">Repeat Password</label>
+                <div className="relative">
+                  <Lock size={15} className="absolute left-3.5 top-3.5 text-[#f0c15c]/60" />
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    placeholder="Repeat your password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full pl-10 pr-10 py-3 border border-[#1e3258] bg-[#0a152d] text-stone-100 placeholder-stone-500 rounded-xl focus:outline-none focus:border-[#f0c15c] transition-all text-xs md:text-sm"
+                    id="register-confirm-password-input"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3.5 top-3.5 text-stone-400 hover:text-stone-200 cursor-pointer"
+                  >
+                    {showConfirmPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                   </button>
                 </div>
               </div>

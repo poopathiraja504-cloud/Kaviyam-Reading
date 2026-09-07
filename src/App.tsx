@@ -6,9 +6,13 @@ import { motion, AnimatePresence } from "motion/react";
 import { toggleSecurityMetaTags, RECOMMENDED_META_TAGS } from "./utils/securityHeaders";
 
 import { auth, db, handleFirestoreError, OperationType } from "./firebase";
-import { 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, 
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  sendEmailVerification,
+  sendPasswordResetEmail,
+  deleteUser,
+  updateProfile,
   signOut,
   onAuthStateChanged,
   ConfirmationResult,
@@ -16,13 +20,13 @@ import {
   signInWithPopup
 } from "firebase/auth";
 import { sendPhoneOtp, verifyPhoneOtp, clearRecaptchaVerifier } from "./lib/phoneAuth";
-import { 
-  collection, 
-  doc, 
-  setDoc, 
-  getDoc, 
-  getDocs, 
-  updateDoc, 
+import {
+  collection,
+  doc,
+  setDoc,
+  getDoc,
+  getDocs,
+  updateDoc,
   deleteDoc,
   query,
   where
@@ -98,7 +102,7 @@ const INITIAL_PASSWORDS: Record<string, string> = {
 export default function App() {
   // Navigation State
   const [activeTab, setActiveTab] = useState<"library" | "profile" | "mailbox" | "admin" | "feedback" | "localdb">("library");
-  
+
   // Data State
   const [books, setBooks] = useState<Book[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -123,6 +127,15 @@ export default function App() {
     const cached = localStorage.getItem("kaviyam_downloaded_ids");
     return cached ? JSON.parse(cached) : [];
   });
+
+  const persistUserDocument = async (user: User) => {
+    await setDoc(doc(db, "users", user.id), {
+      ...user,
+      name: user.username,
+      email: user.email,
+      photoFileName: user.profile.photoFileName || "",
+    }, { merge: true });
+  };
 
   const handleToggleDownload = (bookId: string) => {
     const isDownloaded = downloadedBookIds.includes(bookId);
@@ -193,6 +206,10 @@ export default function App() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
+        if (firebaseUser.email && !firebaseUser.emailVerified) {
+          return;
+        }
+
         const uid = firebaseUser.uid;
         const userEmail = firebaseUser.email || (firebaseUser.phoneNumber ? `${firebaseUser.phoneNumber.replace(/[^0-9]/g, "")}@phone.kaviyam.com` : `user-${uid.substring(0, 6)}@kaviyam.com`);
         const userPhone = firebaseUser.phoneNumber || "";
@@ -274,7 +291,7 @@ export default function App() {
           for (const book of initialBooks) {
             try {
               await setDoc(doc(db, "books", book.id), book);
-            } catch (_) {}
+            } catch (_) { }
           }
         }
       } catch (err) {
@@ -465,7 +482,7 @@ export default function App() {
     localStorage.removeItem("kaviyam_bookmarks");
     localStorage.removeItem("kaviyam_logs");
     localStorage.removeItem("kaviyam_emails");
-    
+
     setUsers(INITIAL_USERS);
     setPasswords(INITIAL_PASSWORDS);
     setBooks(PRESET_BOOKS);
@@ -527,6 +544,16 @@ export default function App() {
       const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, passwordInput);
       const firebaseUser = userCredential.user;
 
+      if (!firebaseUser.emailVerified) {
+        await sendEmailVerification(firebaseUser);
+        await signOut(auth);
+        return {
+          success: false,
+          requireEmailVerification: true,
+          verificationEmail: cleanEmail,
+        };
+      }
+
       let foundUser = users.find((u) => u.id === firebaseUser.uid || u.email.toLowerCase() === cleanEmail);
       if (!foundUser) {
         const fallbackName = firebaseUser.displayName || cleanEmail.split("@")[0];
@@ -546,7 +573,20 @@ export default function App() {
           security: { is2FAEnabled: false, isBlocked: false, loginAttempts: 0 },
           createdAt: new Date().toISOString()
         };
-        saveUsers([...users, foundUser]);
+        const userDoc = await getDoc(doc(db, "users", firebaseUser.uid));
+        if (userDoc.exists()) {
+          foundUser = { ...foundUser, ...(userDoc.data() as User), id: firebaseUser.uid };
+        } else {
+          await persistUserDocument(foundUser);
+        }
+        saveUsers([...users.filter((u) => u.id !== foundUser!.id), foundUser]);
+      } else {
+        const userDoc = await getDoc(doc(db, "users", firebaseUser.uid));
+        if (userDoc.exists()) {
+          foundUser = { ...foundUser, ...(userDoc.data() as User), id: firebaseUser.uid };
+        } else {
+          await persistUserDocument(foundUser);
+        }
       }
 
       setCurrentUser(foundUser);
@@ -557,63 +597,33 @@ export default function App() {
       return { success: true };
     } catch (err: any) {
       addSystemLog(`Login Failed (${cleanEmail}): ${err?.message || err}`, "Failed");
-      
-      // Fallback for API key restrictions or missing web API key configuration in Firebase Console
-      if (err?.code === "auth/api-key-not-valid" || err?.message?.includes("api-key-not-valid") || err?.message?.includes("api-key")) {
-        let foundUser = users.find((u) => u.email.toLowerCase() === cleanEmail);
-        if (!foundUser) {
-          const fallbackName = cleanEmail.split("@")[0];
-          foundUser = {
-            id: `usr-${Date.now()}`,
-            email: cleanEmail,
-            username: fallbackName,
-            isVerified: true,
-            profile: {
-              username: fallbackName,
-              bio: "Reader Patron",
-              profilePhoto: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100",
-              dob: "2000-01-01",
-              gender: "Not Specified",
-              privacy: { publicBookshelf: true, showActivity: true }
-            },
-            security: { is2FAEnabled: false, isBlocked: false, loginAttempts: 0 },
-            createdAt: new Date().toISOString()
-          };
-          saveUsers([...users, foundUser]);
-        }
-        setCurrentUser(foundUser);
-        localStorage.setItem("kaviyam_current_user", JSON.stringify(foundUser));
-        setActiveTab("library");
-        setIsGuestMode(false);
-        addSystemLog(`Session Login Success (${cleanEmail})`, "Success");
-        return { success: true };
+
+      if (
+        err?.code === "auth/invalid-credential" ||
+        err?.code === "auth/wrong-password" ||
+        err?.code === "auth/user-not-found" ||
+        err?.code === "auth/invalid-email"
+      ) {
+        return { success: false, error: "Password or Email Incorrect" };
       }
 
-      let friendly = "Invalid credentials. Please check your email and password.";
-      if (err?.code === "auth/invalid-credential" || err?.code === "auth/wrong-password") {
-        friendly = "Incorrect password. Please try again.";
-      } else if (err?.code === "auth/user-not-found") {
-        friendly = "No account found matching this email address.";
-      } else if (err?.code === "auth/too-many-requests") {
-        friendly = "Access to this account has been temporarily disabled due to many failed login attempts.";
-      } else if (err?.code === "auth/invalid-email") {
-        friendly = "Please enter a valid email address.";
-      } else if (err?.code === "auth/api-key-not-valid") {
-        friendly = "Firebase Auth API Key is currently being provisioned. Please try again in a moment.";
-      } else if (err?.message) {
-        friendly = err.message;
-      }
-      return { success: false, error: friendly };
+      return {
+        success: false,
+        error: err?.message || "Password or Email Incorrect",
+      };
     }
   };
 
-  const handleRegister = async (emailInput: string, usernameInput: string, dobInput: string, genderInput: string, passwordInput?: string) => {
+  const handleRegister = async (emailInput: string, usernameInput: string, dobInput: string, genderInput: string, passwordInput?: string, photoFileName = "") => {
     const cleanEmail = emailInput.trim().toLowerCase();
     const userPassword = passwordInput || "reader123";
 
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, userPassword);
       const firebaseUser = userCredential.user;
+
+      await sendEmailVerification(firebaseUser);
+      await signOut(auth);
 
       const newUser: User = {
         id: firebaseUser.uid,
@@ -624,6 +634,7 @@ export default function App() {
           username: usernameInput,
           bio: "Just joined the amazing community of Kaviyam Readers!",
           profilePhoto: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100",
+          photoFileName,
           dob: dobInput || "2000-01-01",
           gender: genderInput || "Not Specified",
           privacy: { publicBookshelf: true, showActivity: true }
@@ -632,11 +643,10 @@ export default function App() {
         createdAt: new Date().toISOString()
       };
 
+      await persistUserDocument(newUser);
+
       const updatedUsers = [...users.filter((u) => u.email.toLowerCase() !== cleanEmail), newUser];
       saveUsers(updatedUsers);
-
-      setCurrentUser(newUser);
-      localStorage.setItem("kaviyam_current_user", JSON.stringify(newUser));
 
       addSystemLog(`Firebase Registration Success (${cleanEmail})`, "Success");
 
@@ -647,73 +657,38 @@ export default function App() {
         "auth"
       );
 
-      return { success: true };
+      return {
+        success: true,
+        requireEmailVerification: true,
+        verificationEmail: cleanEmail,
+      };
     } catch (err: any) {
       addSystemLog(`Registration Failed (${cleanEmail}): ${err?.message || err}`, "Failed");
 
-      // Fallback for API key restrictions or missing web API key configuration in Firebase Console
-      if (err?.code === "auth/api-key-not-valid" || err?.message?.includes("api-key-not-valid") || err?.message?.includes("api-key")) {
-        const newUser: User = {
-          id: `usr-${Date.now()}`,
-          email: cleanEmail,
-          username: usernameInput,
-          isVerified: true,
-          profile: {
-            username: usernameInput,
-            bio: "Just joined the amazing community of Kaviyam Readers!",
-            profilePhoto: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100",
-            dob: dobInput || "2000-01-01",
-            gender: genderInput || "Not Specified",
-            privacy: { publicBookshelf: true, showActivity: true }
-          },
-          security: { is2FAEnabled: false, isBlocked: false, loginAttempts: 0 },
-          createdAt: new Date().toISOString()
-        };
-
-        const updatedUsers = [...users.filter((u) => u.email.toLowerCase() !== cleanEmail), newUser];
-        saveUsers(updatedUsers);
-
-        setCurrentUser(newUser);
-        localStorage.setItem("kaviyam_current_user", JSON.stringify(newUser));
-        setActiveTab("library");
-        setIsGuestMode(false);
-        addSystemLog(`Local Registration Success (${cleanEmail})`, "Success");
-        return { success: true };
-      }
-
-      let friendly = "Account registration failed.";
       if (err?.code === "auth/email-already-in-use") {
-        friendly = "This email address is already registered.";
-      } else if (err?.code === "auth/weak-password") {
-        friendly = "Password is too weak. Please enter at least 6 characters.";
-      } else if (err?.code === "auth/invalid-email") {
-        friendly = "Please enter a valid email address.";
-      } else if (err?.code === "auth/api-key-not-valid") {
-        friendly = "Firebase Auth API Key is currently being provisioned. Please try again in a moment.";
-      } else if (err?.message) {
-        friendly = err.message;
+        return { success: false, error: "User already exists. Sign in?" };
       }
-      return { success: false, error: friendly };
+
+      if (err?.code === "auth/weak-password") {
+        return { success: false, error: "Password is too weak. Please enter at least 6 characters." };
+      }
+
+      if (err?.code === "auth/invalid-email") {
+        return { success: false, error: "Please enter a valid email address." };
+      }
+
+      return { success: false, error: err?.message || "Account registration failed." };
     }
   };
 
   const handleForgotPassword = async (emailInput: string) => {
     try {
       const cleanEmail = emailInput.trim().toLowerCase();
-      addSystemLog(`Password Reset Issued (${cleanEmail})`, "Success");
+      if (!cleanEmail) return { success: false, error: "Please enter your email address." };
 
-      const foundUser = users.find((u) => u.email.toLowerCase() === cleanEmail);
-      const username = foundUser ? foundUser.username : "Reader";
-      const token = `reset-token-${cleanEmail}-${Date.now()}`;
-
-      triggerOutboundEmail(
-        cleanEmail,
-        "Secret Link: Reset Password Request",
-        `Hello ${username},\n\nA password reset email request was logged for your account.\n\nClick the link below to set a new password:\n\n[Action: ResetPassword; token=${token}]`,
-        "auth"
-      );
-
-      return { success: true };
+      await sendPasswordResetEmail(auth, cleanEmail);
+      addSystemLog(`Firebase Password Reset Issued (${cleanEmail})`, "Success");
+      return { success: true, resetEmail: cleanEmail };
     } catch (err: any) {
       addSystemLog(`Password Reset Failed (${emailInput}): ${err?.message || err}`, "Failed");
       return { success: false, error: err?.message || "Failed to issue password recovery request." };
@@ -939,7 +914,37 @@ export default function App() {
       };
       saveUsers(updatedUsersList);
       setCurrentUser(updatedUsersList[userIdx]);
+      persistUserDocument(updatedUsersList[userIdx]).catch((error) => {
+        console.warn("Profile Firestore sync notice:", error);
+      });
+      if (auth.currentUser) {
+        updateProfile(auth.currentUser, {
+          displayName: updatedProfile.username,
+          photoURL: updatedProfile.profilePhoto,
+        }).catch((error) => console.warn("Firebase Auth profile sync notice:", error));
+      }
       addSystemLog(`Profile Edited (${currentUser.email})`, "Success");
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!currentUser) return;
+
+    try {
+      await deleteDoc(doc(db, "users", currentUser.id));
+      if (auth.currentUser) await deleteUser(auth.currentUser);
+      const remainingUsers = users.filter((user) => user.id !== currentUser.id);
+      saveUsers(remainingUsers);
+      localStorage.removeItem("kaviyam_current_user");
+      setCurrentUser(null);
+      setActiveTab("library");
+      setIsGuestMode(false);
+      addSystemLog(`Account Deleted (${currentUser.email})`, "Success");
+    } catch (error: any) {
+      addSystemLog(`Account Deletion Failed (${currentUser.email}): ${error?.message || error}`, "Failed");
+      throw new Error(error?.code === "auth/requires-recent-login"
+        ? "Please sign in again before deleting your account."
+        : error?.message || "Unable to delete your account.");
     }
   };
 
@@ -1003,7 +1008,7 @@ export default function App() {
       };
       saveUsers(updatedUsersList);
       setCurrentUser(updatedUsersList[userIdx]);
-      
+
       addSystemLog(`Toggle 2FA (State: ${next2FAState ? 'Enabled' : 'Disabled'} for ${currentUser.email})`, "Success");
       alert(`Two-Factor Authentication is now ${next2FAState ? 'Enabled' : 'Disabled'}!`);
     }
@@ -1018,7 +1023,7 @@ export default function App() {
       addSystemLog(`Logout Account (${currentUser.email})`, "Success");
       try {
         await signOut(auth);
-      } catch (_) {}
+      } catch (_) { }
       setCurrentUser(null);
       localStorage.removeItem("kaviyam_current_user");
       setActiveBookId(null);
@@ -1050,7 +1055,7 @@ export default function App() {
     const emailToRem = users.find((u) => u.id === id)?.email;
     const remainingUsers = users.filter((u) => u.id !== id);
     saveUsers(remainingUsers);
-    
+
     if (emailToRem) {
       const updatedPass = { ...passwords };
       delete updatedPass[emailToRem.toLowerCase()];
@@ -1137,7 +1142,7 @@ export default function App() {
       {/* Visual Header / Brand bar */}
       <header className="bg-white border-b border-[#e8e2cf] px-4 sm:px-6 py-3.5 sm:py-4 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto flex justify-between items-center gap-2">
-          
+
           {/* Logo */}
           <div
             onClick={() => {
@@ -1159,9 +1164,8 @@ export default function App() {
                 setActiveBookId(null);
                 setActiveTab("library");
               }}
-              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition ${
-                activeTab === "library" ? "bg-white text-stone-800 shadow-sm" : "text-stone-500 hover:text-stone-800"
-              }`}
+              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition ${activeTab === "library" ? "bg-white text-stone-800 shadow-sm" : "text-stone-500 hover:text-stone-800"
+                }`}
               id="nav-tab-library"
             >
               Catalog Library
@@ -1171,9 +1175,8 @@ export default function App() {
                 setActiveBookId(null);
                 setActiveTab("profile");
               }}
-              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
-                activeTab === "profile" ? "bg-white text-stone-800 shadow-sm" : "text-stone-500 hover:text-stone-800"
-              }`}
+              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${activeTab === "profile" ? "bg-white text-stone-800 shadow-sm" : "text-stone-500 hover:text-stone-800"
+                }`}
               id="nav-tab-profile"
             >
               <UserIcon size={12} />
@@ -1184,9 +1187,8 @@ export default function App() {
                 setActiveBookId(null);
                 setActiveTab("mailbox");
               }}
-              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 relative ${
-                activeTab === "mailbox" ? "bg-white text-stone-800 shadow-sm" : "text-stone-500 hover:text-stone-800"
-              }`}
+              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 relative ${activeTab === "mailbox" ? "bg-white text-stone-800 shadow-sm" : "text-stone-500 hover:text-stone-800"
+                }`}
               id="nav-tab-mailbox"
             >
               <Mail size={12} />
@@ -1195,7 +1197,7 @@ export default function App() {
                 <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full" />
               )}
             </button>
-            
+
             {/* Show admin panel tab only if current user is admin */}
             {currentUser && currentUser.email === "admin@kaviyam.com" && (
               <button
@@ -1203,9 +1205,8 @@ export default function App() {
                   setActiveBookId(null);
                   setActiveTab("admin");
                 }}
-                className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
-                  activeTab === "admin" ? "bg-white text-stone-800 shadow-sm" : "text-stone-500 hover:text-stone-800"
-                }`}
+                className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${activeTab === "admin" ? "bg-white text-stone-800 shadow-sm" : "text-stone-500 hover:text-stone-800"
+                  }`}
                 id="nav-tab-admin"
               >
                 <Shield size={12} className="text-[#d4af37]" />
@@ -1218,9 +1219,8 @@ export default function App() {
                 setActiveBookId(null);
                 setActiveTab("localdb");
               }}
-              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
-                activeTab === "localdb" ? "bg-white text-stone-800 shadow-sm" : "text-stone-500 hover:text-stone-800"
-              }`}
+              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${activeTab === "localdb" ? "bg-white text-stone-800 shadow-sm" : "text-stone-500 hover:text-stone-800"
+                }`}
               id="nav-tab-localdb"
             >
               <Database size={12} className="text-[#d4af37]" />
@@ -1232,9 +1232,8 @@ export default function App() {
                 setActiveBookId(null);
                 setActiveTab("feedback");
               }}
-              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
-                activeTab === "feedback" ? "bg-white text-stone-800 shadow-sm" : "text-stone-500 hover:text-stone-800"
-              }`}
+              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${activeTab === "feedback" ? "bg-white text-stone-800 shadow-sm" : "text-stone-500 hover:text-stone-800"
+                }`}
               id="nav-tab-feedback"
             >
               <HelpCircle size={12} />
@@ -1424,6 +1423,7 @@ export default function App() {
                         onToggle2FA={handleToggle2FA}
                         onClearLogs={handleClearLogs}
                         onLogout={handleLogout}
+                        onDeleteAccount={handleDeleteAccount}
                       />
                     ) : (
                       <Auth
@@ -1446,73 +1446,73 @@ export default function App() {
                   </motion.div>
                 )}
 
-            {activeTab === "mailbox" && (
-              <motion.div
-                key="mailbox-tab"
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -15 }}
-              >
-                <EmailInbox
-                  emails={emails}
-                  onReadEmail={(id) => {
-                    const updated = emails.map((m) => (m.id === id ? { ...m, read: true } : m));
-                    saveEmails(updated);
-                  }}
-                  onDeleteEmail={(id) => {
-                    const remaining = emails.filter((m) => m.id !== id);
-                    saveEmails(remaining);
-                  }}
-                  onTriggerLink={handleTriggerEmailActionLink}
-                />
-              </motion.div>
-            )}
+                {activeTab === "mailbox" && (
+                  <motion.div
+                    key="mailbox-tab"
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -15 }}
+                  >
+                    <EmailInbox
+                      emails={emails}
+                      onReadEmail={(id) => {
+                        const updated = emails.map((m) => (m.id === id ? { ...m, read: true } : m));
+                        saveEmails(updated);
+                      }}
+                      onDeleteEmail={(id) => {
+                        const remaining = emails.filter((m) => m.id !== id);
+                        saveEmails(remaining);
+                      }}
+                      onTriggerLink={handleTriggerEmailActionLink}
+                    />
+                  </motion.div>
+                )}
 
-            {activeTab === "admin" && currentUser && currentUser.email === "admin@kaviyam.com" && (
-              <motion.div
-                key="admin-tab"
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -15 }}
-              >
-                <Admin
-                  usersList={users}
-                  allSecurityLogs={securityLogs}
-                  booksList={books}
-                  onBlockUser={handleBlockUser}
-                  onDeleteUser={handleDeleteUser}
-                  isSecurityHardened={isSecurityHardened}
-                  onToggleSecurityHardening={handleToggleSecurityHardening}
-                  customCsp={customCsp}
-                  onUpdateCustomCsp={handleUpdateCustomCsp}
-                />
-              </motion.div>
-            )}
+                {activeTab === "admin" && currentUser && currentUser.email === "admin@kaviyam.com" && (
+                  <motion.div
+                    key="admin-tab"
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -15 }}
+                  >
+                    <Admin
+                      usersList={users}
+                      allSecurityLogs={securityLogs}
+                      booksList={books}
+                      onBlockUser={handleBlockUser}
+                      onDeleteUser={handleDeleteUser}
+                      isSecurityHardened={isSecurityHardened}
+                      onToggleSecurityHardening={handleToggleSecurityHardening}
+                      customCsp={customCsp}
+                      onUpdateCustomCsp={handleUpdateCustomCsp}
+                    />
+                  </motion.div>
+                )}
 
-            {activeTab === "localdb" && (
-              <motion.div
-                key="localdb-tab"
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -15 }}
-              >
-                <LocalDatabase />
-              </motion.div>
-            )}
+                {activeTab === "localdb" && (
+                  <motion.div
+                    key="localdb-tab"
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -15 }}
+                  >
+                    <LocalDatabase />
+                  </motion.div>
+                )}
 
-            {activeTab === "feedback" && (
-              <motion.div
-                key="feedback-tab"
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -15 }}
-              >
-                <Feedback />
-              </motion.div>
+                {activeTab === "feedback" && (
+                  <motion.div
+                    key="feedback-tab"
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -15 }}
+                  >
+                    <Feedback />
+                  </motion.div>
+                )}
+              </>
             )}
-          </>
-        )}
-      </AnimatePresence>
+          </AnimatePresence>
         )}
       </main>
 
