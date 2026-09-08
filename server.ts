@@ -1,6 +1,7 @@
 import express from "express";
 import path from "path";
 import fs from "fs";
+import crypto from "crypto";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
@@ -36,6 +37,141 @@ function saveBackendRecords(records: any[]) {
     console.error("Error writing backend records database file:", error);
   }
 }
+
+// Server-side store for WhatsApp OTP
+const whatsappOtpStore: Record<string, { email: string; hash: string; expiresAt: number; attempts: number }> = {};
+
+function getEmailByPhone(phoneNumber: string): string {
+  const clean = phoneNumber.trim().replace(/\D/g, "");
+  const phoneEmailMap: Record<string, string> = {
+    "9876543210": "admin@kaviyam.com",
+    "9876543211": "reader@kaviyam.com",
+    "9876543212": "rajaboopathi1021@gmail.com"
+  };
+  if (phoneEmailMap[clean]) {
+    return phoneEmailMap[clean];
+  }
+  return "rajaboopathi1021@gmail.com";
+}
+
+// POST: Send WhatsApp OTP
+app.post("/api/auth/whatsapp-otp/send", async (req, res) => {
+  try {
+    const { phoneNumber } = req.body;
+    const cleanNum = (phoneNumber || "").trim().replace(/\D/g, "");
+    if (!cleanNum || !/^[6-9]\d{9}$/.test(cleanNum)) {
+      return res.status(400).json({ success: false, error: "Please enter a valid 10-digit Indian mobile number." });
+    }
+
+    const email = getEmailByPhone(cleanNum);
+
+    // Generate cryptographically secure 6-digit OTP on backend
+    const otp = crypto.randomInt(100000, 999999).toString();
+    const hash = crypto.createHash("sha256").update(otp).digest("hex");
+    const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes expiration
+
+    whatsappOtpStore[cleanNum] = {
+      email,
+      hash,
+      expiresAt,
+      attempts: 0
+    };
+
+    const whatsappAccessToken = process.env.WHATSAPP_ACCESS_TOKEN;
+    const whatsappPhoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+
+    if (whatsappAccessToken && whatsappPhoneNumberId) {
+      // Send via official Meta WhatsApp Cloud API
+      try {
+        const waResponse = await fetch(`https://graph.facebook.com/v17.0/${whatsappPhoneNumberId}/messages`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${whatsappAccessToken}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            messaging_product: "whatsapp",
+            to: `91${cleanNum}`,
+            type: "text",
+            text: {
+              body: `Your Kaviyam verification code is ${otp}. This code expires in 5 minutes.`
+            }
+          })
+        });
+        const waData = await waResponse.json() as any;
+        if (!waResponse.ok) {
+          console.error("WhatsApp Cloud API Error:", waData);
+        }
+      } catch (waErr) {
+        console.error("Failed to dispatch WhatsApp message via Cloud API:", waErr);
+      }
+    } else {
+      // Record in backend logs / database for preview testing when WhatsApp API keys are not provided
+      const newWhatsappRecord = {
+        id: `wa-otp-${Date.now()}`,
+        recipient: `+91${cleanNum}`,
+        email,
+        subject: "WhatsApp OTP Verification",
+        body: `Your verification code is ${otp}. This code expires in 5 minutes.`,
+        sentAt: new Date().toISOString(),
+        category: "whatsapp_otp",
+        read: false
+      };
+      const records = getBackendRecords();
+      records.push(newWhatsappRecord);
+      saveBackendRecords(records);
+    }
+
+    const maskedPhone = `+91 ${cleanNum.slice(0, 5)} ${cleanNum.slice(5)}`;
+    return res.json({ success: true, maskedPhone });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message || "Failed to send WhatsApp OTP" });
+  }
+});
+
+// POST: Verify WhatsApp OTP
+app.post("/api/auth/whatsapp-otp/verify", (req, res) => {
+  try {
+    const { phoneNumber, otp } = req.body;
+    const cleanNum = (phoneNumber || "").trim().replace(/\D/g, "");
+    if (!cleanNum || !otp) {
+      return res.status(400).json({ success: false, error: "Phone number and verification code are required." });
+    }
+
+    const record = whatsappOtpStore[cleanNum];
+    if (!record) {
+      return res.status(400).json({ success: false, error: "Verification session not found or expired. Please request a new code." });
+    }
+
+    if (Date.now() > record.expiresAt) {
+      delete whatsappOtpStore[cleanNum];
+      return res.status(400).json({ success: false, error: "This verification code has expired. Please request a new code." });
+    }
+
+    if (record.attempts >= 5) {
+      delete whatsappOtpStore[cleanNum];
+      return res.status(400).json({ success: false, error: "Too many incorrect attempts. Please request a new OTP." });
+    }
+
+    const inputHash = crypto.createHash("sha256").update(otp.trim()).digest("hex");
+    if (inputHash !== record.hash) {
+      record.attempts += 1;
+      const remaining = 5 - record.attempts;
+      if (remaining <= 0) {
+        delete whatsappOtpStore[cleanNum];
+        return res.status(400).json({ success: false, error: "Too many incorrect attempts. Please request a new OTP." });
+      }
+      return res.status(400).json({ success: false, error: `Incorrect verification code. Please try again. (${remaining} attempts remaining)` });
+    }
+
+    const userEmail = record.email;
+    delete whatsappOtpStore[cleanNum]; // Consume OTP
+
+    return res.json({ success: true, email: userEmail });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message || "Failed to verify OTP" });
+  }
+});
 
 // GET all records from server JSON database
 app.get("/api/records", (req, res) => {
