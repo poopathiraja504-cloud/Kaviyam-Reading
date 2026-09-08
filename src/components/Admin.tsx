@@ -465,7 +465,7 @@ function CspConfigurator({ customCsp, onUpdateCsp, isHardened }: CspConfigurator
   };
 
   const resetToDefault = () => {
-    const defaultCsp = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https: wss:; frame-ancestors 'self';";
+    const defaultCsp = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https: wss:; frame-ancestors 'self';";
     setTempCsp(defaultCsp);
     onUpdateCsp(defaultCsp);
     setSuccess(true);

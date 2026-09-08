@@ -19,7 +19,7 @@ export const RECOMMENDED_META_TAGS: SecurityMetaTagConfig[] = [
     key: "csp",
     name: "Content Security Policy (CSP)",
     httpEquiv: "Content-Security-Policy",
-    content: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https: wss:; frame-ancestors 'self';",
+    content: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https: wss:; frame-ancestors 'self';",
     description: "Mitigates Cross-Site Scripting (XSS) and data injection attacks by restricting resource load origins.",
     category: "Injection",
     severity: "High"

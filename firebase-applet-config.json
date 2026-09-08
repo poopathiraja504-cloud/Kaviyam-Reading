@@ -1,13 +1,8 @@
 {
-  "projectId": "kaviyam-reading",
-  "appId": "1:827530199390:web:8cb697128c6c53ef700fcf",
-  "apiKey": "AIzaSyCckQcwKnj5fK0Kym83qwIwspgqXBgHaus",
-  "authDomain": "kaviyam-reading.firebaseapp.com",
-  "databaseURL": "https://kaviyam-reading-default-rtdb.asia-southeast1.firebasedatabase.app",
-  "firestoreDatabaseId": "ai-studio-novalreading-3ea26efa-f5b4-4412-8fcf-e35e298695c2",
-  "storageBucket": "kaviyam-reading.firebasestorage.app",
-  "messagingSenderId": "827530199390",
-  "measurementId": "G-SYPERY4MH2",
-  "oAuthClientId": "827530199390-pd91a9bsk0qksejfolpvsk19ctna1g3q.apps.googleusercontent.com",
-  "recaptchaSiteKey": ""
+  "projectId": "kaviyam-reading-b3e8e",
+  "appId": "1:1062572384882:web:a954fe295ab9e1111098eb",
+  "apiKey": "AIzaSyDjN-YXYzE9ifVaabwIZHVVybFKa6IU4As",
+  "authDomain": "kaviyam-reading-b3e8e.firebaseapp.com",
+  "storageBucket": "kaviyam-reading-b3e8e.firebasestorage.app",
+  "messagingSenderId": "1062572384882"
 }

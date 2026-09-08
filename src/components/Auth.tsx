@@ -1,18 +1,6 @@
-import React, { useState, useEffect, useRef } from "react";
-import {
-  GoogleAuthProvider,
-  signInWithPopup,
-  ConfirmationResult,
-} from "firebase/auth";
-import { auth } from "../firebase";
-import {
-  sendPhoneOtp,
-  verifyPhoneOtp,
-  clearRecaptchaVerifier,
-  formatE164PhoneNumber,
-} from "../lib/phoneAuth";
+import React, { useState, useEffect } from "react";
 import { User } from "../types";
-import { Shield, Mail, Lock, User as UserIcon, Eye, EyeOff, AlertTriangle, CheckCircle, Smartphone, ExternalLink } from "lucide-react";
+import { Shield, Mail, Lock, User as UserIcon, Eye, EyeOff, AlertTriangle, CheckCircle, ExternalLink, X, Chrome } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import LiquidOTP from "./LiquidOTP";
 
@@ -26,12 +14,10 @@ interface AuthProps {
   resetToken: string | null;
   setResetToken: (token: string | null) => void;
   addSystemLog: (action: string, status: "Success" | "Failed" | "Blocked") => void;
+  onGoogleLogin?: () => Promise<{ success: boolean; error?: string }> | void;
   onEmailOtpLogin?: (email: string) => void;
   onSendEmailOtp?: (email: string, otp: string) => void;
-  onPhoneLogin?: (phone: string, otp: string) => Promise<void> | void;
-  onSendPhoneOtp?: (phone: string) => Promise<void> | void;
   onGuestLogin?: () => void;
-  onGoogleLogin?: () => Promise<void> | void;
   isDarkMode?: boolean;
 }
 
@@ -45,15 +31,13 @@ export default function Auth({
   resetToken,
   setResetToken,
   addSystemLog,
+  onGoogleLogin,
   onEmailOtpLogin,
   onSendEmailOtp,
-  onPhoneLogin,
-  onSendPhoneOtp,
   onGuestLogin,
-  onGoogleLogin,
   isDarkMode = false,
 }: AuthProps) {
-  const [view, setView] = useState<"login" | "phoneLogin" | "register" | "forgot" | "reset" | "require2FA">("login");
+  const [view, setView] = useState<"login" | "register" | "forgot" | "reset" | "require2FA">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [registerPassword, setRegisterPassword] = useState("");
@@ -65,32 +49,7 @@ export default function Auth({
   const [otpCode, setOtpCode] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-
-  // Phone Login State & Firebase Confirmation Result
-  const [phoneCountryCode, setPhoneCountryCode] = useState("+1");
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [phoneStep, setPhoneStep] = useState<"enterPhone" | "verifyOtp">("enterPhone");
-  const [phoneOtp, setPhoneOtp] = useState("");
-  const [isSendingOtp, setIsSendingOtp] = useState(false);
-  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
-  const [phoneCountdown, setPhoneCountdown] = useState(0);
-
-  const fullPhoneNumber = `${phoneCountryCode} ${phoneNumber.trim()}`;
-
-  useEffect(() => {
-    return () => {
-      // Clear any active recaptcha verifier when unmounting
-      clearRecaptchaVerifier();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (phoneCountdown <= 0) return;
-    const timer = setInterval(() => {
-      setPhoneCountdown((prev) => prev - 1);
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [phoneCountdown]);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   useEffect(() => {
     if (resetToken) {
@@ -98,46 +57,20 @@ export default function Auth({
     }
   }, [resetToken]);
 
-  // Google Sign-In with GoogleAuthProvider and signInWithPopup(auth, provider)
-  const isGooglePopupActiveRef = useRef(false);
-
-  const handleGoogleLoginClick = async () => {
-    if (isGooglePopupActiveRef.current) return;
+  const handleGoogleClick = async () => {
+    if (!onGoogleLogin) return;
     setErrorMsg(null);
     setSuccessMsg(null);
-    isGooglePopupActiveRef.current = true;
-
+    setIsGoogleLoading(true);
     try {
-      if (onGoogleLogin) {
-        await onGoogleLogin();
-      } else {
-        const provider = new GoogleAuthProvider();
-        provider.setCustomParameters({ prompt: "select_account" });
-        await signInWithPopup(auth, provider);
+      const res = await onGoogleLogin();
+      if (res && !res.success && res.error) {
+        setErrorMsg(res.error);
       }
     } catch (err: any) {
-      const errCode = err?.code || "";
-      let errMsg = "";
-      if (errCode === "auth/popup-closed-by-user") {
-        errMsg = "The Google sign-in window was closed before completing authentication. Please try again.";
-      } else if (errCode === "auth/popup-blocked") {
-        errMsg = "The sign-in popup was blocked by your browser. Please allow popups for this site or open the app in a new browser tab.";
-      } else if (errCode === "auth/cancelled-popup-request") {
-        errMsg = "A sign-in request was already in progress and has been reset. Please click again.";
-      } else if (errCode === "auth/unauthorized-domain") {
-        errMsg = "This domain is not authorized in your Firebase Authentication settings. Please add this domain to 'Authorized domains' in Firebase Console (Authentication > Settings > Authorized domains).";
-      } else if (
-        errCode === "auth/internal-error" ||
-        (typeof window !== "undefined" && window.self !== window.top && (errCode.includes("internal-error") || err?.message?.includes("iframe") || errCode.includes("network-request-failed")))
-      ) {
-        errMsg = "Google Sign-In popup could not complete within the embedded iframe environment. Please click the button below to open the application in a new browser tab to sign in with Google, or sign in using Email or Phone login.";
-      } else {
-        errMsg = err?.message || (typeof err === "string" ? err : "Google Sign-In failed.");
-      }
-      setErrorMsg(errMsg);
-      addSystemLog(`Google Sign-In Notice: ${errCode || errMsg}`, "Blocked");
+      setErrorMsg(err?.message || "Google Sign-In could not be completed.");
     } finally {
-      isGooglePopupActiveRef.current = false;
+      setIsGoogleLoading(false);
     }
   };
 
@@ -158,131 +91,6 @@ export default function Auth({
       }
     } catch (err: any) {
       setErrorMsg(err?.message || "An unexpected error occurred during login.");
-    }
-  };
-
-  // Phone OTP dispatch using real Firebase signInWithPhoneNumber
-  const handleSendPhoneOtpSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isSendingOtp) return;
-    setErrorMsg(null);
-    setSuccessMsg(null);
-
-    let formattedPhone = "";
-    try {
-      formattedPhone = formatE164PhoneNumber(phoneCountryCode, phoneNumber);
-    } catch (err: any) {
-      setErrorMsg(err.message || "Please enter a valid phone number.");
-      return;
-    }
-
-    setIsSendingOtp(true);
-    try {
-      if (onSendPhoneOtp) {
-        await onSendPhoneOtp(formattedPhone);
-      } else {
-        await sendPhoneOtp(formattedPhone, () => {
-          setErrorMsg("reCAPTCHA verification expired. Please request a new SMS code.");
-        });
-        addSystemLog(`Firebase Phone SMS OTP Dispatched (${formattedPhone})`, "Success");
-      }
-      setPhoneStep("verifyOtp");
-      setPhoneCountdown(30);
-      setSuccessMsg(`SMS verification code dispatched to ${formattedPhone}. Enter the 6-digit code to complete sign in.`);
-    } catch (err: any) {
-      console.error("Firebase Phone Auth error:", err);
-      const errCode = err?.code || "";
-      let errMsg = "";
-      if (errCode === "auth/firebase-app-check-token-is-invalid" || err?.message?.includes("firebase-app-check-token-is-invalid")) {
-        errMsg = "SMS verification could not complete because App Check or reCAPTCHA is not configured for this domain in Firebase Console. Please add this domain to Authorized domains in Firebase Console (Authentication > Settings > Authorized domains) or use Email/Password sign in.";
-      } else if (errCode === "auth/captcha-check-failed" || err?.message?.includes("captcha-check-failed")) {
-        errMsg = "reCAPTCHA verification failed. Please try requesting a new SMS verification code.";
-      } else if (errCode === "auth/quota-exceeded" || errCode === "auth/too-many-requests") {
-        errMsg = "SMS limit exceeded or too many requests. Please wait a few minutes or sign in with Email/Password.";
-      } else if (errCode === "auth/invalid-phone-number") {
-        errMsg = "The phone number format is invalid. Please enter a valid number with country code (e.g. +91... or +1...).";
-      } else {
-        errMsg = err?.message || (typeof err === "string" ? err : "Failed to send SMS verification code.");
-      }
-      setErrorMsg(errMsg);
-      addSystemLog(`Phone OTP Dispatch Failed (${formattedPhone}): ${errCode || errMsg}`, "Failed");
-    } finally {
-      setIsSendingOtp(false);
-    }
-  };
-
-  // Resend Phone OTP using real Firebase signInWithPhoneNumber
-  const handleResendPhoneOtp = async () => {
-    if (isSendingOtp) return;
-    setErrorMsg(null);
-    setSuccessMsg(null);
-
-    let formattedPhone = "";
-    try {
-      formattedPhone = formatE164PhoneNumber(phoneCountryCode, phoneNumber);
-    } catch (err: any) {
-      setErrorMsg(err.message || "Please enter a valid phone number.");
-      return;
-    }
-
-    setIsSendingOtp(true);
-    try {
-      if (onSendPhoneOtp) {
-        await onSendPhoneOtp(formattedPhone);
-      } else {
-        await sendPhoneOtp(formattedPhone, () => {
-          setErrorMsg("reCAPTCHA verification expired. Please request a new SMS code.");
-        });
-        addSystemLog(`Firebase Phone SMS OTP Resent (${formattedPhone})`, "Success");
-      }
-      setPhoneCountdown(30);
-      setSuccessMsg(`Resent verification code to ${formattedPhone}.`);
-    } catch (err: any) {
-      console.error("Firebase Resend OTP error:", err);
-      const errMsg = err?.message || (typeof err === "string" ? err : "Failed to resend SMS OTP.");
-      setErrorMsg(errMsg);
-    } finally {
-      setIsSendingOtp(false);
-    }
-  };
-
-  // Verify Phone OTP using confirmationResult.confirm(otp)
-  const handleVerifyPhoneOtpSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isVerifyingOtp) return;
-    setErrorMsg(null);
-    setSuccessMsg(null);
-
-    const cleanOtp = phoneOtp.trim();
-    if (cleanOtp.length < 6) {
-      setErrorMsg("Please enter the complete 6-digit SMS verification code.");
-      return;
-    }
-
-    let formattedPhone = "";
-    try {
-      formattedPhone = formatE164PhoneNumber(phoneCountryCode, phoneNumber);
-    } catch (_) {
-      formattedPhone = `${phoneCountryCode}${phoneNumber.trim()}`;
-    }
-
-    setIsVerifyingOtp(true);
-    try {
-      if (onPhoneLogin) {
-        await onPhoneLogin(formattedPhone, cleanOtp);
-      } else {
-        const userCredential = await verifyPhoneOtp(cleanOtp);
-        if (userCredential?.user) {
-          addSystemLog(`Firebase Phone Auth Confirmed (${userCredential.user.phoneNumber || userCredential.user.uid})`, "Success");
-        }
-      }
-    } catch (err: any) {
-      console.error("Phone OTP Verification error:", err);
-      const errMsg = err?.message || (typeof err === "string" ? err : "Invalid SMS verification code. Please check and try again.");
-      setErrorMsg(errMsg);
-      addSystemLog(`Phone OTP Verification Failed: ${errMsg}`, "Failed");
-    } finally {
-      setIsVerifyingOtp(false);
     }
   };
 
@@ -394,7 +202,6 @@ export default function Auth({
         <div className="text-center mb-6 relative z-10">
           <h2 className="font-serif text-2xl md:text-3xl font-extrabold text-[#f0c15c] tracking-tight">
             {view === "login" && "Welcome Back!"}
-            {view === "phoneLogin" && "Welcome Back!"}
             {view === "register" && "Synthesize Profile"}
             {view === "forgot" && "Recover Account"}
             {view === "reset" && "Set Secure Password"}
@@ -402,7 +209,6 @@ export default function Auth({
           </h2>
           <p className="text-stone-300 text-xs md:text-sm mt-1.5 font-medium leading-relaxed">
             {view === "login" && "Sign in to continue your reading journey with Kaviyam."}
-            {view === "phoneLogin" && "Sign in to continue your reading journey with Kaviyam."}
             {view === "register" && "Register to review books, track history, and write stories with Gemini."}
             {view === "forgot" && "We will dispatch a recovery packet to your Simulated Mailbox."}
             {view === "reset" && "Establish a robust password combination to secure your credentials."}
@@ -417,60 +223,16 @@ export default function Auth({
             <div>
               <span className="font-extrabold text-[#f0c15c] block text-[11px] uppercase tracking-wider">SECURE AUTH:</span>
               <span className="text-stone-300 text-[11px]">
-                {view === "phoneLogin" 
-                  ? "Firebase Phone Authentication with SMS verification code." 
-                  : "Firebase Authentication enabled with Email/Password & Google Sign-In."}
+                Firebase Authentication enabled with Email & Password.
               </span>
             </div>
           </div>
         </div>
 
-        {/* Login Mode Switcher Tabs */}
-        {(view === "login" || view === "phoneLogin") && (
-          <div className="flex rounded-2xl p-1.5 mb-5 border border-[#1e3258] bg-[#0c1830] shadow-inner gap-1.5 relative z-10">
-            <button
-              type="button"
-              onClick={() => {
-                setErrorMsg(null);
-                setSuccessMsg(null);
-                clearRecaptchaVerifier();
-                setView("login");
-              }}
-              className={`flex-1 py-2.5 px-3 rounded-xl font-extrabold text-xs md:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                view === "login"
-                  ? "bg-gradient-to-r from-[#f0c15c] via-[#f2a93b] to-[#d48c1a] text-stone-950 shadow-md scale-[1.02]"
-                  : "text-stone-300 hover:text-white hover:bg-[#122347]"
-              }`}
-              id="tab-login-email"
-            >
-              <Mail size={15} />
-              Email & Password
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setErrorMsg(null);
-                setSuccessMsg(null);
-                clearRecaptchaVerifier();
-                setView("phoneLogin");
-              }}
-              className={`flex-1 py-2.5 px-3 rounded-xl font-extrabold text-xs md:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                view === "phoneLogin"
-                  ? "bg-gradient-to-r from-[#f0c15c] via-[#f2a93b] to-[#d48c1a] text-stone-950 shadow-md scale-[1.02]"
-                  : "text-stone-300 hover:text-white hover:bg-[#122347]"
-              }`}
-              id="tab-login-phone"
-            >
-              <Smartphone size={15} />
-              Phone Number
-            </button>
-          </div>
-        )}
-
         {errorMsg && (
-          <div className="mb-4 p-3.5 bg-red-950/80 border border-red-500/40 text-red-200 text-[11px] rounded-xl flex items-start gap-2 animate-shake" id="auth-error-banner">
+          <div className="mb-4 p-3.5 bg-red-950/80 border border-red-500/40 text-red-200 text-[11px] rounded-xl flex items-start gap-2 animate-shake relative" id="auth-error-banner">
             <AlertTriangle size={14} className="mt-0.5 flex-shrink-0 text-red-400" />
-            <div className="flex-1">
+            <div className="flex-1 pr-5">
               <span className="leading-relaxed block whitespace-pre-line font-medium">{errorMsg}</span>
               {typeof window !== "undefined" && window.self !== window.top && errorMsg.includes("iframe") && (
                 <a
@@ -485,6 +247,15 @@ export default function Auth({
                 </a>
               )}
             </div>
+            <button
+              type="button"
+              onClick={() => setErrorMsg(null)}
+              className="absolute top-2.5 right-2.5 text-stone-400 hover:text-stone-150 transition-colors p-1 rounded-md cursor-pointer"
+              title="Dismiss error"
+              aria-label="Dismiss error"
+            >
+              <X size={14} />
+            </button>
           </div>
         )}
 
@@ -570,31 +341,29 @@ export default function Auth({
                 </span>
               </div>
 
-              {/* Google & Guest Mode Buttons */}
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={handleGoogleLoginClick}
-                  className="flex items-center justify-center gap-2 py-3 px-3 border border-[#1e3258] bg-[#0c1830] hover:bg-[#132549] text-stone-100 font-bold rounded-2xl transition duration-200 text-xs md:text-sm shadow-sm cursor-pointer"
-                  id="login-google-signin-btn"
-                >
-                  <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24">
-                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-                  </svg>
-                  <span className="truncate">Google</span>
-                </button>
+              {/* Google & Guest Auth Buttons */}
+              <div className="space-y-2.5">
+                {onGoogleLogin && (
+                  <button
+                    type="button"
+                    onClick={handleGoogleClick}
+                    disabled={isGoogleLoading}
+                    className="w-full flex items-center justify-center gap-2.5 py-3 px-4 border border-[#2b416e] bg-[#0e1f3d] hover:bg-[#152e5a] text-stone-100 font-bold rounded-2xl transition duration-200 text-xs md:text-sm shadow-sm cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed group"
+                    id="google-signin-btn"
+                  >
+                    <Chrome size={16} className="text-[#f0c15c] group-hover:scale-110 transition-transform flex-shrink-0" />
+                    <span className="truncate">{isGoogleLoading ? "Connecting to Google..." : "Sign in with Google"}</span>
+                  </button>
+                )}
 
                 <button
                   type="button"
                   onClick={onGuestLogin}
-                  className="flex items-center justify-center gap-2 py-3 px-3 border border-[#1e3258] bg-[#0c1830] hover:bg-[#132549] text-stone-100 font-bold rounded-2xl transition duration-200 text-xs md:text-sm shadow-sm cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 px-3 border border-[#1e3258] bg-[#0c1830] hover:bg-[#132549] text-stone-300 hover:text-stone-100 font-semibold rounded-2xl transition duration-200 text-xs shadow-sm cursor-pointer"
                   id="guest-signin-btn"
                 >
-                  <UserIcon size={15} className="text-[#f0c15c] flex-shrink-0" />
-                  <span className="truncate">Guest Mode</span>
+                  <UserIcon size={14} className="text-[#f0c15c]/80 flex-shrink-0" />
+                  <span className="truncate">Continue as Guest</span>
                 </button>
               </div>
 
@@ -610,169 +379,6 @@ export default function Auth({
                 </button>
               </p>
             </motion.form>
-          )}
-
-          {view === "phoneLogin" && (
-            <motion.div
-              key="phone-login-form"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              className="space-y-4 text-xs relative z-10"
-            >
-              {phoneStep === "enterPhone" ? (
-                <form onSubmit={handleSendPhoneOtpSubmit} className="space-y-4">
-                  <div>
-                    <label className="block font-bold mb-1.5 text-stone-200">
-                      Mobile Phone Number
-                    </label>
-                    <div className="flex gap-2">
-                      <select
-                        value={phoneCountryCode}
-                        onChange={(e) => setPhoneCountryCode(e.target.value)}
-                        className="py-3 px-2.5 border border-[#1e3258] bg-[#0a152d] text-stone-100 rounded-xl font-bold focus:outline-none focus:border-[#f0c15c] transition-all text-xs cursor-pointer shadow-sm"
-                        id="phone-country-select"
-                      >
-                        <option value="+91" className="bg-[#0a152d] text-stone-100">🇮🇳 +91 (India)</option>
-                        <option value="+1" className="bg-[#0a152d] text-stone-100">🇺🇸 +1 (US/CA)</option>
-                        <option value="+44" className="bg-[#0a152d] text-stone-100">🇬🇧 +44 (UK)</option>
-                        <option value="+61" className="bg-[#0a152d] text-stone-100">🇦🇺 +61 (Aus)</option>
-                        <option value="+81" className="bg-[#0a152d] text-stone-100">🇯🇵 +81 (Japan)</option>
-                        <option value="+49" className="bg-[#0a152d] text-stone-100">🇩🇪 +49 (Germany)</option>
-                        <option value="+33" className="bg-[#0a152d] text-stone-100">🇫🇷 +33 (France)</option>
-                        <option value="+65" className="bg-[#0a152d] text-stone-100">🇸🇬 +65 (SG)</option>
-                        <option value="+971" className="bg-[#0a152d] text-stone-100">🇦🇪 +971 (UAE)</option>
-                      </select>
-                      <div className="relative flex-1">
-                        <input
-                          type="tel"
-                          required
-                          placeholder="81234 56789"
-                          value={phoneNumber}
-                          onChange={(e) => setPhoneNumber(e.target.value)}
-                          className="w-full px-4 py-3 border border-[#1e3258] bg-[#0a152d] text-stone-100 placeholder-stone-500 rounded-xl focus:outline-none focus:border-[#f0c15c] transition-all text-xs md:text-sm font-mono tracking-wider"
-                          id="phone-number-input"
-                        />
-                      </div>
-                    </div>
-                    <p className="text-[11px] text-stone-400 mt-2 leading-relaxed">
-                      Firebase will dispatch a 6-digit SMS verification code to this phone number.
-                    </p>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={isSendingOtp}
-                    className="w-full bg-gradient-to-r from-[#f0c15c] via-[#e8a32a] to-[#d48c1a] hover:from-[#f5ca6a] hover:to-[#e09825] text-stone-950 font-extrabold py-3.5 rounded-2xl transition-all shadow-lg flex items-center justify-center gap-2.5 disabled:opacity-50 cursor-pointer text-sm tracking-wide mt-2"
-                    id="send-phone-otp-btn"
-                  >
-                    <svg className="w-4 h-4 text-stone-950 fill-current transform rotate-45" viewBox="0 0 24 24">
-                      <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
-                    </svg>
-                    {isSendingOtp ? "Sending SMS Code..." : "Send Verification Code"}
-                  </button>
-                </form>
-              ) : (
-                <form onSubmit={handleVerifyPhoneOtpSubmit} className="space-y-4">
-                  <div className="text-center p-3.5 rounded-2xl border border-[#1e3258] bg-[#0d1c38]/80">
-                    <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">SMS Code Sent To</p>
-                    <p className="font-extrabold text-sm text-[#f0c15c] mt-0.5">{fullPhoneNumber}</p>
-                    <button
-                      type="button"
-                      onClick={() => { setPhoneStep("enterPhone"); setPhoneOtp(""); setErrorMsg(null); }}
-                      className="text-[11px] text-stone-400 hover:text-[#f0c15c] underline mt-1 font-bold cursor-pointer"
-                    >
-                      Change Phone Number
-                    </button>
-                  </div>
-
-                  <div>
-                    <label className="block font-bold text-center mb-2.5 text-stone-200">
-                      Enter 6-Digit SMS Verification Code
-                    </label>
-                    <LiquidOTP
-                      value={phoneOtp}
-                      onChange={(val) => setPhoneOtp(val)}
-                      isDarkMode={true}
-                    />
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={phoneOtp.length < 6 || isVerifyingOtp}
-                    className="w-full bg-gradient-to-r from-[#f0c15c] via-[#e8a32a] to-[#d48c1a] hover:from-[#f5ca6a] hover:to-[#e09825] text-stone-950 font-extrabold py-3.5 rounded-2xl transition shadow-lg disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2 text-sm"
-                    id="verify-phone-otp-btn"
-                  >
-                    <CheckCircle size={16} />
-                    {isVerifyingOtp ? "Verifying Code..." : "Verify & Sign In"}
-                  </button>
-
-                  <div className="flex justify-between items-center text-[11px] text-stone-400 pt-1">
-                    <span>Didn't receive SMS?</span>
-                    {phoneCountdown > 0 ? (
-                      <span className="font-mono text-[#f0c15c] font-bold">Resend in {phoneCountdown}s</span>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={handleResendPhoneOtp}
-                        disabled={isSendingOtp}
-                        className="text-[#f0c15c] hover:underline font-bold cursor-pointer"
-                      >
-                        {isSendingOtp ? "Sending..." : "Resend SMS OTP"}
-                      </button>
-                    )}
-                  </div>
-                </form>
-              )}
-
-              {/* Divider */}
-              <div className="relative my-5 flex items-center justify-center">
-                <div className="absolute inset-x-0 h-px bg-[#1e3258]" />
-                <span className="relative px-3 text-[10px] font-bold uppercase tracking-widest text-stone-400 bg-[#091122]">
-                  OR CONTINUE WITH
-                </span>
-              </div>
-
-              {/* Google and Guest Auth Option Buttons */}
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={handleGoogleLoginClick}
-                  className="flex items-center justify-center gap-2 py-3 px-3 border border-[#1e3258] bg-[#0c1830] hover:bg-[#132549] text-stone-100 font-bold rounded-2xl transition duration-200 text-xs md:text-sm shadow-sm cursor-pointer"
-                  id="phone-google-signin-btn"
-                >
-                  <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24">
-                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-                  </svg>
-                  <span className="truncate">Google</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={onGuestLogin}
-                  className="flex items-center justify-center gap-2 py-3 px-3 border border-[#1e3258] bg-[#0c1830] hover:bg-[#132549] text-stone-100 font-bold rounded-2xl transition duration-200 text-xs md:text-sm shadow-sm cursor-pointer"
-                  id="phone-guest-signin-btn"
-                >
-                  <UserIcon size={15} className="text-[#f0c15c] flex-shrink-0" />
-                  <span className="truncate">Guest Mode</span>
-                </button>
-              </div>
-
-              <p className="text-center text-stone-400 mt-5 text-xs">
-                Don't have an account?{" "}
-                <button
-                  type="button"
-                  onClick={() => setView("register")}
-                  className="text-[#f0c15c] hover:underline font-extrabold cursor-pointer ml-1"
-                  id="phone-toggle-register-btn"
-                >
-                  Create Profile
-                </button>
-              </p>
-            </motion.div>
           )}
 
           {view === "register" && (
@@ -822,7 +428,9 @@ export default function Auth({
                   <Lock size={15} className="absolute left-3.5 top-3.5 text-[#f0c15c]/60" />
                   <input
                     type={showRegisterPassword ? "text" : "password"}
-                    placeholder="Create a secure password"
+                    required
+                    minLength={6}
+                    placeholder="Create a secure password (min 6 characters)"
                     value={registerPassword}
                     onChange={(e) => setRegisterPassword(e.target.value)}
                     className="w-full pl-10 pr-10 py-3 border border-[#1e3258] bg-[#0a152d] text-stone-100 placeholder-stone-500 rounded-xl focus:outline-none focus:border-[#f0c15c] transition-all text-xs md:text-sm"
@@ -874,11 +482,33 @@ export default function Auth({
                 Create Account Profile
               </button>
 
+              {onGoogleLogin && (
+                <>
+                  <div className="relative my-4 flex items-center justify-center">
+                    <div className="absolute inset-x-0 h-px bg-[#1e3258]" />
+                    <span className="relative px-3 text-[10px] font-bold uppercase tracking-widest text-stone-400 bg-[#091122]">
+                      OR SIGN UP WITH
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleGoogleClick}
+                    disabled={isGoogleLoading}
+                    className="w-full flex items-center justify-center gap-2.5 py-3 px-4 border border-[#2b416e] bg-[#0e1f3d] hover:bg-[#152e5a] text-stone-100 font-bold rounded-2xl transition duration-200 text-xs md:text-sm shadow-sm cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed group"
+                    id="google-register-btn"
+                  >
+                    <Chrome size={16} className="text-[#f0c15c] group-hover:scale-110 transition-transform flex-shrink-0" />
+                    <span className="truncate">{isGoogleLoading ? "Connecting to Google..." : "Sign up with Google"}</span>
+                  </button>
+                </>
+              )}
+
               <p className="text-center text-stone-400 mt-4 text-xs">
                 Already have an account?{" "}
                 <button
                   type="button"
-                  onClick={() => setView("phoneLogin")}
+                  onClick={() => setView("login")}
                   className="text-[#f0c15c] hover:underline font-extrabold cursor-pointer ml-1"
                   id="toggle-login-btn"
                 >
@@ -923,7 +553,7 @@ export default function Auth({
 
               <button
                 type="button"
-                onClick={() => setView("phoneLogin")}
+                onClick={() => setView("login")}
                 className="w-full border border-[#1e3258] hover:bg-[#0c1830] text-stone-300 py-3 rounded-2xl transition cursor-pointer"
                 id="cancel-forgot-btn"
               >
@@ -942,7 +572,7 @@ export default function Auth({
               className="space-y-4 text-xs relative z-10"
             >
               <div className="bg-[#0c1830] border border-[#1e3258] rounded-xl p-3 text-xs text-stone-300 font-mono flex items-center gap-2">
-                <Smartphone size={14} className="text-[#f0c15c]" />
+                <Shield size={14} className="text-[#f0c15c]" />
                 Secure Reset Node Validated
               </div>
 

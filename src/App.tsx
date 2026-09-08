@@ -5,27 +5,22 @@ import { BookOpen, User as UserIcon, Mail, Shield, HelpCircle, LogIn, LogOut, Ch
 import { motion, AnimatePresence } from "motion/react";
 import { toggleSecurityMetaTags, RECOMMENDED_META_TAGS } from "./utils/securityHeaders";
 
-import { auth, db, handleFirestoreError, OperationType } from "./firebase";
+import { auth, db } from "./firebase";
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
-  signOut,
+  signOut, 
   onAuthStateChanged,
-  ConfirmationResult,
   GoogleAuthProvider,
   signInWithPopup
 } from "firebase/auth";
-import { sendPhoneOtp, verifyPhoneOtp, clearRecaptchaVerifier } from "./lib/phoneAuth";
-import { 
-  collection, 
-  doc, 
-  setDoc, 
-  getDoc, 
-  getDocs, 
-  updateDoc, 
-  deleteDoc,
-  query,
-  where
+import {
+  doc,
+  setDoc,
+  getDoc,
+  collection,
+  getDocs,
+  deleteDoc
 } from "firebase/firestore";
 
 import Library from "./components/Library";
@@ -95,9 +90,104 @@ const INITIAL_PASSWORDS: Record<string, string> = {
   "rajaboopathi1021@gmail.com": "reader"
 };
 
+type AppTab = "library" | "profile" | "mailbox" | "admin" | "feedback" | "localdb";
+
+const getRouteFromUrl = (): { tab: AppTab | "login"; bookId: string | null } => {
+  const hash = window.location.hash.replace(/^#\/?/, "");
+  const pathname = window.location.pathname.replace(/^\//, "");
+  const routeString = hash || pathname || "";
+  const parts = routeString.split("/").filter(Boolean);
+
+  if (parts.length === 0) {
+    return { tab: "library", bookId: null };
+  }
+
+  const primary = parts[0].toLowerCase();
+  if (primary === "login" || primary === "auth" || primary === "signin") {
+    return { tab: "login", bookId: null };
+  }
+  if (primary === "profile" || primary === "settings") {
+    return { tab: "profile", bookId: null };
+  }
+  if (primary === "mailbox" || primary === "inbox" || primary === "messages") {
+    return { tab: "mailbox", bookId: null };
+  }
+  if (primary === "localdb" || primary === "db" || primary === "database") {
+    return { tab: "localdb", bookId: null };
+  }
+  if (primary === "feedback" || primary === "help" || primary === "faq") {
+    return { tab: "feedback", bookId: null };
+  }
+  if (primary === "admin") {
+    return { tab: "admin", bookId: null };
+  }
+  if (primary === "reader" || primary === "book") {
+    return { tab: "library", bookId: parts[1] || null };
+  }
+  if (primary === "library" || primary === "catalog") {
+    return { tab: "library", bookId: null };
+  }
+
+  return { tab: "library", bookId: null };
+};
+
 export default function App() {
+  // Auth / Session State (parsed synchronously to keep session alive across refreshes)
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    try {
+      const cached = localStorage.getItem("kaviyam_current_user");
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  });
+
   // Navigation State
-  const [activeTab, setActiveTab] = useState<"library" | "profile" | "mailbox" | "admin" | "feedback" | "localdb">("library");
+  const [activeTab, setActiveTab] = useState<AppTab>(() => {
+    try {
+      const cached = localStorage.getItem("kaviyam_current_user");
+      if (!cached) return "library";
+      const route = getRouteFromUrl();
+      if (route.tab !== "login") return route.tab;
+      return "library";
+    } catch {
+      return "library";
+    }
+  });
+
+  const [activeBookId, setActiveBookId] = useState<string | null>(() => {
+    try {
+      const cached = localStorage.getItem("kaviyam_current_user");
+      if (!cached) return null;
+      const route = getRouteFromUrl();
+      return route.bookId;
+    } catch {
+      return null;
+    }
+  });
+
+  // Navigation Helpers
+  const navigateToTab = (tab: AppTab) => {
+    setActiveBookId(null);
+    setActiveTab(tab);
+    if (tab === "library") window.location.hash = "#/library";
+    else if (tab === "profile") window.location.hash = "#/profile";
+    else if (tab === "mailbox") window.location.hash = "#/mailbox";
+    else if (tab === "localdb") window.location.hash = "#/localdb";
+    else if (tab === "feedback") window.location.hash = "#/help";
+    else if (tab === "admin") window.location.hash = "#/admin";
+  };
+
+  const navigateToBook = (bookId: string) => {
+    setActiveBookId(bookId);
+    window.location.hash = `#/reader/${bookId}`;
+  };
+
+  const navigateBackToLibrary = () => {
+    setActiveBookId(null);
+    setActiveTab("library");
+    window.location.hash = "#/library";
+  };
   
   // Data State
   const [books, setBooks] = useState<Book[]>([]);
@@ -107,16 +197,9 @@ export default function App() {
   const [securityLogs, setSecurityLogs] = useState<SecurityLog[]>([]);
   const [emails, setEmails] = useState<SimulatedEmail[]>([]);
 
-  // Auth / Session State
-  const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    const cached = localStorage.getItem("kaviyam_current_user");
-    return cached ? JSON.parse(cached) : null;
-  });
   const [isGuestMode, setIsGuestMode] = useState(false);
-  const [activeBookId, setActiveBookId] = useState<string | null>(null);
   const [resetToken, setResetToken] = useState<string | null>(null);
   const [pendingOtpSession, setPendingOtpSession] = useState<{ email: string; code: string } | null>(null);
-  const [pendingPhoneOtps, setPendingPhoneOtps] = useState<Record<string, string>>({});
 
   // Downloads State
   const [downloadedBookIds, setDownloadedBookIds] = useState<string[]>(() => {
@@ -158,7 +241,7 @@ export default function App() {
 
   const [customCsp, setCustomCsp] = useState<string>(() => {
     const cached = localStorage.getItem("kaviyam_custom_csp");
-    return cached !== null ? cached : "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https: wss:; frame-ancestors 'self';";
+    return cached !== null ? cached : "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https: wss:; frame-ancestors 'self';";
   });
 
   const handleToggleSecurityHardening = () => {
@@ -186,19 +269,15 @@ export default function App() {
     toggleSecurityMetaTags(isSecurityHardened, customCsp);
   }, [isSecurityHardened, customCsp]);
 
-  // Phone Auth Confirmation Result
-  const [phoneConfirmationResult, setPhoneConfirmationResult] = useState<ConfirmationResult | null>(null);
-
   // Listen to Firebase Auth state
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
         const uid = firebaseUser.uid;
-        const userEmail = firebaseUser.email || (firebaseUser.phoneNumber ? `${firebaseUser.phoneNumber.replace(/[^0-9]/g, "")}@phone.kaviyam.com` : `user-${uid.substring(0, 6)}@kaviyam.com`);
-        const userPhone = firebaseUser.phoneNumber || "";
-        const fallbackName = firebaseUser.displayName || (firebaseUser.email ? firebaseUser.email.split("@")[0] : (userPhone ? `Reader ${userPhone}` : `Reader ${uid.substring(0, 6)}`));
+        const userEmail = firebaseUser.email || `user-${uid.substring(0, 6)}@kaviyam.com`;
+        const fallbackName = firebaseUser.displayName || (firebaseUser.email ? firebaseUser.email.split("@")[0] : `Reader ${uid.substring(0, 6)}`);
 
-        let foundUser = users.find((u) => u.id === uid || u.email.toLowerCase() === userEmail.toLowerCase() || (userPhone && u.profile?.phoneNumber === userPhone));
+        let foundUser = users.find((u) => u.id === uid || u.email.toLowerCase() === userEmail.toLowerCase());
 
         if (foundUser) {
           const updatedUser: User = {
@@ -208,7 +287,6 @@ export default function App() {
             isVerified: firebaseUser.emailVerified || true,
             profile: {
               ...foundUser.profile,
-              phoneNumber: userPhone || foundUser.profile?.phoneNumber || ""
             }
           };
           setCurrentUser(updatedUser);
@@ -223,7 +301,7 @@ export default function App() {
               username: fallbackName,
               bio: "Kaviyam Reader authenticated via Firebase Auth",
               profilePhoto: firebaseUser.photoURL || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100",
-              phoneNumber: userPhone,
+              phoneNumber: "",
               dob: "2000-01-01",
               gender: "Not Specified",
               privacy: { publicBookshelf: true, showActivity: true }
@@ -239,11 +317,52 @@ export default function App() {
         }
       }
     });
-
     return () => unsubscribe();
   }, [users]);
 
-  // Load Initial Local & Firestore State
+  // Route Protection & Hash Synchronization
+  useEffect(() => {
+    // If not authenticated, lock hash to #/login and prohibit accessing protected views
+    if (!currentUser) {
+      if (window.location.hash !== "#/login") {
+        window.location.hash = "#/login";
+      }
+      if (activeBookId) setActiveBookId(null);
+    } else {
+      // If authenticated, ensure we redirect away from #/login to #/library
+      const currentRoute = getRouteFromUrl();
+      if (currentRoute.tab === "login") {
+        window.location.hash = "#/library";
+        setActiveTab("library");
+        setActiveBookId(null);
+      } else if (!window.location.hash || window.location.hash === "#/") {
+        window.location.hash = "#/library";
+      }
+    }
+
+    const handleHashChange = () => {
+      const route = getRouteFromUrl();
+      if (!currentUser) {
+        if (route.tab !== "login") {
+          window.location.hash = "#/login";
+        }
+      } else {
+        if (route.tab === "login") {
+          window.location.hash = "#/library";
+          setActiveTab("library");
+          setActiveBookId(null);
+        } else {
+          setActiveTab(route.tab);
+          setActiveBookId(route.bookId);
+        }
+      }
+    };
+
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, [currentUser, activeBookId]);
+
+  // Load Initial Local State
   useEffect(() => {
     const cachedPasswords = localStorage.getItem("kaviyam_passwords");
     if (cachedPasswords) {
@@ -253,121 +372,49 @@ export default function App() {
       localStorage.setItem("kaviyam_passwords", JSON.stringify(INITIAL_PASSWORDS));
     }
 
-    // Load Books from Firestore Database with fallback to LocalStorage/Presets
-    const fetchFirestoreBooks = async () => {
-      try {
-        const booksSnapshot = await getDocs(collection(db, "books"));
-        if (!booksSnapshot.empty) {
-          const loadedBooks: Book[] = [];
-          booksSnapshot.forEach((docSnap) => {
-            loadedBooks.push(docSnap.data() as Book);
-          });
-          setBooks(loadedBooks);
-          localStorage.setItem("kaviyam_books", JSON.stringify(loadedBooks));
-        } else {
-          // Seed Firestore with PRESET_BOOKS
-          const cachedBooks = localStorage.getItem("kaviyam_books");
-          const initialBooks: Book[] = cachedBooks ? JSON.parse(cachedBooks) : PRESET_BOOKS;
-          setBooks(initialBooks);
-          localStorage.setItem("kaviyam_books", JSON.stringify(initialBooks));
-
-          for (const book of initialBooks) {
-            try {
-              await setDoc(doc(db, "books", book.id), book);
-            } catch (_) {}
-          }
-        }
-      } catch (err) {
-        console.warn("Firestore fetch error, using local books:", err);
-        const cachedBooks = localStorage.getItem("kaviyam_books");
-        if (cachedBooks) {
-          setBooks(JSON.parse(cachedBooks));
-        } else {
-          setBooks(PRESET_BOOKS);
-          localStorage.setItem("kaviyam_books", JSON.stringify(PRESET_BOOKS));
-        }
-      }
-    };
-
-    fetchFirestoreBooks();
+    const cachedBooks = localStorage.getItem("kaviyam_books");
+    if (cachedBooks) {
+      setBooks(JSON.parse(cachedBooks));
+    } else {
+      setBooks(PRESET_BOOKS);
+      localStorage.setItem("kaviyam_books", JSON.stringify(PRESET_BOOKS));
+    }
   }, []);
 
-  // Sync Emails and Security Logs from Firestore on active login session or startup
+  // Load Emails and Security Logs on active login session or startup
   useEffect(() => {
-    const fetchEmailsAndLogs = async () => {
-      if (!currentUser) {
-        const cachedEmails = localStorage.getItem("kaviyam_emails");
-        if (cachedEmails) {
-          setEmails(JSON.parse(cachedEmails));
-        } else {
-          const initialEmails: SimulatedEmail[] = [
-            {
-              id: "mail-welcome",
-              recipient: "rajaboopathi1021@gmail.com",
-              subject: "Welcome to Kaviyam Reading Platform!",
-              body: "Hello Reader!\n\nWelcome to Kaviyam Reading—an eye-safe, quiet digital library tailored for creative minds. Powered by Firebase Firestore database.",
-              sentAt: new Date().toISOString(),
-              category: "announcement",
-              read: false
-            }
-          ];
-          setEmails(initialEmails);
-          localStorage.setItem("kaviyam_emails", JSON.stringify(initialEmails));
+    const cachedEmails = localStorage.getItem("kaviyam_emails");
+    if (cachedEmails) {
+      setEmails(JSON.parse(cachedEmails));
+    } else {
+      const initialEmails: SimulatedEmail[] = [
+        {
+          id: "mail-welcome",
+          recipient: "rajaboopathi1021@gmail.com",
+          subject: "Welcome to Kaviyam Reading Platform!",
+          body: "Hello Reader!\n\nWelcome to Kaviyam Reading—an eye-safe, quiet digital library tailored for creative minds.",
+          sentAt: new Date().toISOString(),
+          category: "announcement",
+          read: false
         }
+      ];
+      setEmails(initialEmails);
+      localStorage.setItem("kaviyam_emails", JSON.stringify(initialEmails));
+    }
 
-        const cachedLogs = localStorage.getItem("kaviyam_logs");
-        if (cachedLogs) {
-          setSecurityLogs(JSON.parse(cachedLogs));
-        } else {
-          const initialLogs: SecurityLog[] = [
-            { id: "log-1", action: "System Boot", timestamp: new Date().toISOString(), device: "Linux Server Node", ip: "127.0.0.1", status: "Success" }
-          ];
-          setSecurityLogs(initialLogs);
-          localStorage.setItem("kaviyam_logs", JSON.stringify(initialLogs));
-        }
-        return;
-      }
-
-      // Fetch emails from Firestore for currentUser
-      try {
-        const q = query(collection(db, "emails"), where("recipient", "==", currentUser.email));
-        const emailSnap = await getDocs(q);
-        if (!emailSnap.empty) {
-          const remoteEmails: SimulatedEmail[] = [];
-          emailSnap.forEach((d) => remoteEmails.push(d.data() as SimulatedEmail));
-          setEmails(remoteEmails);
-          localStorage.setItem("kaviyam_emails", JSON.stringify(remoteEmails));
-        } else {
-          const cachedEmails = localStorage.getItem("kaviyam_emails");
-          if (cachedEmails) setEmails(JSON.parse(cachedEmails));
-        }
-      } catch (e) {
-        const cachedEmails = localStorage.getItem("kaviyam_emails");
-        if (cachedEmails) setEmails(JSON.parse(cachedEmails));
-      }
-
-      // Fetch logs
-      try {
-        const logsSnap = await getDocs(collection(db, "logs"));
-        if (!logsSnap.empty) {
-          const remoteLogs: SecurityLog[] = [];
-          logsSnap.forEach((d) => remoteLogs.push(d.data() as SecurityLog));
-          setSecurityLogs(remoteLogs);
-          localStorage.setItem("kaviyam_logs", JSON.stringify(remoteLogs));
-        } else {
-          const cachedLogs = localStorage.getItem("kaviyam_logs");
-          if (cachedLogs) setSecurityLogs(JSON.parse(cachedLogs));
-        }
-      } catch (e) {
-        const cachedLogs = localStorage.getItem("kaviyam_logs");
-        if (cachedLogs) setSecurityLogs(JSON.parse(cachedLogs));
-      }
-    };
-
-    fetchEmailsAndLogs();
+    const cachedLogs = localStorage.getItem("kaviyam_logs");
+    if (cachedLogs) {
+      setSecurityLogs(JSON.parse(cachedLogs));
+    } else {
+      const initialLogs: SecurityLog[] = [
+        { id: "log-1", action: "System Boot", timestamp: new Date().toISOString(), device: "Linux Server Node", ip: "127.0.0.1", status: "Success" }
+      ];
+      setSecurityLogs(initialLogs);
+      localStorage.setItem("kaviyam_logs", JSON.stringify(initialLogs));
+    }
   }, [currentUser]);
 
-  // Sync Bookmarks from Firestore when currentUser changes
+  // Load Bookmarks from Firestore & Local Storage when currentUser changes
   useEffect(() => {
     if (!currentUser) {
       setBookmarks([]);
@@ -375,32 +422,35 @@ export default function App() {
     }
 
     const fetchBookmarks = async () => {
+      // First load cached bookmarks
+      const cachedBookmarks = localStorage.getItem(`kaviyam_bookmarks_${currentUser.id}`) || localStorage.getItem("kaviyam_bookmarks");
+      if (cachedBookmarks) {
+        setBookmarks(JSON.parse(cachedBookmarks));
+      }
+
+      // Then fetch user's personal bookmarks from Firestore under /users/{userId}/bookmarks
       try {
         const bmsSnap = await getDocs(collection(db, "users", currentUser.id, "bookmarks"));
         if (!bmsSnap.empty) {
-          const loadedBms: string[] = [];
+          const remoteBms: string[] = [];
           bmsSnap.forEach((d) => {
             const data = d.data();
-            if (data.bookId) loadedBms.push(data.bookId);
+            if (data.bookId) remoteBms.push(data.bookId);
+            else remoteBms.push(d.id);
           });
-          setBookmarks(loadedBms);
-          localStorage.setItem("kaviyam_bookmarks", JSON.stringify(loadedBms));
-        } else {
-          const cachedBookmarks = localStorage.getItem("kaviyam_bookmarks");
-          if (cachedBookmarks) {
-            setBookmarks(JSON.parse(cachedBookmarks));
-          }
+          setBookmarks(remoteBms);
+          localStorage.setItem(`kaviyam_bookmarks_${currentUser.id}`, JSON.stringify(remoteBms));
+          localStorage.setItem("kaviyam_bookmarks", JSON.stringify(remoteBms));
         }
-      } catch (e) {
-        const cachedBookmarks = localStorage.getItem("kaviyam_bookmarks");
-        if (cachedBookmarks) setBookmarks(JSON.parse(cachedBookmarks));
+      } catch (err) {
+        console.info("Firestore user bookmarks fetch note:", err);
       }
     };
 
     fetchBookmarks();
   }, [currentUser]);
 
-  // Save changes helper functions with Firestore synchronization
+  // Save changes helper functions with local storage & Firestore persistence
   const saveBooks = async (updatedBooks: Book[]) => {
     setBooks(updatedBooks);
     localStorage.setItem("kaviyam_books", JSON.stringify(updatedBooks));
@@ -415,10 +465,12 @@ export default function App() {
       if (match) {
         setCurrentUser(match);
         localStorage.setItem("kaviyam_current_user", JSON.stringify(match));
+        
+        // Persist the user's own profile to Firestore (/users/{userId})
         try {
-          await setDoc(doc(db, "users", match.id), match);
-        } catch (error) {
-          handleFirestoreError(error, OperationType.WRITE, `users/${match.id}`);
+          await setDoc(doc(db, "users", match.id), match, { merge: true });
+        } catch (err) {
+          console.info("Firestore profile sync notice:", err);
         }
       }
     }
@@ -434,6 +486,8 @@ export default function App() {
     localStorage.setItem("kaviyam_bookmarks", JSON.stringify(updatedBms));
 
     if (currentUser) {
+      localStorage.setItem(`kaviyam_bookmarks_${currentUser.id}`, JSON.stringify(updatedBms));
+      // Persist the user's bookmarks under /users/{userId}/bookmarks
       try {
         for (const bookId of updatedBms) {
           await setDoc(doc(db, "users", currentUser.id, "bookmarks", bookId), {
@@ -442,8 +496,8 @@ export default function App() {
             savedAt: new Date().toISOString()
           });
         }
-      } catch (error) {
-        handleFirestoreError(error, OperationType.WRITE, `users/${currentUser.id}/bookmarks`);
+      } catch (err) {
+        console.info("Firestore bookmarks sync notice:", err);
       }
     }
   };
@@ -490,12 +544,6 @@ export default function App() {
     const updated = [newLog, ...securityLogs];
     setSecurityLogs(updated);
     localStorage.setItem("kaviyam_logs", JSON.stringify(updated));
-
-    try {
-      await setDoc(doc(db, "logs", newLog.id), newLog);
-    } catch (error) {
-      console.warn("Log Firestore sync notice:", error);
-    }
   };
 
   // Helper to trigger outbound email simulation
@@ -512,12 +560,6 @@ export default function App() {
     const updated = [newMail, ...emails];
     setEmails(updated);
     localStorage.setItem("kaviyam_emails", JSON.stringify(updated));
-
-    try {
-      await setDoc(doc(db, "emails", newMail.id), newMail);
-    } catch (error) {
-      console.warn("Email Firestore sync notice:", error);
-    }
   };
 
   // Authentication via Firebase Auth
@@ -552,6 +594,8 @@ export default function App() {
       setCurrentUser(foundUser);
       localStorage.setItem("kaviyam_current_user", JSON.stringify(foundUser));
       setActiveTab("library");
+      setActiveBookId(null);
+      window.location.hash = "#/library";
       setIsGuestMode(false);
       addSystemLog(`Firebase Login Success (${cleanEmail})`, "Success");
       return { success: true };
@@ -584,6 +628,8 @@ export default function App() {
         setCurrentUser(foundUser);
         localStorage.setItem("kaviyam_current_user", JSON.stringify(foundUser));
         setActiveTab("library");
+        setActiveBookId(null);
+        window.location.hash = "#/library";
         setIsGuestMode(false);
         addSystemLog(`Session Login Success (${cleanEmail})`, "Success");
         return { success: true };
@@ -604,6 +650,81 @@ export default function App() {
         friendly = err.message;
       }
       return { success: false, error: friendly };
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    try {
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: "select_account" });
+      const userCredential = await signInWithPopup(auth, provider);
+      const firebaseUser = userCredential.user;
+      const cleanEmail = (firebaseUser.email || `user-${firebaseUser.uid.substring(0, 6)}@gmail.com`).toLowerCase();
+      const displayName = firebaseUser.displayName || cleanEmail.split("@")[0] || "Reader";
+
+      let foundUser = users.find((u) => u.id === firebaseUser.uid || u.email.toLowerCase() === cleanEmail);
+      if (!foundUser) {
+        foundUser = {
+          id: firebaseUser.uid,
+          email: cleanEmail,
+          username: displayName,
+          isVerified: firebaseUser.emailVerified || true,
+          profile: {
+            username: displayName,
+            bio: "Google Authenticated Kaviyam Reader",
+            profilePhoto: firebaseUser.photoURL || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100",
+            dob: "2000-01-01",
+            gender: "Not Specified",
+            privacy: { publicBookshelf: true, showActivity: true }
+          },
+          security: { is2FAEnabled: false, isBlocked: false, loginAttempts: 0 },
+          createdAt: new Date().toISOString()
+        };
+        saveUsers([...users, foundUser]);
+      } else if (firebaseUser.photoURL && (!foundUser.profile?.profilePhoto || foundUser.profile.profilePhoto.includes("unsplash"))) {
+        foundUser = {
+          ...foundUser,
+          profile: {
+            ...foundUser.profile,
+            profilePhoto: firebaseUser.photoURL,
+          }
+        };
+        saveUsers(users.map((u) => (u.id === foundUser!.id ? foundUser! : u)));
+      }
+
+      setCurrentUser(foundUser);
+      localStorage.setItem("kaviyam_current_user", JSON.stringify(foundUser));
+      setActiveTab("library");
+      setActiveBookId(null);
+      window.location.hash = "#/library";
+      setIsGuestMode(false);
+      addSystemLog(`Google Sign-In Authorized (${cleanEmail})`, "Success");
+      return { success: true };
+    } catch (err: any) {
+      addSystemLog(`Google Sign-In Failed: ${err?.code || err?.message || err}`, "Failed");
+
+      if (err?.code === "auth/popup-closed-by-user") {
+        return { success: false, error: "Sign-in popup was closed before completing." };
+      }
+      if (err?.code === "auth/popup-blocked") {
+        return { success: false, error: "Sign-in popup was blocked by browser. Please allow popups or open in a new tab." };
+      }
+      if (err?.code === "auth/cancelled-popup-request") {
+        return { success: false, error: "Another sign-in request is already in progress." };
+      }
+      if (err?.code === "auth/unauthorized-domain") {
+        return {
+          success: false,
+          error: "This domain is not authorized in Firebase Console. Please add this preview domain to Firebase Authentication > Settings > Authorized Domains."
+        };
+      }
+      if (err?.code === "auth/operation-not-allowed") {
+        return {
+          success: false,
+          error: "Google Sign-In provider is not enabled in your Firebase project. Please enable Google provider in Firebase Authentication > Sign-in method."
+        };
+      }
+      return { success: false, error: err?.message || "Failed to sign in with Google." };
     }
   };
 
@@ -637,6 +758,10 @@ export default function App() {
 
       setCurrentUser(newUser);
       localStorage.setItem("kaviyam_current_user", JSON.stringify(newUser));
+      setActiveTab("library");
+      setActiveBookId(null);
+      window.location.hash = "#/library";
+      setIsGuestMode(false);
 
       addSystemLog(`Firebase Registration Success (${cleanEmail})`, "Success");
 
@@ -676,6 +801,8 @@ export default function App() {
         setCurrentUser(newUser);
         localStorage.setItem("kaviyam_current_user", JSON.stringify(newUser));
         setActiveTab("library");
+        setActiveBookId(null);
+        window.location.hash = "#/library";
         setIsGuestMode(false);
         addSystemLog(`Local Registration Success (${cleanEmail})`, "Success");
         return { success: true };
@@ -762,138 +889,30 @@ export default function App() {
     return { success: true };
   };
 
-  const isGooglePopupActiveRef = useRef(false);
-
-  const handleGoogleLogin = async (): Promise<void> => {
-    if (isGooglePopupActiveRef.current) return;
-    isGooglePopupActiveRef.current = true;
-
-    try {
-      const provider = new GoogleAuthProvider();
-      provider.setCustomParameters({ prompt: "select_account" });
-      const result = await signInWithPopup(auth, provider);
-      if (result?.user) {
-        addSystemLog(`Google Sign-In Success (${result.user.email || result.user.uid})`, "Success");
-        setActiveTab("library");
-        setIsGuestMode(false);
-      }
-    } catch (err: any) {
-      const errCode = err?.code || "";
-      let userFriendlyMessage = "";
-
-      if (errCode === "auth/popup-closed-by-user") {
-        userFriendlyMessage = "The Google sign-in window was closed before completing authentication. Please try again.";
-      } else if (errCode === "auth/popup-blocked") {
-        userFriendlyMessage = "The sign-in popup was blocked by your browser. Please allow popups for this site or open the app in a new tab.";
-      } else if (errCode === "auth/cancelled-popup-request") {
-        userFriendlyMessage = "A sign-in request was already in progress and has been reset. Please click again.";
-      } else if (errCode === "auth/unauthorized-domain") {
-        userFriendlyMessage = "This domain is not authorized in your Firebase Authentication settings. Please add this domain to 'Authorized domains' in Firebase Console (Authentication > Settings > Authorized domains).";
-      } else if (
-        errCode === "auth/internal-error" ||
-        errCode.includes("internal-error") ||
-        (typeof window !== "undefined" && window.self !== window.top && (errCode.includes("network-request-failed") || err?.message?.includes("iframe")))
-      ) {
-        userFriendlyMessage = "Google Sign-In popup could not complete within the embedded iframe environment. Please open the app in a new browser tab to sign in with Google, or use Email or Phone login.";
-      } else {
-        userFriendlyMessage = err?.message || (typeof err === "string" ? err : "Google Sign-In failed.");
-      }
-
-      addSystemLog(`Google Sign-In Notice: ${errCode || userFriendlyMessage}`, "Blocked");
-      throw new Error(userFriendlyMessage);
-    } finally {
-      isGooglePopupActiveRef.current = false;
-    }
-  };
-
   const handleGuestLogin = () => {
-    setIsGuestMode(true);
+    const guestUser: User = {
+      id: `guest-${Date.now()}`,
+      email: "guest@kaviyam.com",
+      username: "Guest Reader",
+      isVerified: true,
+      profile: {
+        username: "Guest Reader",
+        bio: "Exploring Kaviyam Reading as a guest patron.",
+        profilePhoto: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100",
+        dob: "2000-01-01",
+        gender: "Not Specified",
+        privacy: { publicBookshelf: true, showActivity: true }
+      },
+      security: { is2FAEnabled: false, isBlocked: false, loginAttempts: 0 },
+      createdAt: new Date().toISOString()
+    };
+    setCurrentUser(guestUser);
+    localStorage.setItem("kaviyam_current_user", JSON.stringify(guestUser));
+    setActiveTab("library");
+    setActiveBookId(null);
+    window.location.hash = "#/library";
+    setIsGuestMode(false);
     addSystemLog("Guest Session Authorized", "Success");
-  };
-
-  const handleSendPhoneOtp = async (phone: string): Promise<void> => {
-    const cleanPhone = phone.trim().replace(/\s+/g, "");
-    if (!cleanPhone || cleanPhone.length < 6) {
-      throw new Error("Please enter a valid phone number with country code (e.g. +1... or +91...).");
-    }
-
-    try {
-      const confirmation = await sendPhoneOtp(cleanPhone);
-      setPhoneConfirmationResult(confirmation);
-      addSystemLog(`Firebase Phone SMS OTP Dispatched (${cleanPhone})`, "Success");
-    } catch (err: any) {
-      console.error("Firebase Phone Auth error:", err);
-      const errCode = err?.code || "";
-      let errMsg = "";
-      if (errCode === "auth/firebase-app-check-token-is-invalid" || err?.message?.includes("firebase-app-check-token-is-invalid")) {
-        errMsg = "SMS verification could not complete because App Check or reCAPTCHA is not configured for this domain in Firebase Console. Please add this domain to Authorized domains in Firebase Console (Authentication > Settings > Authorized domains) or use Email/Password sign in.";
-      } else if (errCode === "auth/captcha-check-failed" || err?.message?.includes("captcha-check-failed")) {
-        errMsg = "reCAPTCHA verification failed. Please try requesting a new SMS verification code.";
-      } else if (errCode === "auth/quota-exceeded" || errCode === "auth/too-many-requests") {
-        errMsg = "SMS limit exceeded or too many requests. Please wait a few minutes or sign in with Email/Password.";
-      } else if (errCode === "auth/invalid-phone-number") {
-        errMsg = "The phone number format is invalid. Please enter a valid number with country code (e.g. +91... or +1...).";
-      } else {
-        errMsg = err?.message || (typeof err === "string" ? err : "Failed to send SMS verification code.");
-      }
-      addSystemLog(`Phone OTP Dispatch Failed (${cleanPhone}): ${errCode || errMsg}`, "Failed");
-      throw new Error(errMsg);
-    }
-  };
-
-  const handlePhoneLogin = async (phone: string, otp: string): Promise<void> => {
-    const cleanPhone = phone.trim().replace(/\s+/g, "");
-    const enteredOtp = otp.trim();
-
-    try {
-      const userCredential = await verifyPhoneOtp(enteredOtp);
-      if (userCredential?.user) {
-        const firebaseUser = userCredential.user;
-        const uid = firebaseUser.uid;
-        const phoneNum = firebaseUser.phoneNumber || cleanPhone;
-        const rawDigits = phoneNum.replace(/[^0-9]/g, "");
-        const last4 = rawDigits.slice(-4) || "Mobile";
-        const phoneEmail = `${rawDigits}@phone.kaviyam.com`;
-
-        let foundUser = users.find(
-          (u) => u.id === uid || u.profile?.phoneNumber === phoneNum || u.email.toLowerCase() === phoneEmail.toLowerCase()
-        );
-
-        if (!foundUser) {
-          foundUser = {
-            id: uid,
-            email: phoneEmail,
-            username: `Reader +${last4}`,
-            isVerified: true,
-            profile: {
-              username: `Reader +${last4}`,
-              bio: `Phone authenticated reader (+${last4})`,
-              profilePhoto: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=100",
-              phoneNumber: phoneNum,
-              dob: "2000-01-01",
-              gender: "Not Specified",
-              privacy: { publicBookshelf: true, showActivity: true },
-            },
-            security: { is2FAEnabled: false, isBlocked: false, loginAttempts: 0 },
-            createdAt: new Date().toISOString(),
-          };
-
-          const updatedUsersList = [...users, foundUser];
-          saveUsers(updatedUsersList);
-        }
-
-        setCurrentUser(foundUser);
-        localStorage.setItem("kaviyam_current_user", JSON.stringify(foundUser));
-        setActiveTab("library");
-        setIsGuestMode(false);
-        addSystemLog(`Phone Login Authorized (${phoneNum})`, "Success");
-      }
-    } catch (err: any) {
-      console.error("Phone OTP Verification error:", err);
-      const errMsg = err?.message || (typeof err === "string" ? err : "Invalid SMS verification code.");
-      addSystemLog(`Phone Login Failed (${cleanPhone}): ${errMsg}`, "Failed");
-      throw err;
-    }
   };
 
   // Helper triggered by clicking Simulated Link in Email Client
@@ -917,7 +936,7 @@ export default function App() {
     } else if (action === "ResetPassword") {
       const token = params.token;
       setResetToken(token);
-      setActiveTab("profile"); // Set tab to Profile to trigger reset view
+      navigateToTab("profile");
       alert("Validation successful. Reset token decrypted. Please look at the Profile panel to input your new password!");
     }
   };
@@ -1016,15 +1035,16 @@ export default function App() {
   const handleLogout = async () => {
     if (currentUser) {
       addSystemLog(`Logout Account (${currentUser.email})`, "Success");
-      try {
-        await signOut(auth);
-      } catch (_) {}
-      setCurrentUser(null);
-      localStorage.removeItem("kaviyam_current_user");
-      setActiveBookId(null);
-      setActiveTab("library");
-      setIsGuestMode(false);
     }
+    try {
+      await signOut(auth);
+    } catch (_) {}
+    setCurrentUser(null);
+    localStorage.removeItem("kaviyam_current_user");
+    setActiveBookId(null);
+    setActiveTab("library");
+    setIsGuestMode(false);
+    window.location.hash = "#/login";
   };
 
   // Administrator Actions
@@ -1081,11 +1101,6 @@ export default function App() {
   const handleAddCustomBook = async (newBook: Book) => {
     const updatedBooksList = [...books, newBook];
     saveBooks(updatedBooksList);
-    try {
-      await setDoc(doc(db, "books", newBook.id), newBook);
-    } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, `books/${newBook.id}`);
-    }
   };
 
   const handleAddReview = async (bookId: string, ratingValue: number, commentText: string) => {
@@ -1121,17 +1136,69 @@ export default function App() {
 
       saveBooks(updatedBooksList);
       addSystemLog(`Submitted Novel Review (Book: ${targetBook.title})`, "Success");
-
-      try {
-        await setDoc(doc(db, "books", bookId), updatedBook);
-      } catch (error) {
-        handleFirestoreError(error, OperationType.WRITE, `books/${bookId}`);
-      }
     }
   };
 
   const activeBook = books.find((b) => b.id === activeBookId);
 
+  // Unauthenticated Flow: Show ONLY Login / Sign In page without header/navigation
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen bg-[#f7f5ed] flex flex-col justify-between font-sans" id="login-screen-wrapper">
+        <div className="flex-grow flex flex-col justify-center items-center p-4 sm:p-6 md:p-8">
+          <motion.div
+            key="login-container-card"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
+            className="max-w-md md:max-w-lg w-full mx-auto flex flex-col justify-center items-center gap-6 text-center"
+            id="landing-login-view"
+          >
+            {/* Visual Brand Title on Login Page */}
+            <div className="space-y-2 text-center">
+              <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-white shadow-sm border border-[#e8e2cf] text-3xl mb-1">
+                📖
+              </div>
+              <h1 className="font-serif text-3xl md:text-4xl font-extrabold leading-tight text-stone-900">
+                Kaviyam <span className="text-[#d4af37]">Reading</span>
+              </h1>
+              <p className="text-xs md:text-sm text-stone-600 max-w-sm">
+                Sign in to access your Tamil novel library, bookmarks, reading companion, and community mailbox.
+              </p>
+            </div>
+
+            {/* Centered Auth Box */}
+            <div className="w-full">
+              <Auth
+                currentUser={currentUser}
+                onLogin={handleLogin}
+                onRegister={handleRegister}
+                onForgotPassword={handleForgotPassword}
+                onResetPasswordWithToken={handleResetPasswordWithToken}
+                onResendVerification={(email) => alert(`Simulated link resent to ${email}!`)}
+                resetToken={resetToken}
+                setResetToken={setResetToken}
+                addSystemLog={addSystemLog}
+                onGoogleLogin={handleGoogleLogin}
+                onGuestLogin={handleGuestLogin}
+                isDarkMode={isDarkMode}
+              />
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Clean Footer on Login Screen */}
+        <footer className="bg-white border-t border-[#e8e2cf] p-6 text-center">
+          <p className="text-xs text-stone-500 font-serif">
+            © 2026 Kaviyam Reading Platform • All Rights Reserved
+          </p>
+        </footer>
+      </div>
+    );
+  }
+
+  // Authenticated Flow: Full Kaviyam Reading website with top header navigation
   return (
     <div className="min-h-screen bg-[#f7f5ed] flex flex-col font-sans" id="app-container">
       {/* Visual Header / Brand bar */}
@@ -1140,197 +1207,170 @@ export default function App() {
           
           {/* Logo */}
           <div
-            onClick={() => {
-              setActiveBookId(null);
-              setActiveTab("library");
-            }}
-            className="cursor-pointer flex items-center gap-1.5 flex-shrink-0"
+            onClick={navigateBackToLibrary}
+            className="cursor-pointer flex items-center gap-2 flex-shrink-0"
+            id="header-logo"
           >
             <span className="text-xl sm:text-2xl">📖</span>
-            <span className="font-serif font-extrabold tracking-tight text-stone-800 text-sm sm:text-lg md:text-xl">
+            <span className="font-serif font-extrabold tracking-tight text-stone-900 text-sm sm:text-lg md:text-xl">
               Kaviyam <span className="text-[#d4af37]">Reading</span>
             </span>
           </div>
 
-          {/* Central navigation tabs */}
-          <nav className="hidden md:flex gap-1.5 bg-stone-100 p-1 rounded-xl">
+          {/* Central rounded navigation tabs */}
+          <nav className="hidden md:flex items-center gap-1.5 bg-stone-100 p-1 rounded-xl" id="main-nav-container">
             <button
-              onClick={() => {
-                setActiveBookId(null);
-                setActiveTab("library");
-              }}
-              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition ${
+              onClick={() => navigateToTab("library")}
+              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer ${
                 activeTab === "library" ? "bg-white text-stone-800 shadow-sm" : "text-stone-500 hover:text-stone-800"
               }`}
               id="nav-tab-library"
             >
+              <BookOpen size={13} />
               Catalog Library
             </button>
+
             <button
-              onClick={() => {
-                setActiveBookId(null);
-                setActiveTab("profile");
-              }}
-              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
+              onClick={() => navigateToTab("profile")}
+              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer ${
                 activeTab === "profile" ? "bg-white text-stone-800 shadow-sm" : "text-stone-500 hover:text-stone-800"
               }`}
               id="nav-tab-profile"
             >
-              <UserIcon size={12} />
+              <UserIcon size={13} />
               Profile Settings
             </button>
+
             <button
-              onClick={() => {
-                setActiveBookId(null);
-                setActiveTab("mailbox");
-              }}
-              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 relative ${
+              onClick={() => navigateToTab("mailbox")}
+              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 relative cursor-pointer ${
                 activeTab === "mailbox" ? "bg-white text-stone-800 shadow-sm" : "text-stone-500 hover:text-stone-800"
               }`}
               id="nav-tab-mailbox"
             >
-              <Mail size={12} />
+              <Mail size={13} />
               Mailbox
               {emails.filter((m) => !m.read).length > 0 && (
-                <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full" />
+                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full animate-pulse" />
               )}
             </button>
-            
-            {/* Show admin panel tab only if current user is admin */}
-            {currentUser && currentUser.email === "admin@kaviyam.com" && (
+
+            {currentUser.email === "admin@kaviyam.com" && (
               <button
-                onClick={() => {
-                  setActiveBookId(null);
-                  setActiveTab("admin");
-                }}
-                className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
+                onClick={() => navigateToTab("admin")}
+                className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer ${
                   activeTab === "admin" ? "bg-white text-stone-800 shadow-sm" : "text-stone-500 hover:text-stone-800"
                 }`}
                 id="nav-tab-admin"
               >
-                <Shield size={12} className="text-[#d4af37]" />
+                <Shield size={13} className="text-[#d4af37]" />
                 Admin Panel
               </button>
             )}
 
             <button
-              onClick={() => {
-                setActiveBookId(null);
-                setActiveTab("localdb");
-              }}
-              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
+              onClick={() => navigateToTab("localdb")}
+              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer ${
                 activeTab === "localdb" ? "bg-white text-stone-800 shadow-sm" : "text-stone-500 hover:text-stone-800"
               }`}
               id="nav-tab-localdb"
             >
-              <Database size={12} className="text-[#d4af37]" />
+              <Database size={13} className="text-[#d4af37]" />
               Local DB
             </button>
 
             <button
-              onClick={() => {
-                setActiveBookId(null);
-                setActiveTab("feedback");
-              }}
-              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
+              onClick={() => navigateToTab("feedback")}
+              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer ${
                 activeTab === "feedback" ? "bg-white text-stone-800 shadow-sm" : "text-stone-500 hover:text-stone-800"
               }`}
               id="nav-tab-feedback"
             >
-              <HelpCircle size={12} />
+              <HelpCircle size={13} />
               Help & FAQ
             </button>
           </nav>
 
           {/* User Sign-In Action or Mini-Card */}
           <div className="flex items-center gap-3">
-            {currentUser ? (
-              <div className="flex items-center gap-2.5">
-                <div className="text-right hidden sm:block">
-                  <span className="text-xs font-bold block text-stone-800">{currentUser.username}</span>
-                  <span className="text-[9px] uppercase font-mono tracking-wider font-semibold text-stone-400">
-                    {currentUser.email === "admin@kaviyam.com" ? "Platform Admin" : "Reader Patron"}
-                  </span>
-                </div>
-                <img
-                  src={currentUser.profile.profilePhoto}
-                  alt="avatar"
-                  onClick={() => {
-                    setActiveBookId(null);
-                    setActiveTab("profile");
-                  }}
-                  className="w-8 h-8 rounded-full border-2 border-[#d4af37] cursor-pointer object-cover shadow-sm hover:opacity-85 transition"
-                  referrerPolicy="no-referrer"
-                />
-                <button
-                  onClick={handleLogout}
-                  className="text-stone-400 hover:text-red-500 p-1.5 hover:bg-stone-50 rounded-lg transition"
-                  title="Sign out of your profile"
-                  id="header-logout-btn"
-                >
-                  <LogOut size={16} />
-                </button>
+            <div className="flex items-center gap-2.5">
+              <div className="text-right hidden sm:block">
+                <span className="text-xs font-bold block text-stone-800">{currentUser.username}</span>
+                <span className="text-[9px] uppercase font-mono tracking-wider font-semibold text-stone-400">
+                  {currentUser.email === "admin@kaviyam.com" ? "Platform Admin" : "Reader Patron"}
+                </span>
               </div>
-            ) : (
+              <img
+                src={currentUser.profile?.profilePhoto || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"}
+                alt="avatar"
+                onClick={() => navigateToTab("profile")}
+                className="w-8 h-8 rounded-full border-2 border-[#d4af37] cursor-pointer object-cover shadow-sm hover:opacity-85 transition"
+                referrerPolicy="no-referrer"
+                title="View Profile Settings"
+              />
               <button
-                onClick={() => {
-                  setActiveBookId(null);
-                  setIsGuestMode(false);
-                  setActiveTab("library");
-                }}
-                className="bg-stone-800 hover:bg-stone-700 text-white font-bold text-xs px-4 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm"
-                id="header-signin-btn"
+                onClick={handleLogout}
+                className="bg-stone-800 hover:bg-stone-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm cursor-pointer"
+                title="Sign out of Kaviyam Reading"
+                id="header-logout-btn"
               >
-                <LogIn size={13} />
-                Sign In
+                <LogOut size={13} />
+                <span className="hidden sm:inline">Sign Out</span>
               </button>
-            )}
+            </div>
           </div>
         </div>
       </header>
 
-      {/* Mobile navigation tab-rail (only visible on small screens) */}
-      <div className="md:hidden bg-white border-b border-[#e8e2cf] p-2 flex justify-around text-[10px] uppercase font-mono font-bold tracking-wider">
+      {/* Mobile navigation tab-rail (only visible on small screens when logged in) */}
+      <div className="md:hidden bg-white border-b border-[#e8e2cf] px-2 py-2 flex items-center justify-around gap-1 text-[10px] uppercase font-mono font-bold tracking-wider overflow-x-auto">
         <button
-          onClick={() => { setActiveBookId(null); setActiveTab("library"); }}
-          className={`px-2 py-1 rounded ${activeTab === "library" ? "bg-[#faf6e8] text-[#d4af37]" : "text-stone-500"}`}
+          onClick={() => navigateToTab("library")}
+          className={`px-2.5 py-1.5 rounded-lg whitespace-nowrap transition ${activeTab === "library" ? "bg-[#faf6e8] text-[#d4af37]" : "text-stone-500"}`}
         >
           Library
         </button>
         <button
-          onClick={() => { setActiveBookId(null); setActiveTab("profile"); }}
-          className={`px-2 py-1 rounded ${activeTab === "profile" ? "bg-[#faf6e8] text-[#d4af37]" : "text-stone-500"}`}
+          onClick={() => navigateToTab("profile")}
+          className={`px-2.5 py-1.5 rounded-lg whitespace-nowrap transition ${activeTab === "profile" ? "bg-[#faf6e8] text-[#d4af37]" : "text-stone-500"}`}
         >
           Profile
         </button>
         <button
-          onClick={() => { setActiveBookId(null); setActiveTab("mailbox"); }}
-          className={`px-2 py-1 rounded relative ${activeTab === "mailbox" ? "bg-[#faf6e8] text-[#d4af37]" : "text-stone-500"}`}
+          onClick={() => navigateToTab("mailbox")}
+          className={`px-2.5 py-1.5 rounded-lg whitespace-nowrap relative transition ${activeTab === "mailbox" ? "bg-[#faf6e8] text-[#d4af37]" : "text-stone-500"}`}
         >
           Mailbox
           {emails.filter((m) => !m.read).length > 0 && (
             <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-red-500 rounded-full" />
           )}
         </button>
-        {currentUser && currentUser.email === "admin@kaviyam.com" && (
+        {currentUser.email === "admin@kaviyam.com" && (
           <button
-            onClick={() => { setActiveBookId(null); setActiveTab("admin"); }}
-            className={`px-2 py-1 rounded ${activeTab === "admin" ? "bg-[#faf6e8] text-[#d4af37]" : "text-stone-500"}`}
+            onClick={() => navigateToTab("admin")}
+            className={`px-2.5 py-1.5 rounded-lg whitespace-nowrap transition ${activeTab === "admin" ? "bg-[#faf6e8] text-[#d4af37]" : "text-stone-500"}`}
           >
             Admin
           </button>
         )}
         <button
-          onClick={() => { setActiveBookId(null); setActiveTab("localdb"); }}
-          className={`px-2 py-1 rounded ${activeTab === "localdb" ? "bg-[#faf6e8] text-[#d4af37]" : "text-stone-500"}`}
+          onClick={() => navigateToTab("localdb")}
+          className={`px-2.5 py-1.5 rounded-lg whitespace-nowrap transition ${activeTab === "localdb" ? "bg-[#faf6e8] text-[#d4af37]" : "text-stone-500"}`}
         >
-          Database
+          Local DB
         </button>
         <button
-          onClick={() => { setActiveBookId(null); setActiveTab("feedback"); }}
-          className={`px-2 py-1 rounded ${activeTab === "feedback" ? "bg-[#faf6e8] text-[#d4af37]" : "text-stone-500"}`}
+          onClick={() => navigateToTab("feedback")}
+          className={`px-2.5 py-1.5 rounded-lg whitespace-nowrap transition ${activeTab === "feedback" ? "bg-[#faf6e8] text-[#d4af37]" : "text-stone-500"}`}
         >
-          Help
+          Help & FAQ
+        </button>
+        <button
+          onClick={handleLogout}
+          className="px-2.5 py-1.5 rounded-lg whitespace-nowrap text-red-600 hover:bg-red-50 transition flex items-center gap-1"
+        >
+          <LogOut size={11} />
+          Sign Out
         </button>
       </div>
 
@@ -1340,7 +1380,7 @@ export default function App() {
         {activeBookId && activeBook ? (
           <Reader
             book={activeBook}
-            onBackToLibrary={() => setActiveBookId(null)}
+            onBackToLibrary={navigateBackToLibrary}
             currentUser={currentUser}
             onAddReview={handleAddReview}
             downloadedBookIds={downloadedBookIds}
@@ -1348,103 +1388,45 @@ export default function App() {
           />
         ) : (
           <AnimatePresence mode="wait">
-            {!currentUser && !isGuestMode ? (
+            {activeTab === "library" && (
               <motion.div
-                key="landing-3d-tab"
-                initial={{ opacity: 0, y: 25 }}
+                key="library-tab"
+                initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -25 }}
-                transition={{ duration: 0.8, ease: "easeOut" }}
-                className="max-w-md md:max-w-lg w-full mx-auto py-8 px-4 flex flex-col justify-center items-center gap-6 text-center"
-                id="landing-3d-view"
+                exit={{ opacity: 0, y: -15 }}
               >
-                {/* Visual Header inside center stage */}
-                <div className="space-y-2 text-center">
-                  <h1 className="font-serif text-3xl md:text-4xl font-extrabold leading-tight text-stone-900">
-                    Kaviyam Tamil Literary Platform
-                  </h1>
-                </div>
-
-                {/* Centered Auth Box with 3D Animations */}
-                <div className="w-full">
-                  <Auth
-                    currentUser={currentUser}
-                    onLogin={handleLogin}
-                    onRegister={handleRegister}
-                    onForgotPassword={handleForgotPassword}
-                    onResetPasswordWithToken={handleResetPasswordWithToken}
-                    onResendVerification={(email) => alert(`Simulated link resent to ${email}!`)}
-                    resetToken={resetToken}
-                    setResetToken={setResetToken}
-                    addSystemLog={addSystemLog}
-                    onGoogleLogin={handleGoogleLogin}
-                    onGuestLogin={handleGuestLogin}
-                    onPhoneLogin={handlePhoneLogin}
-                    onSendPhoneOtp={handleSendPhoneOtp}
-                    isDarkMode={isDarkMode}
-                  />
-                </div>
+                <Library
+                  books={books}
+                  bookmarks={bookmarks}
+                  onToggleBookmark={handleToggleBookmark}
+                  onSelectBook={(id) => navigateToBook(id)}
+                  onAddCustomBook={handleAddCustomBook}
+                  currentUser={currentUser}
+                  downloadedBookIds={downloadedBookIds}
+                  onToggleDownload={handleToggleDownload}
+                />
               </motion.div>
-            ) : (
-              <>
-                {activeTab === "library" && (
-                  <motion.div
-                    key="library-tab"
-                    initial={{ opacity: 0, y: 15 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -15 }}
-                  >
-                    <Library
-                      books={books}
-                      bookmarks={bookmarks}
-                      onToggleBookmark={handleToggleBookmark}
-                      onSelectBook={(id) => setActiveBookId(id)}
-                      onAddCustomBook={handleAddCustomBook}
-                      currentUser={currentUser}
-                      downloadedBookIds={downloadedBookIds}
-                      onToggleDownload={handleToggleDownload}
-                    />
-                  </motion.div>
-                )}
+            )}
 
-                {activeTab === "profile" && (
-                  <motion.div
-                    key="profile-tab"
-                    initial={{ opacity: 0, y: 15 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -15 }}
-                  >
-                    {currentUser ? (
-                      <Profile
-                        currentUser={currentUser}
-                        securityLogs={securityLogs}
-                        onUpdateProfile={handleUpdateProfile}
-                        onChangeEmail={handleChangeEmail}
-                        onChangePassword={handleChangePassword}
-                        onToggle2FA={handleToggle2FA}
-                        onClearLogs={handleClearLogs}
-                        onLogout={handleLogout}
-                      />
-                    ) : (
-                      <Auth
-                        currentUser={currentUser}
-                        onLogin={handleLogin}
-                        onRegister={handleRegister}
-                        onForgotPassword={handleForgotPassword}
-                        onResetPasswordWithToken={handleResetPasswordWithToken}
-                        onResendVerification={(email) => alert(`Simulated link resent to ${email}!`)}
-                        resetToken={resetToken}
-                        setResetToken={setResetToken}
-                        addSystemLog={addSystemLog}
-                        onGoogleLogin={handleGoogleLogin}
-                        onPhoneLogin={handlePhoneLogin}
-                        onSendPhoneOtp={handleSendPhoneOtp}
-                        onGuestLogin={handleGuestLogin}
-                        isDarkMode={isDarkMode}
-                      />
-                    )}
-                  </motion.div>
-                )}
+            {activeTab === "profile" && (
+              <motion.div
+                key="profile-tab"
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+              >
+                <Profile
+                  currentUser={currentUser}
+                  securityLogs={securityLogs}
+                  onUpdateProfile={handleUpdateProfile}
+                  onChangeEmail={handleChangeEmail}
+                  onChangePassword={handleChangePassword}
+                  onToggle2FA={handleToggle2FA}
+                  onClearLogs={handleClearLogs}
+                  onLogout={handleLogout}
+                />
+              </motion.div>
+            )}
 
             {activeTab === "mailbox" && (
               <motion.div
@@ -1510,9 +1492,7 @@ export default function App() {
                 <Feedback />
               </motion.div>
             )}
-          </>
-        )}
-      </AnimatePresence>
+          </AnimatePresence>
         )}
       </main>
 
@@ -1522,8 +1502,6 @@ export default function App() {
           © 2026 Kaviyam Reading Platform • All Rights Reserved
         </p>
       </footer>
-      {/* Invisible reCAPTCHA container for Phone Auth */}
-      <div id="recaptcha-container"></div>
     </div>
   );
 }

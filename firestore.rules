@@ -1,44 +1,28 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Default fallback: deny all access
+    // Default fallback: deny all access to any unspecified document/collection
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // User profiles & subcollections (e.g., /users/{userId}/bookmarks/{bookId}):
-    // strictly restricted so that each user can only read/write their own data
+    // User-specific data: Each user can only read, write, and manage their own document and subcollections.
+    // No user can access, read, or modify another user's data.
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
 
+      // All user subcollections (e.g., /users/{userId}/bookmarks/{bookId}, /users/{userId}/history/{id}, etc.)
       match /{allPaths=**} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
     }
 
-    // User emails: readable and writable only if recipient matches authenticated user's email; create allowed for notifications
-    match /emails/{emailId} {
-      allow read, delete: if request.auth != null && request.auth.token.email != null && resource.data.recipient.lower() == request.auth.token.email.lower();
-      allow create: if true;
-      allow update: if request.auth != null && request.auth.token.email != null && resource.data.recipient.lower() == request.auth.token.email.lower() && request.resource.data.recipient.lower() == request.auth.token.email.lower();
-    }
-
-    // Books catalog: readable publicly for library browsing, writable by authenticated users
-    match /books/{bookId} {
-      allow read: if true;
-      allow write: if request.auth != null;
-    }
-
-    // Security logs: unauthenticated clients can write audit entries (e.g. login attempts, dispatches, system events), authenticated users can read/write
-    match /logs/{logId} {
-      allow create: if true;
-      allow read, update, delete: if request.auth != null;
-    }
-
-    // Test connection doc: public read for connection checks
-    match /test/{id} {
-      allow read: if true;
-      allow write: if request.auth != null;
+    // Top-level user-scoped collections (if documents contain a userId field)
+    match /{collectionName}/{docId} {
+      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
     }
   }
 }
+
