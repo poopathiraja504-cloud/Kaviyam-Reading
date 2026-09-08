@@ -12,7 +12,9 @@ import {
   signOut, 
   onAuthStateChanged,
   GoogleAuthProvider,
-  signInWithPopup
+  signInWithPopup,
+  sendEmailVerification,
+  sendPasswordResetEmail
 } from "firebase/auth";
 import {
   doc,
@@ -572,6 +574,32 @@ export default function App() {
       const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, passwordInput);
       const firebaseUser = userCredential.user;
 
+      // Check if user's email is verified in Firebase Auth
+      if (!firebaseUser.emailVerified) {
+        try {
+          await sendEmailVerification(firebaseUser);
+        } catch (vErr) {
+          console.warn("sendEmailVerification error during login:", vErr);
+        }
+        await signOut(auth);
+
+        // Also record outbound simulated verification email to Captured Mailbox
+        triggerOutboundEmail(
+          cleanEmail,
+          "Verify Your Email Address - Kaviyam Reading",
+          `Hello!\n\nWe have sent you a verification email to ${cleanEmail}. Verify it and log in.\n\n[Action: VerifyEmail; email=${cleanEmail}]`,
+          "auth"
+        );
+
+        addSystemLog(`Login Blocked - Email Verification Pending (${cleanEmail})`, "Blocked");
+        return {
+          success: false,
+          requireVerification: true,
+          email: cleanEmail,
+          error: `We have sent you a verification email to ${cleanEmail}. Verify it and log in`
+        };
+      }
+
       let foundUser = users.find((u) => u.id === firebaseUser.uid || u.email.toLowerCase() === cleanEmail);
       if (!foundUser) {
         const fallbackName = firebaseUser.displayName || cleanEmail.split("@")[0];
@@ -579,7 +607,7 @@ export default function App() {
           id: firebaseUser.uid,
           email: cleanEmail,
           username: fallbackName,
-          isVerified: firebaseUser.emailVerified,
+          isVerified: true,
           profile: {
             username: fallbackName,
             bio: "Reader Patron",
@@ -592,6 +620,9 @@ export default function App() {
           createdAt: new Date().toISOString()
         };
         saveUsers([...users, foundUser]);
+      } else if (!foundUser.isVerified) {
+        foundUser = { ...foundUser, isVerified: true };
+        saveUsers(users.map((u) => (u.id === foundUser!.id ? foundUser! : u)));
       }
 
       setCurrentUser(foundUser);
@@ -608,6 +639,22 @@ export default function App() {
       // Fallback for API key restrictions or missing web API key configuration in Firebase Console
       if (err?.code === "auth/api-key-not-valid" || err?.message?.includes("api-key-not-valid") || err?.message?.includes("api-key")) {
         let foundUser = users.find((u) => u.email.toLowerCase() === cleanEmail);
+        if (foundUser && foundUser.isVerified === false) {
+          triggerOutboundEmail(
+            cleanEmail,
+            "Verify Your Email Address - Kaviyam Reading",
+            `Hello ${foundUser.username}!\n\nWe have sent you a verification email to ${cleanEmail}. Verify it and log in.\n\n[Action: VerifyEmail; email=${cleanEmail}]`,
+            "auth"
+          );
+          addSystemLog(`Login Blocked - Verification Required (${cleanEmail})`, "Blocked");
+          return {
+            success: false,
+            requireVerification: true,
+            email: cleanEmail,
+            error: `We have sent you a verification email to ${cleanEmail}. Verify it and log in`
+          };
+        }
+
         if (!foundUser) {
           const fallbackName = cleanEmail.split("@")[0];
           foundUser = {
@@ -731,115 +778,12 @@ export default function App() {
     }
   };
 
-  const [activePhoneOtps, setActivePhoneOtps] = useState<Record<string, { otp: string; expiresAt: number }>>({});
-
-  const handleSendPhoneOtp = async (phoneNumber: string) => {
-    const cleanPhone = phoneNumber.replace(/[\s-]/g, "");
-    if (!cleanPhone || cleanPhone.length < 7) {
-      return { success: false, error: "Please enter a valid phone number (at least 7 digits)." };
-    }
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
-    setActivePhoneOtps((prev) => ({ ...prev, [cleanPhone]: { otp: code, expiresAt } }));
-
-    addSystemLog(`SMS OTP Dispatched to ${phoneNumber}: [${code}]`, "Success");
-    triggerOutboundEmail(
-      "auth-notifications@kaviyam.com",
-      `SMS Gateway Delivery: OTP for ${phoneNumber}`,
-      `[Kaviyam SMS Gateway]\nYour verification code is: ${code}\nValid for 10 minutes. Use this code to sign in to your Kaviyam Reading account.`,
-      "auth"
-    );
-
-    return { success: true, otp: code };
-  };
-
-  const handlePhoneLogin = async (
-    phoneNumber: string,
-    otpOrPassword: string,
-    isOtpMode: boolean = true
-  ) => {
-    const cleanPhone = phoneNumber.replace(/[\s-]/g, "");
-    if (!cleanPhone || cleanPhone.length < 7) {
-      return { success: false, error: "Please enter a valid mobile number." };
-    }
-
-    if (isOtpMode) {
-      const record = activePhoneOtps[cleanPhone];
-      const isValid = (record && record.otp === otpOrPassword && Date.now() <= record.expiresAt) || (record && record.otp === otpOrPassword) || otpOrPassword === "123456";
-      if (!isValid) {
-        addSystemLog(`Phone OTP Verification Failed for ${phoneNumber}`, "Failed");
-        return { success: false, error: "Invalid or expired SMS OTP code. Please request a new code or try again." };
-      }
-    } else {
-      if (!otpOrPassword || otpOrPassword.length < 4) {
-        return { success: false, error: "Please enter your password." };
-      }
-    }
-
-    // Look up existing user by phone number or synthetic email
-    let foundUser = users.find(
-      (u) =>
-        u.profile?.phoneNumber?.replace(/[\s-]/g, "") === cleanPhone ||
-        u.email.toLowerCase() === `phone_${cleanPhone.replace("+", "")}@kaviyam.com`.toLowerCase()
-    );
-
-    if (!foundUser) {
-      const digitsOnly = cleanPhone.replace(/\D/g, "");
-      const shortSuffix = digitsOnly.slice(-4) || "8888";
-      const fallbackUsername = `Reader ${shortSuffix}`;
-      const syntheticEmail = `phone_${digitsOnly}@kaviyam.com`;
-
-      foundUser = {
-        id: `usr-phone-${Date.now()}`,
-        email: syntheticEmail,
-        username: fallbackUsername,
-        isVerified: true,
-        profile: {
-          username: fallbackUsername,
-          bio: "Kaviyam Reader authenticated via Mobile Phone SMS OTP",
-          profilePhoto: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100",
-          phoneNumber: phoneNumber,
-          dob: "2000-01-01",
-          gender: "Not Specified",
-          privacy: { publicBookshelf: true, showActivity: true }
-        },
-        security: { is2FAEnabled: false, isBlocked: false, loginAttempts: 0 },
-        createdAt: new Date().toISOString()
-      };
-
-      const updatedUsersList = [...users, foundUser];
-      saveUsers(updatedUsersList);
-    } else {
-      if (!foundUser.profile?.phoneNumber) {
-        foundUser = {
-          ...foundUser,
-          profile: {
-            ...foundUser.profile,
-            phoneNumber: phoneNumber
-          }
-        };
-        saveUsers(users.map((u) => (u.id === foundUser!.id ? foundUser! : u)));
-      }
-    }
-
-    setCurrentUser(foundUser);
-    localStorage.setItem("kaviyam_current_user", JSON.stringify(foundUser));
-    setActiveTab("library");
-    setActiveBookId(null);
-    window.location.hash = "#/library";
-    setIsGuestMode(false);
-    addSystemLog(`Phone Authentication Success (${phoneNumber})`, "Success");
-
-    return { success: true };
-  };
-
   const handleRegister = async (
     emailInput: string,
     usernameInput: string,
     dobInput: string,
     genderInput: string,
-    passwordInput?: string,
-    phoneNumberInput?: string
+    passwordInput?: string
   ) => {
     const cleanEmail = emailInput.trim().toLowerCase();
     const userPassword = passwordInput || "reader123";
@@ -848,16 +792,25 @@ export default function App() {
       const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, userPassword);
       const firebaseUser = userCredential.user;
 
+      // Send Firebase Email Verification
+      try {
+        await sendEmailVerification(firebaseUser);
+      } catch (verErr) {
+        console.warn("Firebase sendEmailVerification error:", verErr);
+      }
+
+      // Do NOT sign them in automatically - sign out immediately
+      await signOut(auth);
+
       const newUser: User = {
         id: firebaseUser.uid,
         email: cleanEmail,
         username: usernameInput,
-        isVerified: firebaseUser.emailVerified,
+        isVerified: false,
         profile: {
           username: usernameInput,
           bio: "Just joined the amazing community of Kaviyam Readers!",
           profilePhoto: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100",
-          phoneNumber: phoneNumberInput || "",
           dob: dobInput || "2000-01-01",
           gender: genderInput || "Not Specified",
           privacy: { publicBookshelf: true, showActivity: true }
@@ -869,23 +822,17 @@ export default function App() {
       const updatedUsers = [...users.filter((u) => u.email.toLowerCase() !== cleanEmail), newUser];
       saveUsers(updatedUsers);
 
-      setCurrentUser(newUser);
-      localStorage.setItem("kaviyam_current_user", JSON.stringify(newUser));
-      setActiveTab("library");
-      setActiveBookId(null);
-      window.location.hash = "#/library";
-      setIsGuestMode(false);
-
-      addSystemLog(`Firebase Registration Success (${cleanEmail})`, "Success");
-
+      // Record outbound verification email to Captured Mailbox
       triggerOutboundEmail(
         cleanEmail,
-        "Welcome to Kaviyam Reading: Account Registered",
-        `Hello ${usernameInput}!\n\nThank you for signing up to Kaviyam Reading via Firebase Authentication. Your account is ready!`,
+        "Verify Your Email Address - Kaviyam Reading",
+        `Hello ${usernameInput}!\n\nWe have sent you a verification email to ${cleanEmail}. Verify it and log in.\n\n[Action: VerifyEmail; email=${cleanEmail}]`,
         "auth"
       );
 
-      return { success: true };
+      addSystemLog(`Firebase Registration - Verification Sent (${cleanEmail})`, "Success");
+
+      return { success: true, requireVerification: true, email: cleanEmail };
     } catch (err: any) {
       addSystemLog(`Registration Failed (${cleanEmail}): ${err?.message || err}`, "Failed");
 
@@ -895,12 +842,11 @@ export default function App() {
           id: `usr-${Date.now()}`,
           email: cleanEmail,
           username: usernameInput,
-          isVerified: true,
+          isVerified: false,
           profile: {
             username: usernameInput,
             bio: "Just joined the amazing community of Kaviyam Readers!",
             profilePhoto: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100",
-            phoneNumber: phoneNumberInput || "",
             dob: dobInput || "2000-01-01",
             gender: genderInput || "Not Specified",
             privacy: { publicBookshelf: true, showActivity: true }
@@ -912,14 +858,15 @@ export default function App() {
         const updatedUsers = [...users.filter((u) => u.email.toLowerCase() !== cleanEmail), newUser];
         saveUsers(updatedUsers);
 
-        setCurrentUser(newUser);
-        localStorage.setItem("kaviyam_current_user", JSON.stringify(newUser));
-        setActiveTab("library");
-        setActiveBookId(null);
-        window.location.hash = "#/library";
-        setIsGuestMode(false);
-        addSystemLog(`Local Registration Success (${cleanEmail})`, "Success");
-        return { success: true };
+        triggerOutboundEmail(
+          cleanEmail,
+          "Verify Your Email Address - Kaviyam Reading",
+          `Hello ${usernameInput}!\n\nWe have sent you a verification email to ${cleanEmail}. Verify it and log in.\n\n[Action: VerifyEmail; email=${cleanEmail}]`,
+          "auth"
+        );
+
+        addSystemLog(`Local Registration - Verification Sent (${cleanEmail})`, "Success");
+        return { success: true, requireVerification: true, email: cleanEmail };
       }
 
       let friendly = "Account registration failed.";
@@ -938,26 +885,74 @@ export default function App() {
     }
   };
 
-  const handleForgotPassword = async (emailInput: string) => {
+  const handleResendVerification = async (emailInput: string) => {
+    const cleanEmail = emailInput.trim().toLowerCase();
     try {
-      const cleanEmail = emailInput.trim().toLowerCase();
-      addSystemLog(`Password Reset Issued (${cleanEmail})`, "Success");
-
-      const foundUser = users.find((u) => u.email.toLowerCase() === cleanEmail);
-      const username = foundUser ? foundUser.username : "Reader";
-      const token = `reset-token-${cleanEmail}-${Date.now()}`;
-
+      if (auth.currentUser && auth.currentUser.email?.toLowerCase() === cleanEmail) {
+        await sendEmailVerification(auth.currentUser);
+      }
       triggerOutboundEmail(
         cleanEmail,
-        "Secret Link: Reset Password Request",
-        `Hello ${username},\n\nA password reset email request was logged for your account.\n\nClick the link below to set a new password:\n\n[Action: ResetPassword; token=${token}]`,
+        "Verify Your Email Address - Kaviyam Reading",
+        `Hello!\n\nWe have sent you a verification email to ${cleanEmail}. Verify it and log in.\n\n[Action: VerifyEmail; email=${cleanEmail}]`,
+        "auth"
+      );
+      addSystemLog(`Verification Email Dispatched (${cleanEmail})`, "Success");
+      return { success: true };
+    } catch (err: any) {
+      addSystemLog(`Resend Verification Failed (${cleanEmail}): ${err?.message || err}`, "Failed");
+      return { success: false, error: err?.message || "Failed to resend verification link." };
+    }
+  };
+
+  const handleForgotPassword = async (emailInput: string) => {
+    const cleanEmail = emailInput.trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes("@")) {
+      return { success: false, error: "Please provide a valid email address." };
+    }
+
+    try {
+      // Trigger password change using Firebase Authentication
+      await sendPasswordResetEmail(auth, cleanEmail);
+      addSystemLog(`Firebase Password Reset Link Dispatched (${cleanEmail})`, "Success");
+
+      // Record outbound email in simulation log for preview visibility
+      triggerOutboundEmail(
+        cleanEmail,
+        "Reset Your Password - Kaviyam Reading",
+        `Hello,\n\nA password reset request was issued for your Kaviyam account. Follow the instructions sent by Firebase or use the secure password change link.\n\n[Action: ResetPassword; email=${cleanEmail}]`,
         "auth"
       );
 
-      return { success: true };
+      return { success: true, email: cleanEmail };
     } catch (err: any) {
-      addSystemLog(`Password Reset Failed (${emailInput}): ${err?.message || err}`, "Failed");
-      return { success: false, error: err?.message || "Failed to issue password recovery request." };
+      addSystemLog(`Password Reset Request Failed (${cleanEmail}): ${err?.message || err}`, "Failed");
+
+      // If Firebase encounters user-not-found or invalid email
+      if (err?.code === "auth/user-not-found") {
+        return { success: false, error: "No registered account was found with this email address." };
+      } else if (err?.code === "auth/invalid-email") {
+        return { success: false, error: "Please enter a valid email address." };
+      } else if (err?.code === "auth/too-many-requests") {
+        return { success: false, error: "Too many password reset requests. Please wait a few minutes before trying again." };
+      }
+
+      // Fallback for demo/offline accounts
+      if (err?.code === "auth/api-key-not-valid" || err?.message?.includes("api-key")) {
+        const foundUser = users.find((u) => u.email.toLowerCase() === cleanEmail);
+        const username = foundUser ? foundUser.username : "Reader";
+        const token = `reset-token-${cleanEmail}-${Date.now()}`;
+
+        triggerOutboundEmail(
+          cleanEmail,
+          "Secret Link: Reset Password Request",
+          `Hello ${username},\n\nA password reset request was logged for your account.\n\n[Action: ResetPassword; token=${token}]`,
+          "auth"
+        );
+        return { success: true, email: cleanEmail };
+      }
+
+      return { success: false, error: err?.message || "Failed to issue password change link." };
     }
   };
 
@@ -1287,12 +1282,10 @@ export default function App() {
               <Auth
                 currentUser={currentUser}
                 onLogin={handleLogin}
-                onPhoneLogin={handlePhoneLogin}
-                onSendPhoneOtp={handleSendPhoneOtp}
                 onRegister={handleRegister}
                 onForgotPassword={handleForgotPassword}
                 onResetPasswordWithToken={handleResetPasswordWithToken}
-                onResendVerification={(email) => alert(`Simulated link resent to ${email}!`)}
+                onResendVerification={handleResendVerification}
                 resetToken={resetToken}
                 setResetToken={setResetToken}
                 addSystemLog={addSystemLog}
