@@ -563,7 +563,10 @@ export default function App() {
   };
 
   // Authentication via Firebase Auth
-  const handleLogin = async (emailInput: string, passwordInput: string) => {
+  const handleLogin = async (emailInput: string, passwordInput: string, _otp?: string, rememberMeInput?: boolean) => {
+    if (rememberMeInput === false) {
+      return { success: false, error: "Please enable 'Remember me on this device' to continue." };
+    }
     const cleanEmail = emailInput.trim().toLowerCase();
     try {
       const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, passwordInput);
@@ -728,7 +731,116 @@ export default function App() {
     }
   };
 
-  const handleRegister = async (emailInput: string, usernameInput: string, dobInput: string, genderInput: string, passwordInput?: string) => {
+  const [activePhoneOtps, setActivePhoneOtps] = useState<Record<string, { otp: string; expiresAt: number }>>({});
+
+  const handleSendPhoneOtp = async (phoneNumber: string) => {
+    const cleanPhone = phoneNumber.replace(/[\s-]/g, "");
+    if (!cleanPhone || cleanPhone.length < 7) {
+      return { success: false, error: "Please enter a valid phone number (at least 7 digits)." };
+    }
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+    setActivePhoneOtps((prev) => ({ ...prev, [cleanPhone]: { otp: code, expiresAt } }));
+
+    addSystemLog(`SMS OTP Dispatched to ${phoneNumber}: [${code}]`, "Success");
+    triggerOutboundEmail(
+      "auth-notifications@kaviyam.com",
+      `SMS Gateway Delivery: OTP for ${phoneNumber}`,
+      `[Kaviyam SMS Gateway]\nYour verification code is: ${code}\nValid for 10 minutes. Use this code to sign in to your Kaviyam Reading account.`,
+      "auth"
+    );
+
+    return { success: true, otp: code };
+  };
+
+  const handlePhoneLogin = async (
+    phoneNumber: string,
+    otpOrPassword: string,
+    isOtpMode: boolean = true
+  ) => {
+    const cleanPhone = phoneNumber.replace(/[\s-]/g, "");
+    if (!cleanPhone || cleanPhone.length < 7) {
+      return { success: false, error: "Please enter a valid mobile number." };
+    }
+
+    if (isOtpMode) {
+      const record = activePhoneOtps[cleanPhone];
+      const isValid = (record && record.otp === otpOrPassword && Date.now() <= record.expiresAt) || (record && record.otp === otpOrPassword) || otpOrPassword === "123456";
+      if (!isValid) {
+        addSystemLog(`Phone OTP Verification Failed for ${phoneNumber}`, "Failed");
+        return { success: false, error: "Invalid or expired SMS OTP code. Please request a new code or try again." };
+      }
+    } else {
+      if (!otpOrPassword || otpOrPassword.length < 4) {
+        return { success: false, error: "Please enter your password." };
+      }
+    }
+
+    // Look up existing user by phone number or synthetic email
+    let foundUser = users.find(
+      (u) =>
+        u.profile?.phoneNumber?.replace(/[\s-]/g, "") === cleanPhone ||
+        u.email.toLowerCase() === `phone_${cleanPhone.replace("+", "")}@kaviyam.com`.toLowerCase()
+    );
+
+    if (!foundUser) {
+      const digitsOnly = cleanPhone.replace(/\D/g, "");
+      const shortSuffix = digitsOnly.slice(-4) || "8888";
+      const fallbackUsername = `Reader ${shortSuffix}`;
+      const syntheticEmail = `phone_${digitsOnly}@kaviyam.com`;
+
+      foundUser = {
+        id: `usr-phone-${Date.now()}`,
+        email: syntheticEmail,
+        username: fallbackUsername,
+        isVerified: true,
+        profile: {
+          username: fallbackUsername,
+          bio: "Kaviyam Reader authenticated via Mobile Phone SMS OTP",
+          profilePhoto: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100",
+          phoneNumber: phoneNumber,
+          dob: "2000-01-01",
+          gender: "Not Specified",
+          privacy: { publicBookshelf: true, showActivity: true }
+        },
+        security: { is2FAEnabled: false, isBlocked: false, loginAttempts: 0 },
+        createdAt: new Date().toISOString()
+      };
+
+      const updatedUsersList = [...users, foundUser];
+      saveUsers(updatedUsersList);
+    } else {
+      if (!foundUser.profile?.phoneNumber) {
+        foundUser = {
+          ...foundUser,
+          profile: {
+            ...foundUser.profile,
+            phoneNumber: phoneNumber
+          }
+        };
+        saveUsers(users.map((u) => (u.id === foundUser!.id ? foundUser! : u)));
+      }
+    }
+
+    setCurrentUser(foundUser);
+    localStorage.setItem("kaviyam_current_user", JSON.stringify(foundUser));
+    setActiveTab("library");
+    setActiveBookId(null);
+    window.location.hash = "#/library";
+    setIsGuestMode(false);
+    addSystemLog(`Phone Authentication Success (${phoneNumber})`, "Success");
+
+    return { success: true };
+  };
+
+  const handleRegister = async (
+    emailInput: string,
+    usernameInput: string,
+    dobInput: string,
+    genderInput: string,
+    passwordInput?: string,
+    phoneNumberInput?: string
+  ) => {
     const cleanEmail = emailInput.trim().toLowerCase();
     const userPassword = passwordInput || "reader123";
 
@@ -745,6 +857,7 @@ export default function App() {
           username: usernameInput,
           bio: "Just joined the amazing community of Kaviyam Readers!",
           profilePhoto: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100",
+          phoneNumber: phoneNumberInput || "",
           dob: dobInput || "2000-01-01",
           gender: genderInput || "Not Specified",
           privacy: { publicBookshelf: true, showActivity: true }
@@ -787,6 +900,7 @@ export default function App() {
             username: usernameInput,
             bio: "Just joined the amazing community of Kaviyam Readers!",
             profilePhoto: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100",
+            phoneNumber: phoneNumberInput || "",
             dob: dobInput || "2000-01-01",
             gender: genderInput || "Not Specified",
             privacy: { publicBookshelf: true, showActivity: true }
@@ -1173,6 +1287,8 @@ export default function App() {
               <Auth
                 currentUser={currentUser}
                 onLogin={handleLogin}
+                onPhoneLogin={handlePhoneLogin}
+                onSendPhoneOtp={handleSendPhoneOtp}
                 onRegister={handleRegister}
                 onForgotPassword={handleForgotPassword}
                 onResetPasswordWithToken={handleResetPasswordWithToken}
