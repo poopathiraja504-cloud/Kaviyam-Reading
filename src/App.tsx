@@ -1500,16 +1500,33 @@ export default function App() {
             </button>
           </nav>
 
-          {/* User Profile Avatar */}
+          {/* User Sign-In Action or Mini-Card */}
           <div className="flex items-center gap-3">
-            <img
-              src={currentUser.profile?.profilePhoto || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"}
-              alt="avatar"
-              onClick={() => navigateToTab("profile")}
-              className="w-8 h-8 rounded-full border-2 border-[#d4af37] cursor-pointer object-cover shadow-sm hover:opacity-85 transition"
-              referrerPolicy="no-referrer"
-              title="View Profile Settings"
-            />
+            <div className="flex items-center gap-2.5">
+              <div className="text-right hidden sm:block">
+                <span className="text-xs font-bold block text-stone-800">{currentUser.username}</span>
+                <span className="text-[9px] uppercase font-mono tracking-wider font-semibold text-stone-400">
+                  {currentUser.email === "admin@kaviyam.com" ? "Platform Admin" : "Reader Patron"}
+                </span>
+              </div>
+              <img
+                src={currentUser.profile?.profilePhoto || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"}
+                alt="avatar"
+                onClick={() => navigateToTab("profile")}
+                className="w-8 h-8 rounded-full border-2 border-[#d4af37] cursor-pointer object-cover shadow-sm hover:opacity-85 transition"
+                referrerPolicy="no-referrer"
+                title="View Profile Settings"
+              />
+              <button
+                onClick={handleLogout}
+                className="bg-stone-800 hover:bg-stone-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm cursor-pointer"
+                title="Sign out of Kaviyam Reading"
+                id="header-logout-btn"
+              >
+                <LogOut size={13} />
+                <span className="hidden sm:inline">Sign Out</span>
+              </button>
+            </div>
           </div>
         </div>
       </header>

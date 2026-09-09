@@ -136,7 +136,15 @@ export default function Profile({
            <ChevronLeft size={24} strokeWidth={2} />
         </button>
         <h1 className="text-[17px] font-semibold text-stone-900">Your account</h1>
-        <div className="w-8" />
+        <button
+          onClick={() => setShowLogoutModal(true)}
+          className="text-xs font-bold text-red-600 hover:text-red-700 hover:bg-red-50 px-2.5 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-1 border border-red-200"
+          title="Sign Out of Kaviyam"
+          id="profile-top-signout-btn"
+        >
+          <LogOut size={13} />
+          <span>Sign Out</span>
+        </button>
       </header>
 
       {/* Profile Card */}
