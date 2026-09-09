@@ -1,7 +1,8 @@
 import { User, SecurityLog, Book } from "../types";
-import { Users, Shield, ShieldAlert, BarChart2, Ban, CheckCircle, Search, Trash2, Key, History, Lock, Unlock, Eye, HelpCircle } from "lucide-react";
+import { Users, Shield, ShieldAlert, BarChart2, Ban, CheckCircle, Search, Trash2, Key, History, Lock, Unlock, Eye, HelpCircle, Image as ImageIcon } from "lucide-react";
 import React, { useState } from "react";
 import { RECOMMENDED_META_TAGS } from "../utils/securityHeaders";
+import AdminAssets from "./AdminAssets";
 
 interface AdminProps {
   usersList: User[];
@@ -27,7 +28,7 @@ export default function Admin({
   onUpdateCustomCsp,
 }: AdminProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"users" | "analytics" | "logs">("users");
+  const [activeTab, setActiveTab] = useState<"users" | "analytics" | "logs" | "assets">("users");
 
   const filteredUsers = usersList.filter(
     (u) =>
@@ -85,6 +86,16 @@ export default function Admin({
             id="admin-tab-logs"
           >
             Global Audits
+          </button>
+          <button
+            onClick={() => setActiveTab("assets")}
+            className={`px-3 py-1.5 rounded-md text-xs font-semibold transition flex items-center gap-1.5 ${
+              activeTab === "assets" ? "bg-white text-stone-800 shadow-sm" : "text-stone-500 hover:text-stone-800"
+            }`}
+            id="admin-tab-assets"
+          >
+            <ImageIcon size={14} className={activeTab === "assets" ? "text-[#d4af37]" : "text-stone-400"} />
+            Assets
           </button>
         </div>
       </div>
@@ -442,6 +453,10 @@ export default function Admin({
             </table>
           </div>
         </div>
+      )}
+
+      {activeTab === "assets" && (
+        <AdminAssets />
       )}
     </div>
   );

@@ -255,10 +255,10 @@ export default function TamilDashboard({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <div className="grid grid-cols-1 col-span-12 gap-8">
         
-        {/* Left column: Archives and Forums */}
-        <div className="lg:col-span-8 space-y-8">
+        {/* Archives and Forums */}
+        <div className="col-span-12 space-y-8">
           
           {/* Instant Open Archive Book Ingestor - Guest Compatible */}
           <div className="bg-white border border-stone-200/80 rounded-3xl p-6 shadow-sm space-y-4 text-left relative overflow-hidden">
@@ -411,67 +411,6 @@ export default function TamilDashboard({
             </div>
           </div>
 
-        </div>
-
-        {/* Right column: Local reads / Offline Downloads */}
-        <div className="lg:col-span-4 space-y-6">
-          
-          <div className="bg-white border border-stone-200/80 rounded-3xl p-6 shadow-sm space-y-5 text-left relative overflow-hidden">
-            <div className="absolute top-0 inset-x-0 h-1 bg-[#bfa030]" />
-
-            <div className="flex items-center gap-2 border-b border-stone-100 pb-3">
-              <Download size={18} className="text-[#bfa030]" />
-              <h2 className="font-serif text-base font-bold text-stone-800">
-                📂 Personal Offline Downloads & Presets
-              </h2>
-            </div>
-            
-            <p className="text-[11px] text-stone-500 leading-relaxed font-serif">
-              Open preset epic volumes or link files below. You can bookmark them to add them directly to your personal reading shelf for safe session logging!
-            </p>
-
-            <div className="space-y-4 pt-2">
-              {localBooks.map((book) => {
-                const isBookmarked = bookmarks.includes(book.id);
-                return (
-                  <div 
-                    key={book.id}
-                    className="p-4 border border-stone-150 bg-[#faf9f5] rounded-2xl flex flex-col justify-between space-y-3 shadow-inner hover:bg-amber-50/20 transition duration-200"
-                  >
-                    <div className="space-y-1">
-                      <h4 className="font-serif font-bold text-stone-800 text-xs">
-                        {book.title}
-                      </h4>
-                      <p className="text-[10px] text-stone-500 leading-relaxed">
-                        {book.desc}
-                      </p>
-                    </div>
-
-                    <div className="flex gap-2 pt-1">
-                      <button
-                        onClick={() => onSelectBook(book.id)}
-                        className="flex-1 py-1.5 bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold rounded-lg transition text-center shadow-sm"
-                      >
-                        {book.btnText}
-                      </button>
-                      
-                      <button
-                        onClick={() => onToggleBookmark(book.id)}
-                        className={`px-2.5 py-1.5 border rounded-lg transition flex items-center justify-center ${
-                          isBookmarked 
-                            ? "bg-[#bfa030] border-[#aa8e28] text-black" 
-                            : "bg-white border-stone-200 text-stone-500 hover:text-stone-800"
-                        }`}
-                        title={isBookmarked ? "Remove Bookmark" : "Save to Bookshelf"}
-                      >
-                        <Bookmark size={13} className={isBookmarked ? "fill-current" : ""} />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
         </div>
 
       </div>

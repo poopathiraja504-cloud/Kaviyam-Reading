@@ -1,8 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { User } from "../types";
-import { Shield, Mail, Lock, User as UserIcon, Eye, EyeOff, AlertTriangle, CheckCircle, ExternalLink, X, ArrowRight, RefreshCw, KeyRound, LogIn } from "lucide-react";
+import { Shield, Mail, Lock, User as UserIcon, Eye, EyeOff, AlertTriangle, CheckCircle, ExternalLink, X, ArrowRight, RefreshCw, KeyRound, LogIn, Phone, Smartphone } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import LiquidOTP from "./LiquidOTP";
+import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from "firebase/auth";
+import { auth } from "../firebase";
+
+declare global {
+  interface Window {
+    recaptchaVerifier?: RecaptchaVerifier;
+  }
+}
 
 interface AuthProps {
   currentUser: User | null;
@@ -15,6 +23,7 @@ interface AuthProps {
   setResetToken: (token: string | null) => void;
   addSystemLog: (action: string, status: "Success" | "Failed" | "Blocked") => void;
   onGoogleLogin?: () => Promise<{ success: boolean; error?: string }> | void;
+  onPhoneLogin?: (phone: string) => Promise<{ success: boolean; error?: string }> | { success: boolean; error?: string } | void;
   onEmailOtpLogin?: (email: string) => void;
   onSendEmailOtp?: (email: string, otp: string) => void;
   onGuestLogin?: () => void;
@@ -32,12 +41,23 @@ export default function Auth({
   setResetToken,
   addSystemLog,
   onGoogleLogin,
+  onPhoneLogin,
   onEmailOtpLogin,
   onSendEmailOtp,
   onGuestLogin,
   isDarkMode = false,
 }: AuthProps) {
   const [view, setView] = useState<"login" | "register" | "forgot" | "reset" | "require2FA" | "verifyEmail">("login");
+
+  // Auth Method: email vs phone
+  const [authMethod, setAuthMethod] = useState<"email" | "phone">("phone");
+  const [countryCode, setCountryCode] = useState("+91");
+  const [phoneDigits, setPhoneDigits] = useState("");
+  const [phoneOtp, setPhoneOtp] = useState("");
+  const [phoneOtpSent, setPhoneOtpSent] = useState(false);
+  const [phoneResendTimer, setPhoneResendTimer] = useState(0);
+  const [isPhoneLoading, setIsPhoneLoading] = useState(false);
+  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
 
   // Email form states
   const [email, setEmail] = useState("");
@@ -143,6 +163,181 @@ export default function Auth({
       }
     } catch (err: any) {
       setErrorMsg(err?.message || "An unexpected error occurred during login.");
+    }
+  };
+
+  // Setup invisible reCAPTCHA verifier for Firebase Phone Auth
+  const setupRecaptcha = () => {
+    if (window.recaptchaVerifier) {
+      try {
+        window.recaptchaVerifier.clear();
+      } catch {
+        // ignore
+      }
+      window.recaptchaVerifier = undefined;
+    }
+    window.recaptchaVerifier = new RecaptchaVerifier(auth, "recaptcha-container", {
+      size: "invisible",
+      callback: () => {
+        // reCAPTCHA solved
+      },
+      "expired-callback": () => {
+        setErrorMsg("Verification failed. Please try again.");
+      }
+    });
+  };
+
+  // Countdown timer for Phone OTP Resend Code
+  useEffect(() => {
+    let timer: any = null;
+    if (phoneOtpSent && phoneResendTimer > 0) {
+      timer = setInterval(() => {
+        setPhoneResendTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [phoneOtpSent, phoneResendTimer]);
+
+  const handleSendPhoneOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    const cleanDigits = phoneDigits.replace(/\D/g, "");
+    if (!cleanDigits || cleanDigits.length < 6 || cleanDigits.length > 14) {
+      setErrorMsg("Please enter a valid phone number.");
+      return;
+    }
+
+    const formattedPhone = `${countryCode}${cleanDigits}`;
+    setIsPhoneLoading(true);
+
+    try {
+      setupRecaptcha();
+      const appVerifier = window.recaptchaVerifier!;
+      const confirmation = await signInWithPhoneNumber(auth, formattedPhone, appVerifier);
+      setConfirmationResult(confirmation);
+      setPhoneOtpSent(true);
+      setPhoneResendTimer(30);
+      setSuccessMsg(null);
+      addSystemLog(`Phone OTP Sent to ${formattedPhone}`, "Success");
+    } catch (err: any) {
+      console.error("Firebase Phone Auth Send OTP Error:", err);
+      let msg = "Unable to send the verification code. Please check your internet connection.";
+      if (err?.code === "auth/invalid-phone-number") {
+        msg = "Please enter a valid phone number.";
+      } else if (err?.code === "auth/too-many-requests" || err?.code === "auth/quota-exceeded") {
+        msg = "Too many attempts. Please try again later.";
+      } else if (err?.code === "auth/captcha-check-failed") {
+        msg = "Verification failed. Please try again.";
+      } else if (err?.code === "auth/network-request-failed") {
+        msg = "Unable to send the verification code. Please check your internet connection.";
+      }
+      setErrorMsg(msg);
+    } finally {
+      setIsPhoneLoading(false);
+    }
+  };
+
+  const handleResendPhoneOtp = async () => {
+    if (phoneResendTimer > 0 || isPhoneLoading) return;
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    const cleanDigits = phoneDigits.replace(/\D/g, "");
+    if (!cleanDigits || cleanDigits.length < 6 || cleanDigits.length > 14) {
+      setErrorMsg("Please enter a valid phone number.");
+      return;
+    }
+
+    const formattedPhone = `${countryCode}${cleanDigits}`;
+    setIsPhoneLoading(true);
+
+    try {
+      setupRecaptcha();
+      const appVerifier = window.recaptchaVerifier!;
+      const confirmation = await signInWithPhoneNumber(auth, formattedPhone, appVerifier);
+      setConfirmationResult(confirmation);
+      setPhoneResendTimer(30);
+      setSuccessMsg("Verification code resent successfully.");
+      addSystemLog(`Phone OTP Resent to ${formattedPhone}`, "Success");
+    } catch (err: any) {
+      console.error("Firebase Resend OTP Error:", err);
+      let msg = "Unable to send the verification code. Please check your internet connection.";
+      if (err?.code === "auth/too-many-requests" || err?.code === "auth/quota-exceeded") {
+        msg = "Too many attempts. Please try again later.";
+      } else if (err?.code === "auth/captcha-check-failed") {
+        msg = "Verification failed. Please try again.";
+      } else if (err?.code === "auth/network-request-failed") {
+        msg = "Unable to send the verification code. Please check your internet connection.";
+      }
+      setErrorMsg(msg);
+    } finally {
+      setIsPhoneLoading(false);
+    }
+  };
+
+  const handleChangePhoneNumber = () => {
+    setPhoneOtpSent(false);
+    setPhoneOtp("");
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    setConfirmationResult(null);
+    setPhoneResendTimer(0);
+    if (window.recaptchaVerifier) {
+      try {
+        window.recaptchaVerifier.clear();
+      } catch {
+        // ignore
+      }
+      window.recaptchaVerifier = undefined;
+    }
+  };
+
+  const handleVerifyPhoneOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    const cleanOtp = phoneOtp.trim().replace(/\D/g, "");
+    if (cleanOtp.length !== 6) {
+      setErrorMsg("The verification code is incorrect. Please try again.");
+      return;
+    }
+
+    if (!confirmationResult) {
+      setErrorMsg("Verification failed. Please try again.");
+      return;
+    }
+
+    setIsPhoneLoading(true);
+    try {
+      const userCredential = await confirmationResult.confirm(cleanOtp);
+      const formattedPhone = `${countryCode}${phoneDigits.replace(/\D/g, "")}`;
+
+      setSuccessMsg("Phone number verified successfully.");
+
+      if (onPhoneLogin) {
+        const res = await onPhoneLogin(formattedPhone);
+        if (res && !res.success && res.error) {
+          setErrorMsg(res.error);
+        }
+      }
+    } catch (err: any) {
+      console.error("Firebase Confirm OTP Error:", err);
+      let msg = "The verification code is incorrect. Please try again.";
+      if (err?.code === "auth/invalid-verification-code") {
+        msg = "The verification code is incorrect. Please try again.";
+      } else if (err?.code === "auth/code-expired" || err?.code === "auth/session-expired") {
+        msg = "This verification code has expired. Please request a new code.";
+      } else if (err?.code === "auth/network-request-failed") {
+        msg = "Unable to send the verification code. Please check your internet connection.";
+      }
+      setErrorMsg(msg);
+    } finally {
+      setIsPhoneLoading(false);
     }
   };
 
@@ -287,8 +482,17 @@ export default function Auth({
         <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-[#f0c15c] to-transparent" />
 
         <div className="text-center mb-6 relative z-10">
-          <h2 className="font-serif text-2xl md:text-3xl font-extrabold text-[#f0c15c] tracking-tight">
-            {view === "login" && "Welcome Back!"}
+          <div className="flex flex-col items-center justify-center mb-4">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-8 h-8 text-[#f0c15c] mb-1">
+              <path d="M4 19V5C4 3.89543 4.89543 3 6 3H19C19.5523 3 20 3.44772 20 4V19C20 20.6569 18.6569 22 17 22H6C4.89543 22 4 21.1046 4 20C4 19.4477 4.44772 19 5 19H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M12 3V11L9.5 9L7 11V3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            <h1 className="font-serif text-2xl font-extrabold text-[#f0c15c]">
+              Kaviyam Reading
+            </h1>
+          </div>
+          <h2 className="font-serif text-xl md:text-2xl font-bold text-white tracking-tight mt-6">
+            {view === "login" && "Welcome back to Kaviyam"}
             {view === "register" && "Synthesize Profile"}
             {view === "forgot" && (isResetLinkSent ? "Password Reset Sent" : "Forgot Password?")}
             {view === "reset" && "Set Secure Password"}
@@ -296,26 +500,13 @@ export default function Auth({
             {view === "verifyEmail" && "Verify Your Email"}
           </h2>
           <p className="text-stone-300 text-xs md:text-sm mt-1.5 font-medium leading-relaxed">
-            {view === "login" && "Sign in to continue your reading journey with Kaviyam."}
+            {view === "login" && "Continue your reading journey."}
             {view === "register" && "Register to review books, track history, and write stories with Gemini."}
             {view === "forgot" && (isResetLinkSent ? "Check your email inbox to change your password." : "Enter your email to receive a password change link.")}
             {view === "reset" && "Establish a robust password combination to secure your credentials."}
             {view === "require2FA" && "Enter the active one-time token sent to your Simulated Mailbox."}
             {view === "verifyEmail" && "Please verify your email address to access your Kaviyam Reading account."}
           </p>
-
-          {/* Access Notice Badge */}
-          <div className="mt-4 p-3 rounded-2xl border border-[#f0c15c]/25 bg-[#0d1c38]/80 flex items-center gap-3 text-xs leading-relaxed text-stone-200 shadow-sm text-left">
-            <div className="w-8 h-8 rounded-full border border-[#f0c15c]/50 bg-[#122347] flex items-center justify-center flex-shrink-0 text-[#f0c15c]">
-              <Shield size={16} />
-            </div>
-            <div>
-              <span className="font-extrabold text-[#f0c15c] block text-[11px] uppercase tracking-wider">SECURE AUTHENTICATION:</span>
-              <span className="text-stone-300 text-[11px]">
-                Email & Google Sign-In supported with verified credentials.
-              </span>
-            </div>
-          </div>
         </div>
 
         {errorMsg && (
@@ -364,96 +555,243 @@ export default function Auth({
               exit={{ opacity: 0, y: -8 }}
               className="space-y-4 text-xs relative z-10"
             >
-              {/* EMAIL LOGIN FORM */}
-              <form onSubmit={handleLoginSubmit} className="space-y-4" id="email-login-form">
-                <div>
-                  <label className="block font-bold mb-1.5 text-stone-200">Email Address</label>
-                  <div className="relative">
-                    <Mail size={15} className="absolute left-3.5 top-3.5 text-[#f0c15c]/60" />
-                    <input
-                      type="email"
-                      required
-                      placeholder="e.g. reader@example.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 border border-[#1e3258] bg-[#0a152d] text-stone-100 placeholder-stone-500 rounded-xl focus:outline-none focus:border-[#f0c15c] transition-all text-xs md:text-sm"
-                      id="login-email-input"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between items-center mb-1.5">
-                    <label className="block font-bold text-stone-200">Password</label>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setErrorMsg(null);
-                        setSuccessMsg(null);
-                        setIsResetLinkSent(false);
-                        setView("forgot");
-                      }}
-                      className="text-xs text-[#f0c15c] hover:underline font-bold cursor-pointer"
-                      id="forgot-password-link"
-                    >
-                      Forgot password?
-                    </button>
-                  </div>
-                  <div className="relative">
-                    <Lock size={15} className="absolute left-3.5 top-3.5 text-[#f0c15c]/60" />
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      required
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full pl-10 pr-10 py-3 border border-[#1e3258] bg-[#0a152d] text-stone-100 placeholder-stone-500 rounded-xl focus:outline-none focus:border-[#f0c15c] transition-all text-xs md:text-sm"
-                      id="login-password-input"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3.5 top-3.5 text-stone-400 hover:text-stone-200 cursor-pointer"
-                    >
-                      {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Remember Me Option */}
-                <div className="flex items-center justify-between pt-0.5 pb-1">
-                  <label
-                    htmlFor="remember-me-checkbox"
-                    className="flex items-center gap-2 cursor-pointer select-none text-stone-300 hover:text-stone-100 transition-colors group"
-                    id="remember-me-label"
-                  >
-                    <input
-                      type="checkbox"
-                      id="remember-me-checkbox"
-                      checked={rememberMe}
-                      onChange={(e) => setRememberMe(e.target.checked)}
-                      className="w-4 h-4 rounded border-[#1e3258] bg-[#0a152d] text-[#f0c15c] accent-[#f0c15c] focus:ring-1 focus:ring-[#f0c15c] cursor-pointer"
-                    />
-                    <span className="text-xs font-semibold group-hover:text-[#f0c15c] transition-colors">
-                      Remember me on this device
-                    </span>
-                  </label>
-                </div>
-
+              {/* AUTH METHOD SWITCHER */}
+              <div className="flex bg-[#0a101d] p-1 rounded-xl border border-stone-800 mb-4">
                 <button
-                  type="submit"
-                  className="w-full bg-gradient-to-r from-[#f0c15c] via-[#e8a32a] to-[#d48c1a] hover:from-[#f5ca6a] hover:to-[#e09825] text-stone-950 font-extrabold py-3.5 rounded-2xl transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer text-sm tracking-wide mt-2"
-                  id="login-submit-btn"
+                  type="button"
+                  onClick={() => {
+                    setAuthMethod("email");
+                    setErrorMsg(null);
+                    setSuccessMsg(null);
+                  }}
+                  className={`flex-1 py-2 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                    authMethod === "email" ? "bg-[#f0c15c] text-black shadow-sm font-bold" : "text-stone-400 hover:text-stone-200"
+                  }`}
+                  id="tab-email-login"
                 >
-                  Login
+                  <Mail size={13} />
+                  Email Sign-In
                 </button>
-              </form>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMethod("phone");
+                    setErrorMsg(null);
+                    setSuccessMsg(null);
+                  }}
+                  className={`flex-1 py-2 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                    authMethod === "phone" ? "bg-[#f0c15c] text-black shadow-sm font-bold" : "text-stone-400 hover:text-stone-200"
+                  }`}
+                  id="tab-phone-login"
+                >
+                  <Phone size={13} />
+                  Phone Authentication
+                </button>
+              </div>
+
+              {authMethod === "email" ? (
+                /* EMAIL LOGIN FORM */
+                <form onSubmit={handleLoginSubmit} className="space-y-4" id="email-login-form">
+                  <div>
+                    <div className="relative">
+                      <input
+                        type="email"
+                        required
+                        placeholder="Email address"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="w-full px-4 py-3.5 border border-stone-800 bg-[#0a101d] text-stone-100 placeholder-stone-500 rounded-lg focus:outline-none focus:border-[#f0c15c] transition-all text-xs md:text-sm shadow-inner"
+                        id="login-email-input"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        required
+                        placeholder="Password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="w-full px-4 py-3.5 border border-stone-800 bg-[#0a101d] text-stone-100 placeholder-stone-500 rounded-lg focus:outline-none focus:border-[#f0c15c] transition-all text-xs md:text-sm shadow-inner"
+                        id="login-password-input"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-4 top-3.5 text-stone-500 hover:text-stone-300 cursor-pointer"
+                      >
+                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Remember Me Option */}
+                  <div className="flex items-center justify-between pt-1 pb-2">
+                    <label
+                      htmlFor="remember-me-checkbox"
+                      className="flex items-center gap-2 cursor-pointer select-none text-stone-400 hover:text-stone-200 transition-colors group"
+                      id="remember-me-label"
+                    >
+                      <input
+                        type="checkbox"
+                        id="remember-me-checkbox"
+                        checked={rememberMe}
+                        onChange={(e) => setRememberMe(e.target.checked)}
+                        className="w-3.5 h-3.5 rounded border-stone-700 bg-transparent text-[#f0c15c] accent-[#f0c15c] focus:ring-0 cursor-pointer"
+                      />
+                      <span className="text-[11px] font-medium group-hover:text-[#f0c15c] transition-colors">
+                        Remember me
+                      </span>
+                    </label>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full bg-[#f0c15c] hover:bg-[#d6a540] text-black font-semibold py-3.5 rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer text-sm shadow-sm"
+                    id="login-submit-btn"
+                  >
+                    Sign In
+                  </button>
+                </form>
+              ) : (
+                /* PHONE NUMBER AUTHENTICATION FORM */
+                <div className="space-y-4" id="phone-login-form">
+                  {/* reCAPTCHA Invisible Container */}
+                  <div id="recaptcha-container" />
+
+                  {!phoneOtpSent ? (
+                    <form onSubmit={handleSendPhoneOtp} className="space-y-4">
+                      <div>
+                        <label className="block text-stone-300 font-semibold mb-1.5 text-xs">Mobile Phone Number</label>
+                        <div className="flex gap-2">
+                          <select
+                            value={countryCode}
+                            onChange={(e) => setCountryCode(e.target.value)}
+                            className="bg-[#0a101d] text-[#f0c15c] border border-stone-800 rounded-xl px-2.5 py-3.5 text-xs font-mono font-bold focus:outline-none focus:border-[#f0c15c] cursor-pointer"
+                            id="phone-country-code-select"
+                          >
+                            <option value="+91">🇮🇳 +91 (India)</option>
+                            <option value="+1">🇺🇸 +1 (USA/CAN)</option>
+                            <option value="+44">🇬🇧 +44 (UK)</option>
+                            <option value="+971">🇦🇪 +971 (UAE)</option>
+                            <option value="+65">🇸🇬 +65 (SG)</option>
+                            <option value="+94">🇱🇰 +94 (SL)</option>
+                            <option value="+61">🇦🇺 +61 (AUS)</option>
+                            <option value="+60">🇲🇾 +60 (MY)</option>
+                            <option value="+49">🇩🇪 +49 (DE)</option>
+                          </select>
+
+                          <div className="relative flex-1">
+                            <input
+                              type="tel"
+                              required
+                              placeholder="Enter mobile number"
+                              value={phoneDigits}
+                              onChange={(e) => setPhoneDigits(e.target.value.replace(/\D/g, "").slice(0, 12))}
+                              className="w-full px-4 py-3.5 border border-stone-800 bg-[#0a101d] text-stone-100 placeholder-stone-500 rounded-xl focus:outline-none focus:border-[#f0c15c] transition-all text-sm font-mono tracking-wider shadow-inner"
+                              id="login-phone-input"
+                            />
+                          </div>
+                        </div>
+                        <p className="text-[10px] text-stone-400 mt-1.5 leading-relaxed">
+                          Enter your mobile number to receive a secure SMS verification code.
+                        </p>
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={isPhoneLoading}
+                        className="w-full bg-[#f0c15c] hover:bg-[#d6a540] text-black font-bold py-3.5 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer text-sm shadow-sm disabled:opacity-50"
+                        id="phone-send-otp-btn"
+                      >
+                        {isPhoneLoading ? (
+                          <RefreshCw className="animate-spin" size={16} />
+                        ) : (
+                          <Phone size={16} />
+                        )}
+                        Send OTP
+                      </button>
+                    </form>
+                  ) : (
+                    /* VERIFICATION SCREEN */
+                    <form onSubmit={handleVerifyPhoneOtp} className="space-y-5 text-left" id="phone-verification-form">
+                      <div className="space-y-1.5">
+                        <h3 className="font-serif text-lg font-bold text-[#f0c15c]">
+                          Verify your phone number
+                        </h3>
+                        <p className="text-stone-300 text-xs leading-relaxed">
+                          We have sent a verification code to{" "}
+                          <span className="font-mono font-bold text-[#f0c15c]">
+                            {countryCode} {phoneDigits}
+                          </span>
+                          . Enter the code to verify your phone number and continue.
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="block text-stone-300 font-semibold text-xs mb-1.5">
+                          6-Digit Verification Code
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          maxLength={6}
+                          placeholder="• • • • • •"
+                          value={phoneOtp}
+                          onChange={(e) => setPhoneOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                          className="w-full px-4 py-3.5 border border-stone-800 bg-[#0a101d] text-[#f0c15c] placeholder-stone-600 rounded-xl focus:outline-none focus:border-[#f0c15c] transition-all text-center tracking-[0.4em] font-mono font-extrabold text-xl shadow-inner"
+                          id="login-phone-otp-input"
+                          autoFocus
+                        />
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={isPhoneLoading}
+                        className="w-full bg-[#f0c15c] hover:bg-[#d6a540] text-black font-bold py-3.5 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer text-sm shadow-sm disabled:opacity-50"
+                        id="phone-verify-otp-btn"
+                      >
+                        {isPhoneLoading ? (
+                          <RefreshCw className="animate-spin" size={16} />
+                        ) : (
+                          <CheckCircle size={16} />
+                        )}
+                        Verify & Continue
+                      </button>
+
+                      <div className="pt-3 border-t border-stone-800/80 flex flex-col items-center gap-2 text-center">
+                        <span className="text-[11px] text-stone-400">Didn't receive the code?</span>
+                        <button
+                          type="button"
+                          disabled={phoneResendTimer > 0 || isPhoneLoading}
+                          onClick={handleResendPhoneOtp}
+                          className="text-xs font-bold text-[#f0c15c] hover:underline disabled:text-stone-500 disabled:no-underline cursor-pointer transition disabled:cursor-not-allowed"
+                          id="phone-resend-otp-btn"
+                        >
+                          {phoneResendTimer > 0 ? `Resend code in ${phoneResendTimer}s` : "Resend Code"}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={handleChangePhoneNumber}
+                          className="text-[11px] text-stone-400 hover:text-[#f0c15c] underline cursor-pointer transition mt-1"
+                          id="phone-change-number-btn"
+                        >
+                          Change phone number
+                        </button>
+                      </div>
+                    </form>
+                  )}
+                </div>
+              )}
 
               {/* Divider */}
-              <div className="relative my-5 flex items-center justify-center">
-                <div className="absolute inset-x-0 h-px bg-[#1e3258]" />
-                <span className="relative px-3 text-[10px] font-bold uppercase tracking-widest text-stone-400 bg-[#091122]">
-                  OR CONTINUE WITH
+              <div className="relative my-6 flex items-center justify-center">
+                <div className="absolute inset-x-0 h-px bg-stone-800" />
+                <span className="relative px-3 text-[9px] font-bold uppercase tracking-widest text-stone-500 bg-[#091122]">
+                  OR
                 </span>
               </div>
 
@@ -463,7 +801,7 @@ export default function Auth({
                   type="button"
                   onClick={handleGoogleClick}
                   disabled={isGoogleLoading}
-                  className="w-full flex items-center justify-center gap-3 py-3 px-4 bg-white hover:bg-[#f8fafd] active:bg-[#f1f3f4] text-[#3c4043] font-medium rounded-2xl transition duration-200 text-xs md:text-sm shadow-md hover:shadow-lg border border-[#dadce0] cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed group mt-2.5"
+                  className="w-full flex items-center justify-center gap-3 py-3 px-4 bg-white hover:bg-[#f8fafd] active:bg-[#f1f3f4] text-[#3c4043] font-medium rounded-lg transition duration-200 text-xs md:text-sm shadow-md border border-[#dadce0] cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed group mt-2.5"
                   id="google-signin-btn"
                 >
                   <svg className="w-4.5 h-4.5 flex-shrink-0" viewBox="0 0 24 24" aria-hidden="true">
@@ -485,10 +823,27 @@ export default function Auth({
                     />
                   </svg>
                   <span className="truncate font-medium font-sans">
-                    {isGoogleLoading ? "Connecting to Google..." : "Sign in with Google"}
+                    {isGoogleLoading ? "Connecting to Google..." : "Continue with Google"}
                   </span>
                 </button>
               )}
+
+              {/* Action Toggle */}
+              <p className="mt-8 text-center text-[11px] text-stone-500 font-medium">
+                Don't have an account?{" "}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setErrorMsg(null);
+                    setSuccessMsg(null);
+                    setView("register");
+                  }}
+                  className="font-bold text-[#f0c15c] hover:underline transition-colors"
+                  id="switch-to-register"
+                >
+                  Create Account
+                </button>
+              </p>
             </motion.div>
           )}
 

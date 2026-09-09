@@ -74,3 +74,31 @@ export interface SimulatedEmail {
   category: "auth" | "security" | "newsletter" | "announcement";
   read: boolean;
 }
+
+export type AppTab = "library" | "profile" | "mailbox" | "admin" | "feedback" | "localdb" | "wallpapers" | "templates";
+
+export interface Wallpaper {
+  id: string;
+  title: string;
+  description: string;
+  imageUrl: string;
+  category: string;
+  tags: string[];
+  featured: boolean;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Template {
+  id: string;
+  title: string;
+  description: string;
+  imageUrl: string;
+  category: string;
+  tags: string[];
+  featured: boolean;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}

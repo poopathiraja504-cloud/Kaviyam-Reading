@@ -176,16 +176,6 @@ export default function Library({
             )}
           </button>
           <button
-            onClick={() => setViewMode("build")}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 flex items-center gap-1.5 border border-amber-200 bg-amber-50/50 text-amber-900 hover:bg-amber-100/60 whitespace-nowrap flex-shrink-0 ${
-              viewMode === "build" ? "ring-2 ring-amber-400" : ""
-            }`}
-            id="lib-tab-build"
-          >
-            <Sparkles size={14} className="text-[#bfa030]" />
-            AI Novel Builder
-          </button>
-          <button
             onClick={() => setViewMode("tamil")}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 flex items-center gap-1.5 border border-indigo-200 bg-indigo-50/50 text-indigo-900 hover:bg-indigo-100/60 whitespace-nowrap flex-shrink-0 ${
               viewMode === "tamil" ? "ring-2 ring-[#003366] bg-indigo-50" : ""
@@ -221,49 +211,7 @@ export default function Library({
             exit={{ opacity: 0, y: -10 }}
             className="space-y-8"
           >
-            {/* Hero Brand Banner */}
-            {!isBrowsingFiltered && (
-              <div className="relative bg-stone-900 text-stone-100 rounded-3xl p-6 md:p-10 overflow-hidden shadow-md flex flex-col md:flex-row justify-between items-center gap-6">
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-stone-800 via-stone-900 to-black opacity-95 z-0" />
-                
-                {/* Visual Accent */}
-                <div className="absolute right-0 top-0 w-96 h-96 bg-[#bfa030]/5 blur-[80px] rounded-full pointer-events-none z-0" />
-
-                <div className="space-y-4 relative z-10 max-w-xl text-left">
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-stone-800 text-[#bfa030] text-[10px] tracking-wider uppercase font-mono font-bold rounded-full border border-stone-700">
-                    <Sparkles size={11} /> Creative AI Enabled
-                  </span>
-                  <h1 className="font-serif text-3xl md:text-4xl font-bold tracking-tight text-white">
-                    Discover your next <span className="italic text-[#bfa030]">literary sanctuary</span>.
-                  </h1>
-                  <p className="text-stone-300 text-xs md:text-sm leading-relaxed font-serif">
-                    "A room without books is like a body without a soul." Dive into our handpicked collections, customized sepia readers, or paint your own vision using the deep-mind novel weaver.
-                  </p>
-                  
-                  {currentUser && (
-                    <p className="text-[#bfa030] text-[11px] font-mono font-bold uppercase tracking-wider">
-                      Welcome Back, Author {currentUser.username} • Let's Compose
-                    </p>
-                  )}
-                </div>
-
-                <div className="relative z-10 bg-white/5 border border-white/10 backdrop-blur-md p-6 rounded-2xl max-w-xs text-left space-y-3 shadow-lg">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xl">✨</span>
-                    <h3 className="font-serif font-bold text-stone-100 text-xs">AI Story Seed Ideas</h3>
-                  </div>
-                  <p className="text-stone-300 text-[10px] leading-relaxed">
-                    "A lighthouse keeper who discovers that the light is attracting creatures from alternative timelines..."
-                  </p>
-                  <button
-                    onClick={() => setViewMode("build")}
-                    className="w-full py-1.5 bg-[#bfa030] hover:bg-[#a38725] text-black text-[11px] font-bold rounded-lg transition-all"
-                  >
-                    Generate with Gemini
-                  </button>
-                </div>
-              </div>
-            )}
+            {/* Hero Brand Banner Removed */}
 
             {/* Filter Controls (Genre selector + Search detail) */}
             <div className="flex flex-col gap-4">
@@ -311,79 +259,7 @@ export default function Library({
                   exit={{ opacity: 0 }}
                   className="space-y-8"
                 >
-                  {/* SECTION 1: CONTINUE READING */}
-                  <div className="space-y-4">
-                    <h3 className="font-serif text-sm font-extrabold text-stone-800 uppercase tracking-wider flex items-center gap-2">
-                      <History size={14} className="text-stone-400" />
-                      Continue Reading
-                    </h3>
-
-                    {bookmarkedBooks.length === 0 ? (
-                      <div className="p-6 rounded-2xl border border-dashed border-stone-200 bg-stone-50/50 text-stone-500 text-xs flex flex-col md:flex-row items-center justify-between gap-4">
-                        <div className="text-left">
-                          <p className="font-bold text-stone-700">No active reading sessions</p>
-                          <p className="text-stone-400 text-[11px] mt-0.5">Add stories to your personal bookshelf. We will track your progress bar, ratings, and companion chats here.</p>
-                        </div>
-                        <button
-                          onClick={() => { setSelectedGenre("Fantasy"); }}
-                          className="px-4 py-1.5 bg-stone-900 text-white text-[11px] font-bold rounded-lg hover:bg-stone-800 transition"
-                        >
-                          Explore Fantasy
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {bookmarkedBooks.slice(0, 2).map((book) => {
-                          // Mock reading progress logic for high fidelity UI
-                          const progressPercent = book.id === "alchemists-shadow" ? 50 : 100;
-                          const progressText = book.id === "alchemists-shadow" ? "Chapter 1 of 2 read" : "Completed";
-
-                          return (
-                            <div
-                              key={book.id}
-                              className="bg-white p-4 rounded-2xl border border-stone-200/80 flex gap-4 hover:shadow-md transition duration-300"
-                            >
-                              <img
-                                src={book.coverUrl}
-                                alt=""
-                                className="w-16 h-20 rounded-xl object-cover shadow-sm flex-shrink-0"
-                                referrerPolicy="no-referrer"
-                              />
-                              <div className="flex-grow flex flex-col justify-between text-left">
-                                <div className="space-y-0.5">
-                                  <span className="text-[9px] font-mono uppercase tracking-wider bg-stone-100 text-stone-600 px-1.5 py-0.5 rounded font-extrabold">
-                                    {book.genre}
-                                  </span>
-                                  <h4 className="font-serif font-bold text-stone-800 text-xs line-clamp-1 mt-1">
-                                    {book.title}
-                                  </h4>
-                                  <p className="text-[10px] text-stone-400 font-medium">By {book.author}</p>
-                                </div>
-
-                                <div className="space-y-1.5 mt-2">
-                                  <div className="flex justify-between items-center text-[9px] font-mono font-bold text-stone-500">
-                                    <span>{progressText}</span>
-                                    <span>{progressPercent}%</span>
-                                  </div>
-                                  <div className="w-full bg-stone-100 h-1.5 rounded-full overflow-hidden">
-                                    <div className="bg-[#bfa030] h-full rounded-full" style={{ width: `${progressPercent}%` }} />
-                                  </div>
-                                </div>
-                              </div>
-
-                              <button
-                                onClick={() => onSelectBook(book.id)}
-                                className="flex-shrink-0 self-center p-2.5 bg-stone-900 hover:bg-stone-800 text-white rounded-xl transition"
-                                title="Resume Novel"
-                              >
-                                <ChevronRight size={16} />
-                              </button>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
+                  {/* SECTION 1: CONTINUE READING REMOVED */}
 
                   {/* SECTION 2: TRENDING */}
                   <div className="space-y-4">
@@ -712,101 +588,7 @@ export default function Library({
           </motion.div>
         )}
 
-        {viewMode === "build" && (
-          <motion.div
-            key="build-dashboard"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="max-w-2xl mx-auto bg-white border border-stone-200 rounded-3xl p-6 md:p-8 shadow-sm text-left"
-          >
-            <div className="flex items-center gap-4 border-b border-stone-100 pb-5 mb-6">
-              <div className="p-3 bg-amber-50 rounded-2xl text-[#bfa030] border border-amber-100 flex-shrink-0">
-                <Sparkles size={22} className="animate-pulse" />
-              </div>
-              <div>
-                <h3 className="font-serif text-lg font-bold text-stone-800">AI Novel Creator & Storysmith</h3>
-                <p className="text-xs text-stone-500 mt-0.5">Provide a spark of an idea, and watch Gemini craft a multi-chapter novel just for you.</p>
-              </div>
-            </div>
 
-            {errorMsg && (
-              <div className="mb-4 p-3.5 bg-red-50 border border-red-100 text-red-700 text-xs rounded-xl">
-                {errorMsg}
-              </div>
-            )}
-
-            <form onSubmit={handleBuildStory} className="space-y-6">
-              <div>
-                <label className="block text-xs font-bold text-stone-600 mb-2">What is the seed / premise of your story?</label>
-                <textarea
-                  required
-                  rows={4}
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  placeholder="Example: A young cartographer discovers that whatever lands she draws on her maps physically manifest in the ocean the next day..."
-                  className="w-full px-4 py-3 border border-stone-200 bg-stone-50/50 rounded-xl text-xs text-stone-800 placeholder-stone-400 focus:outline-none focus:border-stone-400 focus:bg-white transition-all leading-relaxed"
-                  id="ai-prompt-textarea"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-stone-600 mb-2">Genre / Literary Vibe</label>
-                  <select
-                    value={genre}
-                    onChange={(e) => setGenre(e.target.value)}
-                    className="w-full px-3 py-2 border border-stone-200 bg-stone-50/50 rounded-xl text-xs text-stone-800 focus:outline-none focus:border-stone-400 focus:bg-white transition-all"
-                    id="ai-genre-select"
-                  >
-                    <option value="Fantasy">High Fantasy / Magic</option>
-                    <option value="Sci-Fi">Cosmic Sci-Fi / Cyberpunk</option>
-                    <option value="Mystery">Gothic Mystery / Noir Detective</option>
-                    <option value="Romance">Historical Romance / Drama</option>
-                    <option value="Adventure">Wild Adventure / Exploration</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-stone-600 mb-2">Desired Narrative Scope</label>
-                  <select
-                    value={length}
-                    onChange={(e) => setLength(e.target.value)}
-                    className="w-full px-3 py-2 border border-stone-200 bg-stone-50/50 rounded-xl text-xs text-stone-800 focus:outline-none focus:border-stone-400 focus:bg-white transition-all"
-                    id="ai-length-select"
-                  >
-                    <option value="short">Short Chapter (Quick Draft)</option>
-                    <option value="medium">Medium Novel Outline (Highly Detailed)</option>
-                    <option value="long">Long Extended Tale (Maximum Depth)</option>
-                  </select>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={isGenerating || !prompt}
-                className={`w-full py-3 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 ${
-                  isGenerating || !prompt
-                    ? "bg-stone-100 border border-stone-200 text-stone-400 cursor-not-allowed"
-                    : "bg-stone-900 hover:bg-stone-800 text-white shadow-md active:scale-98"
-                }`}
-                id="ai-build-submit-btn"
-              >
-                {isGenerating ? (
-                  <>
-                    <Loader2 className="animate-spin text-[#bfa030]" size={14} />
-                    Spinning the Web of Dreams... (This might take up to 20 seconds)
-                  </>
-                ) : (
-                  <>
-                    <Sparkles size={14} className="text-[#bfa030]" />
-                    Weave and Compile Custom Novel
-                  </>
-                )}
-              </button>
-            </form>
-          </motion.div>
-        )}
 
         {viewMode === "tamil" && (
           <motion.div

@@ -2,19 +2,18 @@ import express from "express";
 import path from "path";
 import fs from "fs";
 import crypto from "crypto";
-import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
 
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
 app.use(express.json());
 
 // Persistent JSON File Path for the Server Backend DB
-const RECORDS_FILE_PATH = path.join(process.cwd(), "records_db.json");
+const RECORDS_FILE_PATH = path.join(process.env.TMPDIR || "/tmp", "records_db.json");
 
 // Helper to safely fetch records from file
 function getBackendRecords(): any[] {
@@ -543,6 +542,7 @@ app.post("/api/gemini/companion", async (req, res) => {
 // Setup development or production environment
 async function initServer() {
   if (process.env.NODE_ENV !== "production") {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",

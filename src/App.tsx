@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { User, Book, SimulatedEmail, SecurityLog, Review } from "./types";
 import { PRESET_BOOKS } from "./booksData";
-import { BookOpen, User as UserIcon, Mail, Shield, HelpCircle, LogIn, LogOut, ChevronRight, Sun, Moon, Database } from "lucide-react";
+import { BookOpen, User as UserIcon, Mail, Bell, Phone, Shield, HelpCircle, LogIn, LogOut, ChevronRight, Sun, Moon, Database, Image, MonitorSmartphone, Home, Search } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { toggleSecurityMetaTags, RECOMMENDED_META_TAGS } from "./utils/securityHeaders";
 
@@ -27,12 +27,16 @@ import {
 
 import Library from "./components/Library";
 import Reader from "./components/Reader";
+import IntroSequence from "./components/IntroSequence";
 import Auth from "./components/Auth";
 import Profile from "./components/Profile";
 import EmailInbox from "./components/EmailInbox";
 import Admin from "./components/Admin";
 import Feedback from "./components/Feedback";
+import Wallpapers from "./components/Wallpapers";
+import Templates from "./components/Templates";
 import LocalDatabase from "./components/LocalDatabase";
+import loginBg from "./assets/images/cinematic_login_bg_1788964616574.jpg";
 
 // Simulated Database of registered accounts & passwords
 const INITIAL_USERS: User[] = [
@@ -92,7 +96,7 @@ const INITIAL_PASSWORDS: Record<string, string> = {
   "rajaboopathi1021@gmail.com": "reader"
 };
 
-type AppTab = "library" | "profile" | "mailbox" | "admin" | "feedback" | "localdb";
+type AppTab = "library" | "profile" | "mailbox" | "admin" | "feedback" | "localdb" | "wallpapers" | "templates";
 
 const getRouteFromUrl = (): { tab: AppTab | "login"; bookId: string | null } => {
   const hash = window.location.hash.replace(/^#\/?/, "");
@@ -134,6 +138,8 @@ const getRouteFromUrl = (): { tab: AppTab | "login"; bookId: string | null } => 
 };
 
 export default function App() {
+  const [showIntro, setShowIntro] = useState(() => !sessionStorage.getItem("kaviyam_intro_played"));
+  
   // Auth / Session State (parsed synchronously to keep session alive across refreshes)
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     try {
@@ -143,6 +149,41 @@ export default function App() {
       return null;
     }
   });
+
+  const [currentWallpaper, setCurrentWallpaper] = useState<string | null>(null);
+
+  // Load wallpaper preference
+  useEffect(() => {
+    const fetchPreference = async () => {
+      if (!currentUser) return;
+      try {
+        const prefDoc = await getDoc(doc(db, "userPreferences", currentUser.id));
+        if (prefDoc.exists() && prefDoc.data()?.wallpaperId) {
+          const wId = prefDoc.data().wallpaperId;
+          const wDoc = await getDocs(collection(db, "wallpapers"));
+          const wallpaper = wDoc.docs.find((d) => d.id === wId);
+          if (wallpaper) {
+            setCurrentWallpaper(wallpaper.data().imageUrl);
+            return;
+          }
+        }
+      } catch (err) {
+        // Fallback to local storage if Firestore error occurs
+      }
+
+      const cachedWallpaper = localStorage.getItem(`kaviyam_wallpaper_${currentUser?.id}`);
+      if (cachedWallpaper) {
+        setCurrentWallpaper(cachedWallpaper);
+      }
+    };
+    fetchPreference();
+  }, [currentUser]);
+
+  useEffect(() => {
+    const handleWallpaperChange = (e: any) => setCurrentWallpaper(e.detail);
+    window.addEventListener('kaviyam_wallpaper_changed', handleWallpaperChange);
+    return () => window.removeEventListener('kaviyam_wallpaper_changed', handleWallpaperChange);
+  }, []);
 
   // Navigation State
   const [activeTab, setActiveTab] = useState<AppTab>(() => {
@@ -703,6 +744,39 @@ export default function App() {
     }
   };
 
+  const handlePhoneLogin = async (phoneNum: string) => {
+    const cleanPhone = phoneNum.trim();
+    let foundUser = users.find((u) => u.email === `${cleanPhone}@phone.kaviyam.app` || u.username.includes(cleanPhone));
+    if (!foundUser) {
+      foundUser = {
+        id: `phone-${Date.now()}`,
+        email: `${cleanPhone}@phone.kaviyam.app`,
+        username: `Reader (${cleanPhone})`,
+        isVerified: true,
+        profile: {
+          username: `Reader (${cleanPhone})`,
+          bio: "Phone Authenticated Reader",
+          profilePhoto: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100",
+          dob: "2000-01-01",
+          gender: "Not Specified",
+          privacy: { publicBookshelf: true, showActivity: true }
+        },
+        security: { is2FAEnabled: false, isBlocked: false, loginAttempts: 0 },
+        createdAt: new Date().toISOString()
+      };
+      saveUsers([...users, foundUser]);
+    }
+
+    setCurrentUser(foundUser);
+    localStorage.setItem("kaviyam_current_user", JSON.stringify(foundUser));
+    setActiveTab("library");
+    setActiveBookId(null);
+    window.location.hash = "#/library";
+    setIsGuestMode(false);
+    addSystemLog(`Phone Authentication Success (${cleanPhone})`, "Success");
+    return { success: true };
+  };
+
   const handleGoogleLogin = async () => {
     try {
       const provider = new GoogleAuthProvider();
@@ -1250,36 +1324,43 @@ export default function App() {
 
   const activeBook = books.find((b) => b.id === activeBookId);
 
-  // Unauthenticated Flow: Show ONLY Login / Sign In page without header/navigation
-  if (!currentUser) {
-    return (
-      <div className="min-h-screen bg-[#f7f5ed] flex flex-col justify-between font-sans" id="login-screen-wrapper">
-        <div className="flex-grow flex flex-col justify-center items-center p-4 sm:p-6 md:p-8">
-          <motion.div
-            key="login-container-card"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.4, ease: "easeOut" }}
-            className="max-w-md md:max-w-lg w-full mx-auto flex flex-col justify-center items-center gap-6 text-center"
-            id="landing-login-view"
-          >
-            {/* Visual Brand Title on Login Page */}
-            <div className="space-y-2 text-center">
-              <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-white shadow-sm border border-[#e8e2cf] text-3xl mb-1">
-                📖
-              </div>
-              <h1 className="font-serif text-3xl md:text-4xl font-extrabold leading-tight text-stone-900">
-                Kaviyam <span className="text-[#d4af37]">Reading</span>
-              </h1>
-              <p className="text-xs md:text-sm text-stone-600 max-w-sm">
-                Sign in to access your Tamil novel library, bookmarks, reading companion, and community mailbox.
-              </p>
-            </div>
+  const handleIntroComplete = () => {
+    setShowIntro(false);
+    sessionStorage.setItem("kaviyam_intro_played", "true");
+  };
 
-            {/* Centered Auth Box */}
-            <div className="w-full">
-              <Auth
+  return (
+    <>
+      <AnimatePresence>
+        {showIntro && <IntroSequence onComplete={handleIntroComplete} />}
+      </AnimatePresence>
+
+      {!currentUser ? (
+        <div 
+          className="min-h-screen flex flex-col justify-between font-sans relative overflow-hidden bg-black" 
+          id="login-screen-wrapper"
+        >
+          {/* Cinematic Background Image */}
+          <div 
+            className="absolute inset-0 z-0 bg-center bg-cover bg-no-repeat"
+            style={{ backgroundImage: `url(${loginBg})` }}
+          />
+          {/* Overlay to ensure the card stands out slightly and the vibe remains dark */}
+          <div className="absolute inset-0 z-0 bg-black/40" />
+
+          <div className="flex-grow flex flex-col justify-center items-center p-4 sm:p-6 md:p-8 relative z-10">
+            <motion.div
+              key="login-container-card"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.4, ease: "easeOut" }}
+              className="max-w-md md:max-w-lg w-full mx-auto flex flex-col justify-center items-center gap-6 text-center"
+              id="landing-login-view"
+            >
+              {/* Centered Auth Box */}
+              <div className="w-full">
+                <Auth
                 currentUser={currentUser}
                 onLogin={handleLogin}
                 onRegister={handleRegister}
@@ -1290,6 +1371,7 @@ export default function App() {
                 setResetToken={setResetToken}
                 addSystemLog={addSystemLog}
                 onGoogleLogin={handleGoogleLogin}
+                onPhoneLogin={handlePhoneLogin}
                 onGuestLogin={handleGuestLogin}
                 isDarkMode={isDarkMode}
               />
@@ -1304,14 +1386,20 @@ export default function App() {
           </p>
         </footer>
       </div>
-    );
-  }
-
-  // Authenticated Flow: Full Kaviyam Reading website with top header navigation
-  return (
-    <div className="min-h-screen bg-[#f7f5ed] flex flex-col font-sans" id="app-container">
+      ) : (
+      <div 
+        className="min-h-screen bg-[#f7f5ed] flex flex-col font-sans relative" 
+        id="app-container"
+        style={currentWallpaper ? { 
+          backgroundImage: `url(${currentWallpaper})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundAttachment: 'fixed'
+        } : {}}
+      >
+        {currentWallpaper && <div className="absolute inset-0 bg-[#f7f5ed]/80 mix-blend-overlay pointer-events-none" />}
       {/* Visual Header / Brand bar */}
-      <header className="bg-white border-b border-[#e8e2cf] px-4 sm:px-6 py-3.5 sm:py-4 sticky top-0 z-50 shadow-sm">
+      <header className="bg-white/90 backdrop-blur-md border-b border-[#e8e2cf] px-4 sm:px-6 py-3.5 sm:py-4 sticky top-0 z-50 shadow-sm relative">
         <div className="max-w-7xl mx-auto flex justify-between items-center gap-2">
           
           {/* Logo */}
@@ -1356,12 +1444,35 @@ export default function App() {
                 activeTab === "mailbox" ? "bg-white text-stone-800 shadow-sm" : "text-stone-500 hover:text-stone-800"
               }`}
               id="nav-tab-mailbox"
+              title="Notifications"
             >
-              <Mail size={13} />
-              Mailbox
+              <Bell size={13} />
+              Notifications
               {emails.filter((m) => !m.read).length > 0 && (
                 <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full animate-pulse" />
               )}
+            </button>
+
+            <button
+              onClick={() => navigateToTab("wallpapers")}
+              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer ${
+                activeTab === "wallpapers" ? "bg-white text-stone-800 shadow-sm" : "text-stone-500 hover:text-stone-800"
+              }`}
+              id="nav-tab-wallpapers"
+            >
+              <Image size={13} className="text-[#d4af37]" />
+              Wallpapers
+            </button>
+
+            <button
+              onClick={() => navigateToTab("templates")}
+              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer ${
+                activeTab === "templates" ? "bg-white text-stone-800 shadow-sm" : "text-stone-500 hover:text-stone-800"
+              }`}
+              id="nav-tab-templates"
+            >
+              <MonitorSmartphone size={13} className="text-[#d4af37]" />
+              Templates
             </button>
 
             {currentUser.email === "admin@kaviyam.com" && (
@@ -1378,17 +1489,6 @@ export default function App() {
             )}
 
             <button
-              onClick={() => navigateToTab("localdb")}
-              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer ${
-                activeTab === "localdb" ? "bg-white text-stone-800 shadow-sm" : "text-stone-500 hover:text-stone-800"
-              }`}
-              id="nav-tab-localdb"
-            >
-              <Database size={13} className="text-[#d4af37]" />
-              Local DB
-            </button>
-
-            <button
               onClick={() => navigateToTab("feedback")}
               className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer ${
                 activeTab === "feedback" ? "bg-white text-stone-800 shadow-sm" : "text-stone-500 hover:text-stone-800"
@@ -1400,88 +1500,21 @@ export default function App() {
             </button>
           </nav>
 
-          {/* User Sign-In Action or Mini-Card */}
+          {/* User Profile Avatar */}
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2.5">
-              <div className="text-right hidden sm:block">
-                <span className="text-xs font-bold block text-stone-800">{currentUser.username}</span>
-                <span className="text-[9px] uppercase font-mono tracking-wider font-semibold text-stone-400">
-                  {currentUser.email === "admin@kaviyam.com" ? "Platform Admin" : "Reader Patron"}
-                </span>
-              </div>
-              <img
-                src={currentUser.profile?.profilePhoto || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"}
-                alt="avatar"
-                onClick={() => navigateToTab("profile")}
-                className="w-8 h-8 rounded-full border-2 border-[#d4af37] cursor-pointer object-cover shadow-sm hover:opacity-85 transition"
-                referrerPolicy="no-referrer"
-                title="View Profile Settings"
-              />
-              <button
-                onClick={handleLogout}
-                className="bg-stone-800 hover:bg-stone-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm cursor-pointer"
-                title="Sign out of Kaviyam Reading"
-                id="header-logout-btn"
-              >
-                <LogOut size={13} />
-                <span className="hidden sm:inline">Sign Out</span>
-              </button>
-            </div>
+            <img
+              src={currentUser.profile?.profilePhoto || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"}
+              alt="avatar"
+              onClick={() => navigateToTab("profile")}
+              className="w-8 h-8 rounded-full border-2 border-[#d4af37] cursor-pointer object-cover shadow-sm hover:opacity-85 transition"
+              referrerPolicy="no-referrer"
+              title="View Profile Settings"
+            />
           </div>
         </div>
       </header>
 
-      {/* Mobile navigation tab-rail (only visible on small screens when logged in) */}
-      <div className="md:hidden bg-white border-b border-[#e8e2cf] px-2 py-2 flex items-center justify-around gap-1 text-[10px] uppercase font-mono font-bold tracking-wider overflow-x-auto">
-        <button
-          onClick={() => navigateToTab("library")}
-          className={`px-2.5 py-1.5 rounded-lg whitespace-nowrap transition ${activeTab === "library" ? "bg-[#faf6e8] text-[#d4af37]" : "text-stone-500"}`}
-        >
-          Library
-        </button>
-        <button
-          onClick={() => navigateToTab("profile")}
-          className={`px-2.5 py-1.5 rounded-lg whitespace-nowrap transition ${activeTab === "profile" ? "bg-[#faf6e8] text-[#d4af37]" : "text-stone-500"}`}
-        >
-          Profile
-        </button>
-        <button
-          onClick={() => navigateToTab("mailbox")}
-          className={`px-2.5 py-1.5 rounded-lg whitespace-nowrap relative transition ${activeTab === "mailbox" ? "bg-[#faf6e8] text-[#d4af37]" : "text-stone-500"}`}
-        >
-          Mailbox
-          {emails.filter((m) => !m.read).length > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-red-500 rounded-full" />
-          )}
-        </button>
-        {currentUser.email === "admin@kaviyam.com" && (
-          <button
-            onClick={() => navigateToTab("admin")}
-            className={`px-2.5 py-1.5 rounded-lg whitespace-nowrap transition ${activeTab === "admin" ? "bg-[#faf6e8] text-[#d4af37]" : "text-stone-500"}`}
-          >
-            Admin
-          </button>
-        )}
-        <button
-          onClick={() => navigateToTab("localdb")}
-          className={`px-2.5 py-1.5 rounded-lg whitespace-nowrap transition ${activeTab === "localdb" ? "bg-[#faf6e8] text-[#d4af37]" : "text-stone-500"}`}
-        >
-          Local DB
-        </button>
-        <button
-          onClick={() => navigateToTab("feedback")}
-          className={`px-2.5 py-1.5 rounded-lg whitespace-nowrap transition ${activeTab === "feedback" ? "bg-[#faf6e8] text-[#d4af37]" : "text-stone-500"}`}
-        >
-          Help & FAQ
-        </button>
-        <button
-          onClick={handleLogout}
-          className="px-2.5 py-1.5 rounded-lg whitespace-nowrap text-red-600 hover:bg-red-50 transition flex items-center gap-1"
-        >
-          <LogOut size={11} />
-          Sign Out
-        </button>
-      </div>
+      {/* Mobile navigation is now a fixed bottom bar */}
 
       {/* Main Content Area Container */}
       <main className="flex-grow max-w-7xl w-full mx-auto p-4 md:p-8">
@@ -1533,6 +1566,7 @@ export default function App() {
                   onToggle2FA={handleToggle2FA}
                   onClearLogs={handleClearLogs}
                   onLogout={handleLogout}
+                  onBackToLibrary={() => navigateToTab("library")}
                 />
               </motion.div>
             )}
@@ -1580,14 +1614,25 @@ export default function App() {
               </motion.div>
             )}
 
-            {activeTab === "localdb" && (
+            {activeTab === "wallpapers" && (
               <motion.div
-                key="localdb-tab"
+                key="wallpapers-tab"
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -15 }}
               >
-                <LocalDatabase />
+                <Wallpapers currentUser={currentUser} />
+              </motion.div>
+            )}
+
+            {activeTab === "templates" && (
+              <motion.div
+                key="templates-tab"
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+              >
+                <Templates currentUser={currentUser} />
               </motion.div>
             )}
 
@@ -1606,11 +1651,41 @@ export default function App() {
       </main>
 
       {/* Clean Footer */}
-      <footer className="bg-white border-t border-[#e8e2cf] p-6 text-center mt-12">
+      <footer className="bg-white border-t border-[#e8e2cf] p-6 text-center mt-12 pb-24 md:pb-6">
         <p className="text-xs text-stone-500 font-serif">
           © 2026 Kaviyam Reading Platform • All Rights Reserved
         </p>
       </footer>
+      
+      {/* Mobile Fixed Bottom Navigation */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.05)] rounded-t-2xl px-6 py-3 z-50 flex justify-between items-center pb-safe">
+        <button
+          onClick={() => navigateToTab("library")}
+          className="flex flex-col items-center justify-center w-16 h-12"
+        >
+          <div className={`p-2 rounded-2xl transition-colors ${activeTab === 'library' && !activeBookId ? 'bg-stone-100 text-stone-900' : 'text-stone-400'}`}>
+             <Home size={24} strokeWidth={activeTab === 'library' && !activeBookId ? 2.5 : 2} />
+          </div>
+        </button>
+        <button
+          onClick={() => {}}
+          className="flex flex-col items-center justify-center w-16 h-12 text-stone-400"
+        >
+          <div className="p-2 rounded-2xl transition-colors">
+            <Search size={24} strokeWidth={2} />
+          </div>
+        </button>
+        <button
+          onClick={() => navigateToTab("profile")}
+          className="flex flex-col items-center justify-center w-16 h-12"
+        >
+          <div className={`p-2 rounded-2xl transition-colors ${activeTab === 'profile' ? 'bg-stone-100 text-stone-900' : 'text-stone-400'}`}>
+             <UserIcon size={24} strokeWidth={activeTab === 'profile' ? 2.5 : 2} />
+          </div>
+        </button>
+      </div>
     </div>
+    )}
+    </>
   );
 }

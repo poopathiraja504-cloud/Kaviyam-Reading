@@ -1,5 +1,5 @@
 import { SimulatedEmail } from "../types";
-import { Mail, MailOpen, Trash2, Search, ExternalLink, Calendar, Shield, Inbox } from "lucide-react";
+import { Mail, MailOpen, Trash2, Search, ExternalLink, Calendar, Shield, Inbox, Bell } from "lucide-react";
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -74,15 +74,15 @@ export default function EmailInbox({ emails, onReadEmail, onDeleteEmail, onTrigg
         <div className="p-4 border-b border-[#e8e2cf] bg-[#fcfbfa]">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-serif text-lg font-semibold text-stone-800 flex items-center gap-2">
-              <Inbox size={18} className="text-[#d4af37]" />
-              Simulated Mailbox
+              <Bell size={18} className="text-[#d4af37]" />
+              Notifications
             </h3>
             <span className="text-xs bg-stone-100 text-stone-600 px-2 py-0.5 rounded-full font-mono">
               {emails.filter((e) => !e.read).length} unread
             </span>
           </div>
           <p className="text-xs text-stone-500 mb-3 leading-relaxed">
-            This workspace sandbox captures all simulated outbound verification, alert, and newsletter emails.
+            All system notifications, activity alerts, and account messages are captured here.
           </p>
           <div className="relative">
             <Search size={14} className="absolute left-3 top-2.5 text-stone-400" />
