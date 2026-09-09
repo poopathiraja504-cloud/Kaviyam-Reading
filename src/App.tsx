@@ -320,6 +320,14 @@ export default function App() {
         const userEmail = firebaseUser.email || `user-${uid.substring(0, 6)}@kaviyam.com`;
         const fallbackName = firebaseUser.displayName || (firebaseUser.email ? firebaseUser.email.split("@")[0] : `Reader ${uid.substring(0, 6)}`);
 
+        // Enforce email verification check for email/password authentication
+        const isPasswordProvider = firebaseUser.providerData.some((p) => p.providerId === "password") || firebaseUser.providerData.length === 0;
+        if (!firebaseUser.emailVerified && isPasswordProvider) {
+          setCurrentUser(null);
+          localStorage.removeItem("kaviyam_current_user");
+          return;
+        }
+
         let foundUser = users.find((u) => u.id === uid || u.email.toLowerCase() === userEmail.toLowerCase());
 
         if (foundUser) {
@@ -327,7 +335,7 @@ export default function App() {
             ...foundUser,
             id: uid,
             email: userEmail,
-            isVerified: firebaseUser.emailVerified || true,
+            isVerified: firebaseUser.emailVerified,
             profile: {
               ...foundUser.profile,
             }
@@ -339,7 +347,7 @@ export default function App() {
             id: uid,
             email: userEmail,
             username: fallbackName,
-            isVerified: firebaseUser.emailVerified || true,
+            isVerified: firebaseUser.emailVerified,
             profile: {
               username: fallbackName,
               bio: "Kaviyam Reader authenticated via Firebase Auth",
