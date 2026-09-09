@@ -261,7 +261,7 @@ export default function Auth({
       const confirmation = await signInWithPhoneNumber(auth, formattedPhone, appVerifier);
       setConfirmationResult(confirmation);
       setPhoneResendTimer(30);
-      setSuccessMsg("Verification code resent successfully.");
+      setSuccessMsg(`We have sent you a new verification code to ${formattedPhone}.`);
       addSystemLog(`Phone OTP Resent to ${formattedPhone}`, "Success");
     } catch (err: any) {
       console.error("Firebase Resend OTP Error:", err);
@@ -736,11 +736,11 @@ export default function Auth({
                           Verify your phone number
                         </h3>
                         <p className="text-stone-300 text-xs leading-relaxed">
-                          We have sent a verification code to{" "}
+                          We have sent you a verification code to{" "}
                           <span className="font-mono font-bold text-[#f0c15c]">
                             {countryCode} {phoneDigits}
                           </span>
-                          . Enter the code to verify your phone number and continue.
+                          . Verify your phone number to continue.
                         </p>
                       </div>
 
