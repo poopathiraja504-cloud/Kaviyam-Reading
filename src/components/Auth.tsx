@@ -627,7 +627,7 @@ export default function Auth({
                     </div>
                   </div>
 
-                  {/* Remember Me Option */}
+                  {/* Remember Me & Forgot Password Options */}
                   <div className="flex items-center justify-between pt-1 pb-2">
                     <label
                       htmlFor="remember-me-checkbox"
@@ -645,6 +645,20 @@ export default function Auth({
                         Remember me
                       </span>
                     </label>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setErrorMsg(null);
+                        setSuccessMsg(null);
+                        setIsResetLinkSent(false);
+                        setView("forgot");
+                      }}
+                      className="text-[11px] text-[#f0c15c] hover:underline font-medium cursor-pointer"
+                      id="forgot-password-link"
+                    >
+                      Forgot password?
+                    </button>
                   </div>
 
                   <button
