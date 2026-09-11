@@ -268,6 +268,35 @@ export default function App() {
   // Welcome Toast Notification State
   const [welcomeToast, setWelcomeToast] = useState<string | null>(null);
 
+  // Dispatch real welcome email on every successful Firebase authentication
+  const triggerLoginWelcomeEmail = async (firebaseUser: any) => {
+    if (!firebaseUser || !firebaseUser.email) return;
+    try {
+      let idToken = "";
+      if (typeof firebaseUser.getIdToken === "function") {
+        idToken = await firebaseUser.getIdToken();
+      }
+      const resp = await fetch("/api/auth/welcome-email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(idToken ? { Authorization: `Bearer ${idToken}` } : {})
+        },
+        body: JSON.stringify({
+          email: firebaseUser.email,
+          uid: firebaseUser.uid,
+          displayName: firebaseUser.displayName || ""
+        })
+      });
+      const data = await resp.json();
+      if (data.success) {
+        addSystemLog(`Welcome email dispatched to ${firebaseUser.email}`, "Success");
+      }
+    } catch (err: any) {
+      console.error("Failed to trigger welcome email backend endpoint:", err);
+    }
+  };
+
   // Theme State (Default to true/dark mode as requested)
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     const cached = localStorage.getItem("kaviyam_dark_mode");
@@ -691,6 +720,10 @@ export default function App() {
       window.location.hash = "#/library";
       setIsGuestMode(false);
       addSystemLog(`Firebase Login Success (${cleanEmail})`, "Success");
+      
+      // Trigger Welcome Email to user's Firebase Auth email
+      triggerLoginWelcomeEmail(firebaseUser);
+
       return { success: true };
     } catch (err: any) {
       addSystemLog(`Login Failed (${cleanEmail}): ${err?.message || err}`, "Failed");
@@ -859,6 +892,10 @@ export default function App() {
       window.location.hash = "#/library";
       setIsGuestMode(false);
       addSystemLog(`Google Sign-In Authorized (${cleanEmail})`, "Success");
+
+      // Trigger Welcome Email to Google Authenticated User's email
+      triggerLoginWelcomeEmail(firebaseUser);
+
       return { success: true };
     } catch (err: any) {
       addSystemLog(`Google Sign-In Failed: ${err?.code || err?.message || err}`, "Failed");

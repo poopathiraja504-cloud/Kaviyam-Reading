@@ -4,6 +4,7 @@ import fs from "fs";
 import crypto from "crypto";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
+import nodemailer from "nodemailer";
 
 dotenv.config();
 
@@ -169,6 +170,151 @@ app.post("/api/auth/whatsapp-otp/verify", (req, res) => {
     return res.json({ success: true, email: userEmail });
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err.message || "Failed to verify OTP" });
+  }
+});
+
+// POST: Send Welcome Email on Successful Login
+app.post("/api/auth/welcome-email", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    const { email, uid, displayName } = req.body;
+
+    if (!email || typeof email !== "string" || !email.includes("@")) {
+      return res.status(400).json({
+        success: false,
+        error: "A valid user email address is required to dispatch the welcome email."
+      });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const subject = "Welcome to Kaviyam Reading";
+    const plainTextBody = `Welcome to Kaviyam Reading! 📚\n\nThank you for logging in and continuing your reading journey with us.\n\nWe are happy to have you with us.\n\nHappy Reading!\nKaviyam Reading Team`;
+
+    const htmlBody = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to Kaviyam Reading</title>
+</head>
+<body style="margin:0; padding:0; background-color:#070f1e; font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color:#f5f5f7;">
+  <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#070f1e; padding: 20px 10px;">
+    <tr>
+      <td align="center">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width:600px; background-color:#0c1830; border:1px solid #f0c15c; border-radius:16px; overflow:hidden; box-shadow:0 10px 30px rgba(0,0,0,0.5);">
+          <!-- Header -->
+          <tr>
+            <td align="center" style="padding: 30px 20px 20px; background: linear-gradient(180deg, #122347 0%, #0c1830 100%); border-bottom: 1px solid rgba(240,193,92,0.2);">
+              <h1 style="margin:0; font-size:24px; color:#f0c15c; font-family:Georgia, serif; letter-spacing:0.5px;">
+                📚 Kaviyam Reading
+              </h1>
+            </td>
+          </tr>
+          <!-- Body Content -->
+          <tr>
+            <td style="padding: 30px 25px; line-height: 1.6; color: #e2e8f0; font-size: 15px;">
+              <p style="margin-top:0; font-size:16px; font-weight:600; color:#f0c15c;">
+                Welcome to Kaviyam Reading! 📚
+              </p>
+              <p style="margin: 16px 0;">
+                Thank you for logging in and continuing your reading journey with us.
+              </p>
+              <p style="margin: 16px 0;">
+                We are happy to have you with us.
+              </p>
+              <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
+                <p style="margin: 0; color: #cbd5e1;">Happy Reading!</p>
+                <p style="margin: 4px 0 0; font-weight: bold; color: #f0c15c;">Kaviyam Reading Team</p>
+              </div>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td align="center" style="padding: 15px; background-color: #070f1e; border-top: 1px solid rgba(240,193,92,0.2); font-size: 11px; color: #64748b;">
+              &copy; Kaviyam Reading • Secure Firebase Authentication Notice
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+    `;
+
+    // Always record the welcome email dispatch in backend database store
+    const emailRecord = {
+      id: `welcome-mail-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      recipient: cleanEmail,
+      email: cleanEmail,
+      subject,
+      body: plainTextBody,
+      sentAt: new Date().toISOString(),
+      category: "login_welcome",
+      uid: uid || "authenticated-user",
+      displayName: displayName || "",
+      read: false
+    };
+
+    const records = getBackendRecords();
+    records.push(emailRecord);
+    saveBackendRecords(records);
+
+    // If SMTP credentials are present in server environment, send real SMTP email
+    const smtpUser = process.env.SMTP_USER;
+    const smtpPass = process.env.SMTP_PASS;
+    const smtpHost = process.env.SMTP_HOST || "smtp.gmail.com";
+    const smtpPort = parseInt(process.env.SMTP_PORT || "587", 10);
+    const smtpFrom = process.env.SMTP_FROM || '"Kaviyam Reading" <noreply@kaviyam.com>';
+
+    if (smtpUser && smtpPass) {
+      try {
+        const transporter = nodemailer.createTransport({
+          host: smtpHost,
+          port: smtpPort,
+          secure: smtpPort === 465,
+          auth: {
+            user: smtpUser,
+            pass: smtpPass
+          }
+        });
+
+        const mailInfo = await transporter.sendMail({
+          from: smtpFrom,
+          to: cleanEmail,
+          subject: subject,
+          text: plainTextBody,
+          html: htmlBody
+        });
+
+        console.log(`[Backend Mailer] Real email dispatched to ${cleanEmail}:`, mailInfo.messageId);
+        return res.json({
+          success: true,
+          delivered: true,
+          messageId: mailInfo.messageId,
+          email: cleanEmail
+        });
+      } catch (smtpErr: any) {
+        console.error(`[Backend Mailer] Failed to send live email via SMTP to ${cleanEmail}:`, smtpErr);
+        return res.status(500).json({
+          success: false,
+          error: `SMTP Dispatch Error: ${smtpErr.message}`
+        });
+      }
+    } else {
+      console.log(`[Backend Mailer] Welcome email dispatch logged for ${cleanEmail}. (To enable real live SMTP delivery, define SMTP_USER & SMTP_PASS in secrets).`);
+      return res.json({
+        success: true,
+        delivered: false,
+        demoMode: true,
+        message: `Welcome email recorded for ${cleanEmail}. Add SMTP credentials to send live emails to inbox.`,
+        email: cleanEmail
+      });
+    }
+  } catch (err: any) {
+    console.error("Error sending welcome email:", err);
+    return res.status(500).json({ success: false, error: err.message || "Internal server error" });
   }
 });
 
