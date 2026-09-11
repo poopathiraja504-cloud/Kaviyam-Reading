@@ -1,11 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { User, Book, SimulatedEmail, SecurityLog, Review } from "./types";
 import { PRESET_BOOKS } from "./booksData";
-import { BookOpen, User as UserIcon, Mail, Bell, Phone, Shield, HelpCircle, LogIn, LogOut, ChevronRight, Sun, Moon, Database, Image, MonitorSmartphone, Home, Search, Smartphone, Zap } from "lucide-react";
+import { BookOpen, User as UserIcon, Mail, Bell, Phone, Shield, HelpCircle, LogIn, LogOut, ChevronRight, Sun, Moon, Database, Image, MonitorSmartphone, Home, Search } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { toggleSecurityMetaTags, RECOMMENDED_META_TAGS } from "./utils/securityHeaders";
-import ThreeDVibrationControl from "./components/ThreeDVibrationControl";
-import { triggerHaptic, playTactileSound } from "./utils/haptics";
 
 import { auth, db } from "./firebase";
 import { 
@@ -141,7 +139,6 @@ const getRouteFromUrl = (): { tab: AppTab | "login"; bookId: string | null } => 
 
 export default function App() {
   const [showIntro, setShowIntro] = useState(() => !sessionStorage.getItem("kaviyam_intro_played"));
-  const [show3DVibrationModal, setShow3DVibrationModal] = useState(false);
   
   // Auth / Session State (parsed synchronously to keep session alive across refreshes)
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
@@ -1511,23 +1508,8 @@ export default function App() {
             </button>
           </nav>
 
-          {/* User Sign-In Action & 3D Haptics Quick Button */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            {/* 3D Vibration Quick Button */}
-            <button
-              onClick={() => {
-                triggerHaptic("3d-pulse");
-                playTactileSound(350, 40);
-                setShow3DVibrationModal(true);
-              }}
-              className="px-2.5 py-1.5 sm:px-3 bg-gradient-to-r from-[#162544] to-[#0a1224] text-[#f0c15c] border border-[#f0c15c]/40 hover:border-[#f0c15c] rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 cursor-pointer group"
-              title="3D Tactile & Vibration Settings"
-              id="header-3d-vibration-btn"
-            >
-              <Smartphone size={14} className="animate-pulse text-[#f0c15c]" />
-              <span className="hidden lg:inline text-[11px] font-mono tracking-tight">3D VIBE</span>
-            </button>
-
+          {/* User Sign-In Action or Mini-Card */}
+          <div className="flex items-center gap-3">
             <div className="flex items-center gap-2.5">
               <div className="text-right hidden sm:block">
                 <span className="text-xs font-bold block text-stone-800">{currentUser.username}</span>
@@ -1556,12 +1538,6 @@ export default function App() {
           </div>
         </div>
       </header>
-
-      {/* 3D Vibration Control & Tester Modal */}
-      <ThreeDVibrationControl
-        isOpen={show3DVibrationModal}
-        onClose={() => setShow3DVibrationModal(false)}
-      />
 
       {/* Mobile navigation is now a fixed bottom bar */}
 

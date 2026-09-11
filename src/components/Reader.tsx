@@ -1,9 +1,8 @@
 import { Book, Chapter, Review } from "../types";
-import { ChevronLeft, ChevronRight, Settings, MessageSquare, Star, ArrowLeft, Loader2, Send, Languages, BookOpen, Sparkles, Moon, Sun, Smartphone } from "lucide-react";
+import { ChevronLeft, ChevronRight, Settings, MessageSquare, Star, ArrowLeft, Loader2, Send, Languages, BookOpen, Sparkles, Moon, Sun } from "lucide-react";
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { audioSynth } from "../utils/audioSynth";
-import { triggerHaptic, playTactileSound } from "../utils/haptics";
 
 interface ReaderProps {
   book: Book;
@@ -603,31 +602,22 @@ export default function Reader({
         }`}>
           <button
             disabled={currentChapterIdx === 0}
-            onClick={() => {
-              triggerHaptic("3d-pageflip");
-              playTactileSound(300, 30);
-              setCurrentChapterIdx(currentChapterIdx - 1);
-            }}
-            className="flex items-center gap-1.5 text-xs font-bold hover:opacity-80 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
+            onClick={() => setCurrentChapterIdx(currentChapterIdx - 1)}
+            className="flex items-center gap-1.5 text-xs font-bold hover:opacity-80 disabled:opacity-30 disabled:pointer-events-none transition-all"
             id="reader-prev-chapter"
           >
             <ChevronLeft size={16} className="text-[#bfa030]" />
             Previous
           </button>
 
-          <span className="text-xs font-mono text-stone-500 font-bold uppercase tracking-wider flex items-center gap-1">
-            <Smartphone size={12} className="text-[#bfa030]/80" />
+          <span className="text-xs font-mono text-stone-500 font-bold uppercase tracking-wider">
             Chapter {currentChapterIdx + 1} / {book.chapters.length}
           </span>
 
           <button
             disabled={currentChapterIdx >= book.chapters.length - 1}
-            onClick={() => {
-              triggerHaptic("3d-pageflip");
-              playTactileSound(350, 30);
-              setCurrentChapterIdx(currentChapterIdx + 1);
-            }}
-            className="flex items-center gap-1.5 text-xs font-bold hover:opacity-80 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
+            onClick={() => setCurrentChapterIdx(currentChapterIdx + 1)}
+            className="flex items-center gap-1.5 text-xs font-bold hover:opacity-80 disabled:opacity-30 disabled:pointer-events-none transition-all"
             id="reader-next-chapter"
           >
             Next

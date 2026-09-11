@@ -1,8 +1,7 @@
 import { User, SecurityLog } from "../types";
-import { Shield, ShieldCheck, Mail, ChevronRight, ChevronLeft, Save, LogOut, Smartphone } from "lucide-react";
+import { Shield, ShieldCheck, Mail, ChevronRight, ChevronLeft, Save, LogOut } from "lucide-react";
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import ThreeDVibrationControl from "./ThreeDVibrationControl";
 
 interface ProfileProps {
   currentUser: User;
@@ -171,7 +170,6 @@ export default function Profile({
 
       <div className="mt-2">
         <h3 className="px-4 text-[15px] font-medium text-stone-900 mb-1">Settings</h3>
-        <MenuItem title="3D Vibration & Haptic Feedback" onClick={() => setCurrentView("vibration")} />
         <MenuItem title="Account management" onClick={() => setCurrentView("account")} />
         <MenuItem title="Profile visibility" onClick={() => setCurrentView("placeholder")} />
         <MenuItem title="Reading preferences" onClick={() => setCurrentView("placeholder")} />
@@ -332,15 +330,6 @@ export default function Profile({
     </div>
   );
 
-  const renderVibration = () => (
-    <div className="w-full max-w-[800px] mx-auto pb-24 bg-[#070d18] text-white min-h-[calc(100vh-200px)] sm:border sm:border-stone-800 sm:rounded-2xl sm:overflow-hidden sm:mt-6 sm:shadow-2xl">
-      {renderHeader("3D Vibration & Tactile Engine", () => setCurrentView("main"))}
-      <div className="p-4 sm:p-6">
-        <ThreeDVibrationControl inline />
-      </div>
-    </div>
-  );
-
   const renderPlaceholder = () => (
     <div className="w-full max-w-[800px] mx-auto pb-24 bg-white min-h-[calc(100vh-200px)] sm:border sm:border-stone-200 sm:rounded-2xl sm:overflow-hidden sm:mt-6 sm:shadow-sm">
       {renderHeader("Settings", () => setCurrentView("main"))}
@@ -358,7 +347,6 @@ export default function Profile({
     <div className="w-full h-full bg-[#f7f5ed] sm:p-4">
       <AnimatePresence mode="wait">
         {currentView === "main" && <motion.div key="main" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.2 }}>{renderMain()}</motion.div>}
-        {currentView === "vibration" && <motion.div key="vibration" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.2 }}>{renderVibration()}</motion.div>}
         {currentView === "profile" && <motion.div key="profile" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.2 }}>{renderProfile()}</motion.div>}
         {currentView === "account" && <motion.div key="account" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.2 }}>{renderAccount()}</motion.div>}
         {currentView === "security" && <motion.div key="security" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.2 }}>{renderSecurity()}</motion.div>}
