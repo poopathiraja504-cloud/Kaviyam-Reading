@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from "firebase/auth";
 import { auth } from "../firebase";
 import LiquidOTP from "./LiquidOTP";
+import { triggerMsg91Otp } from "../utils/msg91";
 
 interface AuthProps {
   currentUser: User | null;
@@ -139,6 +140,37 @@ export default function Auth({
       return () => clearTimeout(timer);
     }
   }, [resendCooldown]);
+
+  // MSG91 SendOTP Web SDK Event Listener
+  useEffect(() => {
+    const handleMsg91Success = async (e: any) => {
+      const data = e.detail?.data || e.detail;
+      console.log("Captured MSG91 OTP success in Auth component:", data);
+      const phoneId = activePhoneNumber || phoneNumber || e.detail?.identifier || "+91 9876543210";
+      setSuccessMsg("MSG91 OTP verified successfully! Signing you in...");
+      addSystemLog(`MSG91 SendOTP Web SDK Verified (${phoneId})`, "Success");
+      if (onPhoneLogin) {
+        try {
+          await onPhoneLogin(phoneId);
+        } catch (err: any) {
+          console.warn("onPhoneLogin error:", err);
+        }
+      }
+    };
+
+    const handleMsg91Failure = (e: any) => {
+      const err = e.detail?.error || e.detail;
+      console.warn("Captured MSG91 OTP failure in Auth component:", err);
+      setErrorMsg(typeof err === "string" ? err : "MSG91 OTP verification failed or was cancelled.");
+    };
+
+    window.addEventListener("msg91-otp-success", handleMsg91Success);
+    window.addEventListener("msg91-otp-failure", handleMsg91Failure);
+    return () => {
+      window.removeEventListener("msg91-otp-success", handleMsg91Success);
+      window.removeEventListener("msg91-otp-failure", handleMsg91Failure);
+    };
+  }, [activePhoneNumber, phoneNumber, onPhoneLogin, addSystemLog]);
 
   const handleGoogleClick = async () => {
     if (!onGoogleLogin) return;
@@ -766,6 +798,39 @@ export default function Auth({
                         )}
                         Send Verification Code (OTP)
                       </button>
+
+                      <div className="relative my-3 flex items-center justify-center">
+                        <div className="absolute inset-x-0 h-px bg-stone-800" />
+                        <span className="relative px-2.5 text-[9px] font-bold uppercase tracking-wider text-stone-500 bg-[#091122]">
+                          or verified via MSG91
+                        </span>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setErrorMsg(null);
+                          setSuccessMsg(null);
+                          let rawInput = phoneNumber.trim().replace(/[\s\-\(\)]/g, "");
+                          let fullPhone = rawInput;
+                          if (rawInput && !rawInput.startsWith("+")) {
+                            if (/^[6-9]\d{9}$/.test(rawInput)) fullPhone = `+91${rawInput}`;
+                            else fullPhone = `${countryCode}${rawInput}`;
+                          }
+                          setActivePhoneNumber(fullPhone);
+                          triggerMsg91Otp(fullPhone);
+                        }}
+                        className="w-full bg-gradient-to-r from-[#14233e] to-[#0c182c] hover:from-[#1b3054] hover:to-[#12223e] text-[#f0c15c] border border-[#f0c15c]/40 hover:border-[#f0c15c] font-bold py-3 px-4 rounded-lg transition-all flex items-center justify-center gap-2.5 cursor-pointer text-xs shadow-sm group"
+                        id="msg91-otp-widget-btn"
+                      >
+                        <Smartphone size={15} className="text-[#f0c15c] group-hover:scale-110 transition-transform" />
+                        <span>Verify with MSG91 SendOTP Widget</span>
+                      </button>
+
+                      <div className="flex items-center justify-center gap-1.5 text-[10px] text-stone-500">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                        <span>MSG91 Web SDK Widget ID: <code className="font-mono text-stone-400">36696b686a32393534303537</code></span>
+                      </div>
                     </form>
                   ) : (
                     <form onSubmit={handleVerifyPhoneOtp} className="space-y-4">

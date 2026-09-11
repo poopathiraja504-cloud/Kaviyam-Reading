@@ -1,8 +1,10 @@
 import { Book } from "../types";
-import { Search, Sparkles, Filter, Bookmark, Star, BookOpen, ChevronRight, Loader2, BookMarked, TrendingUp, Flame, Compass, History, Download } from "lucide-react";
+import { Search, Sparkles, Filter, Bookmark, Star, BookOpen, ChevronRight, Loader2, BookMarked, TrendingUp, Flame, Compass, History, Download, Smartphone } from "lucide-react";
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import TamilDashboard from "./TamilDashboard";
+import ThreeDTiltCard from "./ThreeDTiltCard";
+import { triggerHaptic, playTactileSound } from "../utils/haptics";
 
 interface LibraryProps {
   books: Book[];
@@ -272,9 +274,14 @@ export default function Library({
                       {trendingBooks.map((book) => {
                         const isBookmarked = bookmarks.includes(book.id);
                         return (
-                          <div
+                          <ThreeDTiltCard
                             key={book.id}
-                            className="bg-white rounded-3xl border border-stone-200/80 overflow-hidden flex flex-col hover:shadow-lg transition group"
+                            hapticPattern="3d-pulse"
+                            onClick={() => {
+                              triggerHaptic("3d-pulse");
+                              onSelectBook(book.id);
+                            }}
+                            className="bg-white rounded-3xl border border-stone-200/80 overflow-hidden flex flex-col group h-full"
                           >
                             <div className="relative h-48 bg-stone-100 overflow-hidden">
                               <img
@@ -288,9 +295,10 @@ export default function Library({
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
+                                  triggerHaptic("tactile-click");
                                   onToggleBookmark(book.id);
                                 }}
-                                className={`absolute top-4 right-4 p-2.5 rounded-xl border shadow-sm transition-all duration-300 ${
+                                className={`absolute top-4 right-4 p-2.5 rounded-xl border shadow-sm transition-all duration-300 z-10 ${
                                   isBookmarked
                                     ? "bg-[#bfa030] border-[#b09124] text-black scale-105"
                                     : "bg-white/80 backdrop-blur-sm border-stone-200 text-stone-600 hover:bg-white"
@@ -300,8 +308,9 @@ export default function Library({
                                 <Bookmark size={14} className={isBookmarked ? "fill-current" : ""} />
                               </button>
 
-                              <span className="absolute bottom-4 left-4 text-[9px] font-mono font-bold tracking-wider uppercase bg-[#bfa030] text-black px-2.5 py-0.5 rounded-md">
-                                🔥 Popular
+                              <span className="absolute bottom-4 left-4 text-[9px] font-mono font-bold tracking-wider uppercase bg-[#bfa030] text-black px-2.5 py-0.5 rounded-md flex items-center gap-1">
+                                <Smartphone size={10} />
+                                🔥 3D Tactile
                               </span>
                             </div>
 
@@ -327,16 +336,13 @@ export default function Library({
                                   <span className="text-stone-400 font-normal">({book.ratingCount} reads)</span>
                                 </div>
 
-                                <button
-                                  onClick={() => onSelectBook(book.id)}
-                                  className="flex items-center gap-1.5 text-xs text-stone-900 hover:text-[#bfa030] font-extrabold transition-all"
-                                >
+                                <span className="flex items-center gap-1.5 text-xs text-stone-900 group-hover:text-[#bfa030] font-extrabold transition-all">
                                   Read Chapter
                                   <ChevronRight size={13} />
-                                </button>
+                                </span>
                               </div>
                             </div>
-                          </div>
+                          </ThreeDTiltCard>
                         );
                       })}
                     </div>
