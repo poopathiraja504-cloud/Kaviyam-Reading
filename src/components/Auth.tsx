@@ -712,11 +712,8 @@ export default function Auth({
                   {!phoneOtpSent ? (
                     <form onSubmit={handleSendPhoneOtp} className="space-y-4">
                       <div>
-                        <div className="flex justify-between items-center mb-1.5">
+                        <div className="mb-1.5">
                           <label className="block text-stone-300 font-semibold text-xs">Mobile Phone Number</label>
-                          <span className="text-[10px] text-emerald-400 font-medium flex items-center gap-1">
-                            🇮🇳 Indian (+91) Supported
-                          </span>
                         </div>
                         
                         <div className="flex gap-2">
@@ -1041,16 +1038,18 @@ export default function Auth({
 
                 <div className="space-y-2">
                   <h3 className="font-serif text-lg md:text-xl font-bold text-stone-100">
-                    Reset Link Dispatched
+                    Reset Email Sent
                   </h3>
-                  <p className="text-stone-300 text-xs md:text-sm leading-relaxed px-2">
-                    We sent you a password change link to{" "}
+                  <div className="bg-[#0c1830]/90 border border-[#f0c15c]/40 rounded-xl p-3 my-2 shadow-inner">
+                    <p className="font-bold text-[#f0c15c] text-xs md:text-sm">
+                      Password reset email sent. Please check your email.
+                    </p>
+                  </div>
+                  <p className="text-stone-300 text-xs leading-relaxed">
+                    Instructions were sent to{" "}
                     <span className="font-bold text-[#f0c15c] break-all underline decoration-[#f0c15c]/40 underline-offset-2">
                       {resetSentEmail || email}
                     </span>
-                  </p>
-                  <p className="text-stone-400 text-xs">
-                    Please check your email inbox and click the link to reset your password.
                   </p>
                 </div>
 
@@ -1412,9 +1411,10 @@ export default function Auth({
 
         {/* Creator Stamp */}
         <div className="mt-6 pt-4 border-t border-[#1e3258]/60 flex flex-col sm:flex-row items-center justify-between gap-2 text-[10px] font-mono text-stone-400 relative z-10">
-          <span>KAVIYAM AUTHENTICATION v2.5</span>
-          <span className="font-bold px-2.5 py-1 rounded-lg border border-[#f0c15c]/30 text-[#f0c15c] bg-[#0c1830]/80">
-            Developed by ANU . M • Designed by ANU . M
+          <span>KAVIYAM AUTHENTICATION v5.0</span>
+          <span className="font-bold px-3 py-1.5 rounded-lg border border-[#f0c15c]/30 text-[#f0c15c] bg-[#0c1830]/90 flex items-center gap-2 text-center sm:text-right">
+            <span>Developed &amp; Designed by</span>
+            <span className="text-3d-design text-[11px]">DHARMENTHIRA BOOPATHI S</span>
           </span>
         </div>
       </motion.div>

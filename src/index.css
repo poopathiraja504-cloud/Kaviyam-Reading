@@ -39,6 +39,35 @@
   animation: float 3s ease-in-out infinite;
 }
 
+/* Premium 3D text design for DHARMENTHIRA BOOPATHI S */
+.text-3d-design {
+  display: inline-block;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #fce3a1;
+  text-shadow: 
+    1px 1px 0px #d49f2a,
+    2px 2px 0px #b08018,
+    3px 3px 0px #875f0a,
+    4px 4px 5px rgba(0, 0, 0, 0.7),
+    0px 0px 10px rgba(247, 203, 107, 0.5);
+  transform: perspective(400px) rotateX(8deg);
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.text-3d-design:hover {
+  transform: perspective(400px) rotateX(0deg) translateY(-1px);
+  text-shadow: 
+    1px 1px 0px #fce3a1,
+    2px 2px 0px #d49f2a,
+    3px 3px 0px #b08018,
+    4px 4px 0px #875f0a,
+    5px 5px 8px rgba(0, 0, 0, 0.8),
+    0px 0px 14px rgba(247, 203, 107, 0.7);
+}
+
 /* First letter drop-cap styling for the reader */
 .drop-cap::first-letter {
   font-family: var(--font-serif);

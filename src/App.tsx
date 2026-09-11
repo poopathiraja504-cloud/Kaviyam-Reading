@@ -36,6 +36,7 @@ import Feedback from "./components/Feedback";
 import Wallpapers from "./components/Wallpapers";
 import Templates from "./components/Templates";
 import LocalDatabase from "./components/LocalDatabase";
+import WelcomeToast from "./components/WelcomeToast";
 import loginBg from "./assets/images/cinematic_login_bg_1788964616574.jpg";
 
 // Simulated Database of registered accounts & passwords
@@ -263,6 +264,9 @@ export default function App() {
     setDownloadedBookIds(updated);
     localStorage.setItem("kaviyam_downloaded_ids", JSON.stringify(updated));
   };
+
+  // Welcome Toast Notification State
+  const [welcomeToast, setWelcomeToast] = useState<string | null>(null);
 
   // Theme State (Default to true/dark mode as requested)
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
@@ -674,6 +678,12 @@ export default function App() {
         saveUsers(users.map((u) => (u.id === foundUser!.id ? foundUser! : u)));
       }
 
+      const displayName = firebaseUser.displayName || (foundUser?.profile?.username && !foundUser.profile.username.includes("@") ? foundUser.profile.username : (foundUser?.username && !foundUser.username.includes("@") ? foundUser.username : null));
+      const welcomeMsg = displayName && displayName.trim()
+        ? `Welcome, ${displayName.trim()}! Welcome to Kaviyam Reading!`
+        : "Welcome to Kaviyam Reading!";
+      setWelcomeToast(welcomeMsg);
+
       setCurrentUser(foundUser);
       localStorage.setItem("kaviyam_current_user", JSON.stringify(foundUser));
       setActiveTab("library");
@@ -724,6 +734,12 @@ export default function App() {
           };
           saveUsers([...users, foundUser]);
         }
+        const displayName = foundUser?.profile?.username || (foundUser?.username && !foundUser.username.includes("@") ? foundUser.username : null);
+        const welcomeMsg = displayName && displayName.trim()
+          ? `Welcome, ${displayName.trim()}! Welcome to Kaviyam Reading!`
+          : "Welcome to Kaviyam Reading!";
+        setWelcomeToast(welcomeMsg);
+
         setCurrentUser(foundUser);
         localStorage.setItem("kaviyam_current_user", JSON.stringify(foundUser));
         setActiveTab("library");
@@ -775,6 +791,12 @@ export default function App() {
       saveUsers([...users, foundUser]);
     }
 
+    const displayName = foundUser?.profile?.username || (foundUser?.username && !foundUser.username.includes("@") ? foundUser.username : null);
+    const welcomeMsg = displayName && displayName.trim()
+      ? `Welcome, ${displayName.trim()}! Welcome to Kaviyam Reading!`
+      : "Welcome to Kaviyam Reading!";
+    setWelcomeToast(welcomeMsg);
+
     setCurrentUser(foundUser);
     localStorage.setItem("kaviyam_current_user", JSON.stringify(foundUser));
     setActiveTab("library");
@@ -823,6 +845,12 @@ export default function App() {
         };
         saveUsers(users.map((u) => (u.id === foundUser!.id ? foundUser! : u)));
       }
+
+      const userDisplayName = firebaseUser.displayName || (foundUser?.profile?.username && !foundUser.profile.username.includes("@") ? foundUser.profile.username : (foundUser?.username && !foundUser.username.includes("@") ? foundUser.username : null));
+      const welcomeMsg = userDisplayName && userDisplayName.trim()
+        ? `Welcome, ${userDisplayName.trim()}! Welcome to Kaviyam Reading!`
+        : "Welcome to Kaviyam Reading!";
+      setWelcomeToast(welcomeMsg);
 
       setCurrentUser(foundUser);
       localStorage.setItem("kaviyam_current_user", JSON.stringify(foundUser));
@@ -1097,6 +1125,7 @@ export default function App() {
       security: { is2FAEnabled: false, isBlocked: false, loginAttempts: 0 },
       createdAt: new Date().toISOString()
     };
+    setWelcomeToast("Welcome, Guest Reader! Welcome to Kaviyam Reading!");
     setCurrentUser(guestUser);
     localStorage.setItem("kaviyam_current_user", JSON.stringify(guestUser));
     setActiveTab("library");
@@ -1339,6 +1368,11 @@ export default function App() {
 
   return (
     <>
+      <WelcomeToast
+        message={welcomeToast}
+        onClose={() => setWelcomeToast(null)}
+      />
+
       <AnimatePresence>
         {showIntro && <IntroSequence onComplete={handleIntroComplete} />}
       </AnimatePresence>
