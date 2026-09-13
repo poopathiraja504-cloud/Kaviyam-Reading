@@ -1,35 +1,61 @@
 import React, { useState } from "react";
-import { HelpCircle, Mail, Phone, BookOpen, ShieldCheck, ChevronDown, ChevronUp } from "lucide-react";
+import { HelpCircle, ChevronDown, ChevronUp, BookOpen, Bookmark, Sparkles, Volume2, Globe, UserCheck, ShieldCheck, Mail, Send } from "lucide-react";
 
 export default function Feedback() {
-  const [activeTab, setActiveTab] = useState<"faq" | "about" | "contact" | "terms">("faq");
-  
-  // Contact Us state
+  const [activeCategory, setActiveCategory] = useState<string>("all");
+  const [expandedIndex, setExpandedIndex] = useState<number | null>(0);
+
+  // Form State
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [subject, setSubject] = useState("General Feedback");
   const [message, setMessage] = useState("");
   const [submitted, setSubmitted] = useState(false);
 
-  // FAQ Expand state
-  const [expandedFaq, setExpandedFaq] = useState<number | null>(0);
-
-  const faqs = [
+  const faqItems = [
     {
-      q: "What is Kaviyam Reading platform?",
-      a: "Kaviyam Reading is a warm, elegant platform built for literary enthusiasts. It offers classic and preset fantasy, sci-fi, and mystery novels, and lets users craft custom multi-chapter stories dynamically in collaboration with Gemini AI."
+      category: "getting-started",
+      question: "1. Getting Started / தொடங்குதல்",
+      answer: "Welcome to Kaviyam-Reading! You can browse books on the Home Dashboard, explore ancient and modern Tamil literature in the Tamil Library (/tamil-library), or search for specific titles in the Catalog Library (/catalog)."
     },
     {
-      q: "How does the AI Novel Builder work?",
-      a: "By feeding a prompt, theme, or character seed into our AI Builder, server-side APIs contact Gemini 3.5 Flash. It constructs a cohesive title, summary, chapter headings, and fully-formed literary text, compiling it directly into a readable book format for you."
+      category: "reading",
+      question: "2. How to Read / வாசிப்பது எப்படி",
+      answer: "Click on any book card and select 'Start Reading' or 'Read Now'. The distraction-free Reader workspace allows you to adjust font size (A- / A+), switch themes (Light, Sepia, Dark), navigate chapters, and listen via Text-to-Speech."
     },
     {
-      q: "Is my account authentication fully secure?",
-      a: "Yes! While this sandbox environment simulates email-based verification, password resets, and 2FA tokens directly inside your Simulated Mailbox, the authentication layer employs robust JWT encryption and industry-standard security practices to prevent credential spoofing."
+      category: "add-books",
+      question: "3. How to Add Books / புத்தகங்கள் சேர்ப்பது எப்படி",
+      answer: "Use the 'Search & Fetch Novel' feature on the Tamil Library page or Dashboard. Type any Tamil classic or modern novel name (e.g. Sivagamiyin Sabatham), and our Gemini AI backend will retrieve and compile the chapters automatically into your library."
     },
     {
-      q: "Can I manage active sessions or view security history?",
-      a: "Absolutely. Under the 'Security & Login' profile settings, you can check active login IP logs, inspect which devices are currently authenticated, set up 2FA, or terminate external mobile/desktop browser sessions instantly."
+      category: "bookmarks",
+      question: "4. How to Use Bookmarks / குறிப்புகள் பயன்படுத்துவது எப்படி",
+      answer: "Click the Bookmark icon on any book card or inside the Reader top toolbar. All saved titles will appear under 'My Books' (/my-books) and inside your Profile."
+    },
+    {
+      category: "progress",
+      question: "5. Reading Progress / வாசிப்பு முன்னேற்றம்",
+      answer: "Track your reading streak, total hours read, chapters completed, and monthly goals on the Progress Dashboard (/progress)."
+    },
+    {
+      category: "tts",
+      question: "6. Text-to-Speech / குரல் வாசிப்பு",
+      answer: "Inside the Reader workspace or top toolbar, click the Audio/TTS button to listen to any chapter narrated in clear Tamil or English. You can adjust playback speed in Settings."
+    },
+    {
+      category: "ai-features",
+      question: "7. AI Features / AI அம்சங்கள்",
+      answer: "Navigate to AI Features (/ai-features) or click the Sparkles icon inside the Reader to get instant chapter summaries, Tamil dictionary word explanations, Q&A, and bilingual translations powered by Google Gemini."
+    },
+    {
+      category: "language",
+      question: "8. Language Settings / மொழி அமைப்புகள்",
+      answer: "Click the 'தமிழ் | English' pill switcher in the top Header or inside Settings (/settings). All UI labels, navigation buttons, and descriptions will dynamically switch and persist in your browser."
+    },
+    {
+      category: "account",
+      question: "9. Account & Login / கணக்கு & உள்நுழைவு",
+      answer: "Sign in with Email/Password, Mobile SMS OTP, or Google Sign-In. You can manage your profile, security logs, 2FA, and saved preferences under Profile Settings (/profile)."
     }
   ];
 
@@ -42,219 +68,118 @@ export default function Feedback() {
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-[#e8e2cf] p-6 shadow-sm grid grid-cols-1 md:grid-cols-12 gap-8 text-left" id="feedback-root">
-      {/* Sidebar navigation */}
-      <div className="md:col-span-3 space-y-2">
-        <h3 className="font-serif font-bold text-stone-800 text-sm px-3 mb-2">Help & Legal</h3>
-        <nav className="flex flex-col gap-1">
-          <button
-            onClick={() => setActiveTab("faq")}
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
-              activeTab === "faq" ? "bg-[#faf6e8] text-stone-800 border-l-4 border-l-[#d4af37]" : "text-stone-500 hover:bg-stone-50"
-            }`}
-            id="help-tab-faq"
-          >
-            <HelpCircle size={14} />
-            FAQ / Help Center
-          </button>
-          <button
-            onClick={() => setActiveTab("about")}
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
-              activeTab === "about" ? "bg-[#faf6e8] text-stone-800 border-l-4 border-l-[#d4af37]" : "text-stone-500 hover:bg-stone-50"
-            }`}
-            id="help-tab-about"
-          >
-            <BookOpen size={14} />
-            About Our Mission
-          </button>
-          <button
-            onClick={() => setActiveTab("contact")}
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
-              activeTab === "contact" ? "bg-[#faf6e8] text-stone-800 border-l-4 border-l-[#d4af37]" : "text-stone-500 hover:bg-stone-50"
-            }`}
-            id="help-tab-contact"
-          >
-            <Mail size={14} />
-            Contact Us Form
-          </button>
-          <button
-            onClick={() => setActiveTab("terms")}
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
-              activeTab === "terms" ? "bg-[#faf6e8] text-stone-800 border-l-4 border-l-[#d4af37]" : "text-stone-500 hover:bg-stone-50"
-            }`}
-            id="help-tab-terms"
-          >
-            <ShieldCheck size={14} />
-            Terms & Privacy
-          </button>
-        </nav>
+    <div className="space-y-8 font-sans pb-12 max-w-5xl mx-auto">
+      
+      {/* Header */}
+      <div className="bg-gradient-to-r from-[#3B0B12] via-[#4A0E17] to-[#5C121E] text-white p-8 rounded-3xl border border-[#D4AF37]/30 shadow-xl space-y-3">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40 text-xs font-semibold">
+          <HelpCircle className="w-4 h-4" />
+          <span>Help & Support Center</span>
+        </div>
+        <h1 className="font-serif text-3xl sm:text-4xl font-extrabold text-white">
+          Help & Frequently Asked Questions (FAQ)
+        </h1>
+        <p className="text-xs sm:text-sm text-amber-100/80 max-w-2xl">
+          Find answers to common questions about reading Tamil novels, bookmarking, AI features, language switching, and account security.
+        </p>
       </div>
 
-      {/* Main help content area */}
-      <div className="md:col-span-9 bg-[#fdfdfc] p-6 rounded-xl border border-[#f3eee0]">
-        {activeTab === "faq" && (
-          <div className="space-y-4">
-            <h3 className="font-serif text-lg font-semibold text-stone-800 border-b border-[#f3eee0] pb-2">
-              Frequently Asked Questions (FAQ)
-            </h3>
-            <div className="space-y-3">
-              {faqs.map((faq, idx) => {
-                const isOpen = expandedFaq === idx;
-                return (
-                  <div key={idx} className="border border-[#e8e2cf] rounded-xl bg-white overflow-hidden shadow-sm">
-                    <button
-                      onClick={() => setExpandedFaq(isOpen ? null : idx)}
-                      className="w-full p-4 flex justify-between items-center text-left text-xs font-bold text-stone-800 hover:bg-stone-50 transition"
-                      id={`faq-accordion-${idx}`}
-                    >
-                      <span>{faq.q}</span>
-                      {isOpen ? <ChevronUp size={14} className="text-[#d4af37]" /> : <ChevronDown size={14} />}
-                    </button>
-                    {isOpen && (
-                      <div className="p-4 border-t border-[#e8e2cf] text-xs text-stone-600 leading-relaxed bg-[#fcfbfa]">
-                        {faq.a}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+      {/* Accordion List */}
+      <div className="p-6 rounded-3xl bg-white border border-[#E2DDD5] shadow-sm space-y-3">
+        <h2 className="font-serif font-bold text-xl text-[#3B0B12] mb-4">
+          Frequently Asked Questions
+        </h2>
+
+        {faqItems.map((item, idx) => {
+          const isExpanded = expandedIndex === idx;
+          return (
+            <div
+              key={idx}
+              className="rounded-2xl border border-[#E2DDD5] overflow-hidden transition-all"
+            >
+              <button
+                onClick={() => setExpandedIndex(isExpanded ? null : idx)}
+                className="w-full p-4 text-left font-serif font-bold text-stone-900 text-sm sm:text-base flex items-center justify-between bg-[#FDFBF7] hover:bg-[#F7F2EB] transition-colors"
+              >
+                <span>{item.question}</span>
+                {isExpanded ? (
+                  <ChevronUp className="w-5 h-5 text-[#3B0B12]" />
+                ) : (
+                  <ChevronDown className="w-5 h-5 text-stone-400" />
+                )}
+              </button>
+
+              {isExpanded && (
+                <div className="p-4 bg-white text-xs sm:text-sm text-stone-700 leading-relaxed border-t border-[#E2DDD5] font-sans">
+                  {item.answer}
+                </div>
+              )}
             </div>
+          );
+        })}
+      </div>
+
+      {/* Contact Support Form */}
+      <div className="p-6 rounded-3xl bg-white border border-[#E2DDD5] shadow-sm space-y-4">
+        <h2 className="font-serif font-bold text-xl text-[#3B0B12] flex items-center gap-2">
+          <Mail className="w-5 h-5 text-[#D4AF37]" />
+          <span>Contact Support / பின்னூட்டம்</span>
+        </h2>
+
+        {submitted ? (
+          <div className="p-4 rounded-2xl bg-emerald-50 text-emerald-800 text-xs font-bold border border-emerald-200">
+            ✓ Thank you! Your feedback/question has been submitted successfully.
           </div>
-        )}
-
-        {activeTab === "about" && (
-          <div className="space-y-4 text-xs text-stone-600 leading-relaxed font-serif">
-            <h3 className="font-serif text-lg font-semibold text-stone-800 border-b border-[#f3eee0] pb-2 font-sans">
-              About Kaviyam Reading
-            </h3>
-            <p>
-              Welcome to <strong>Kaviyam Reading</strong>, a literary platform born out of deep respect for written words.
-              Our mission is to combine the warmth of classical publishing with cutting-edge AI capabilities, making reading interactive and customizable.
-            </p>
-            <p>
-              We believe every reader harbors unique fantasy worlds, romance dreams, and sci-fi mysteries. By putting the Gemini LLM directly in your hands, we let you become both the catalog patron and the creative novelist.
-            </p>
-            <div className="bg-amber-50/60 p-4 border border-amber-100 rounded-xl font-sans text-stone-700 mt-4">
-              <h4 className="font-bold text-xs uppercase tracking-wider mb-2 text-stone-800">Our Core Principles:</h4>
-              <ul className="list-disc pl-4 space-y-2">
-                <li><strong>Atmospheric Design:</strong> Paper-like canvases and rich serif typography that rest the eyes.</li>
-                <li><strong>Security Integrity:</strong> Transparent logs and simulated 2FA that teach modern secure design.</li>
-                <li><strong>AI Assistance:</strong> Utilizing Google Gemini as an interactive, helper partner, never a cheap text replacer.</li>
-              </ul>
-            </div>
-          </div>
-        )}
-
-        {activeTab === "contact" && (
-          <div className="space-y-4">
-            <h3 className="font-serif text-lg font-semibold text-stone-800 border-b border-[#f3eee0] pb-2">
-              Contact Support & Editorial Team
-            </h3>
-            <p className="text-xs text-stone-500 leading-relaxed">
-              Have feedback, a copyright report, or a business query? Fill out our form below, and we will reply to your simulated inbox!
-            </p>
-
-            {submitted ? (
-              <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl">
-                Thank you! Your feedback message has been received. We have sent a simulated acknowledgment message to your inbox.
+        ) : (
+          <form onSubmit={handleContactSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1">Your Name</label>
+                <input
+                  type="text"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Boopathi"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-[#E2DDD5]"
+                />
               </div>
-            ) : (
-              <form onSubmit={handleContactSubmit} className="space-y-4 text-xs">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-stone-600 font-semibold mb-1">Your Full Name</label>
-                    <input
-                      type="text"
-                      required
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="Jane Doe"
-                      className="w-full px-3 py-2 border border-[#e8e2cf] bg-white rounded-lg focus:outline-none focus:border-[#d4af37]"
-                      id="contact-name-input"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-stone-600 font-semibold mb-1">Your Email</label>
-                    <input
-                      type="email"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="jane@example.com"
-                      className="w-full px-3 py-2 border border-[#e8e2cf] bg-white rounded-lg focus:outline-none focus:border-[#d4af37]"
-                      id="contact-email-input"
-                    />
-                  </div>
-                </div>
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1">Your Email</label>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="boopathi@example.com"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-[#E2DDD5]"
+                />
+              </div>
+            </div>
 
-                <div>
-                  <label className="block text-stone-600 font-semibold mb-1">Subject</label>
-                  <select
-                    value={subject}
-                    onChange={(e) => setSubject(e.target.value)}
-                    className="w-full px-3 py-2 border border-[#e8e2cf] bg-white rounded-lg focus:outline-none focus:border-[#d4af37]"
-                    id="contact-subject-select"
-                  >
-                    <option value="General Feedback">General Feedback</option>
-                    <option value="Feature Request">AI Novel Feature Request</option>
-                    <option value="Security Report">Security Vulnerability / Audits</option>
-                    <option value="Other">Other Business Inquiry</option>
-                  </select>
-                </div>
+            <div>
+              <label className="block text-xs font-bold text-stone-700 mb-1">Message / Query</label>
+              <textarea
+                rows={3}
+                required
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="How can we help you?"
+                className="w-full px-3 py-2 text-xs rounded-xl border border-[#E2DDD5]"
+              />
+            </div>
 
-                <div>
-                  <label className="block text-stone-600 font-semibold mb-1">Detailed Message</label>
-                  <textarea
-                    required
-                    rows={4}
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    placeholder="Describe your query in full..."
-                    className="w-full px-3 py-2 border border-[#e8e2cf] bg-white rounded-lg focus:outline-none focus:border-[#d4af37]"
-                    id="contact-message-textarea"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  className="bg-[#d4af37] hover:bg-[#c19b2e] text-black font-semibold px-4 py-2 rounded-lg transition"
-                  id="contact-submit-btn"
-                >
-                  Send Message
-                </button>
-              </form>
-            )}
-          </div>
-        )}
-
-        {activeTab === "terms" && (
-          <div className="space-y-4 text-xs text-stone-600 leading-relaxed font-serif max-h-[400px] overflow-y-auto pr-2">
-            <h3 className="font-serif text-lg font-semibold text-stone-800 border-b border-[#f3eee0] pb-2 font-sans">
-              Terms & Conditions & Privacy Policy
-            </h3>
-            
-            <h4 className="font-sans font-bold text-stone-800 mt-4">1. Agreement to Terms</h4>
-            <p>
-              By accessing our platform (Kaviyam Reading), you agree to be bound by these legal terms. We simulate standard registration patterns to ensure educational clarity on security audits, CAPTCHAs, and Two-Factor Authentication.
-            </p>
-
-            <h4 className="font-sans font-bold text-stone-800 mt-4">2. AI Story Content Generation</h4>
-            <p>
-              AI generated stories are processed using Gemini large language models. The prompt you provide is securely sent through server-side proxy routes. You own the copyright to the creative results generated inside your workspace, but agree to utilize the AI system responsibly.
-            </p>
-
-            <h4 className="font-sans font-bold text-stone-800 mt-4">3. Data Integrity & Privacy</h4>
-            <p>
-              We prioritize privacy. The username, DOB, phone numbers, and profile photos entered here are strictly managed and stored within your private sandboxed container state. PII information is never exposed to public internet endpoints or unauthenticated client scrapers.
-            </p>
-
-            <h4 className="font-sans font-bold text-stone-800 mt-4">4. Account Termination</h4>
-            <p>
-              Administrators reserve the right to temporarily block, unblock, or permanently purge account databases if continuous login failures trigger safety lockout guards or malicious prompt injections are detected.
-            </p>
-          </div>
+            <button
+              type="submit"
+              className="px-6 py-2.5 rounded-xl bg-[#3B0B12] text-[#D4AF37] font-bold text-xs shadow-md hover:brightness-110 flex items-center gap-2"
+            >
+              <Send className="w-4 h-4" />
+              <span>Submit Query</span>
+            </button>
+          </form>
         )}
       </div>
+
     </div>
   );
 }

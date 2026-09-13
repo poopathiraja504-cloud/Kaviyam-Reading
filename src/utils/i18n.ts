@@ -14,24 +14,52 @@ export const translations = {
 
     // Navigation
     navHome: "முகப்பு",
-    navLibrary: "நூலகம்",
-    navMyBooks: "என் புத்தகங்கள்",
-    navProgress: "படிப்பு முன்னேற்றம்",
+    navTamilLibrary: "தமிழ் நூலகம்",
+    navCatalogLibrary: "கேட்டலாக் நூலகம்",
+    navMyBooks: "எனது புத்தகங்கள்",
+    navProgress: "வாசிப்பு முன்னேற்றம்",
     navAIFeatures: "AI அம்சங்கள்",
+    navProfileSettings: "சுயவிவர அமைப்புகள்",
+    navMailbox: "அஞ்சல் பெட்டி",
+    navLocalDB: "உள்ளூர் தரவுத்தளம்",
+    navHelpFAQ: "உதவி & கேள்விகள்",
     navAbout: "பற்றி",
     navBookmarks: "குறிப்புகள்",
     navFavorites: "விருப்பமானவை",
     navSettings: "அமைப்புகள்",
     navProfile: "சுயவிவரம்",
+    navAdmin: "நிர்வாகக் குழு",
     signIn: "உள்நுழையுங்கள்",
     signOut: "வெளியேறு",
     createAccount: "பதிவு செய்க",
     welcomeBack: "உள்நுழையுங்கள்",
 
     // Header & Search
-    searchPlaceholder: "நாவல்கள், ஆசிரியர்கள், புத்தகங்களை தேடுக...",
+    searchPlaceholder: "தமிழ் புத்தகங்கள், நாவல்கள், ஆசிரியர்களை தேடுக...",
     notifications: "அறிவிப்புகள்",
     guestMode: "விருந்தினர்",
+
+    // Tamil Library Sections
+    tamilClassics: "தமிழ் செவ்வியல்",
+    tamilNovels: "தமிழ் நாவல்கள்",
+    historicalNovels: "வரலாற்று நாவல்கள்",
+    romanticNovels: "காதல் நாவல்கள்",
+    shortStories: "சிறுகதைகள்",
+    literaryWorks: "இலக்கியப் படைப்புகள்",
+    modernTamilLit: "நவீன தமிழ் இலக்கியம்",
+    freeTamilBooks: "இலவச தமிழ் புத்தகங்கள்",
+    rareAcademicBooks: "அரிய & ஆய்வுப் புத்தகங்கள்",
+
+    // Archives & Resources
+    onlineArchivesTitle: "முக்கிய இணைய காப்பகங்கள் & தரவுத்தளங்கள்",
+    novelHubsTitle: "நவீன & காதல் நாவல் தளங்கள்",
+    offlinePresetsTitle: "தனிப்பட்ட பதிவிறக்கங்கள் & உள்ளூர் புத்தகங்கள்",
+    fetchNovelTitle: "நாவலைத் தேடிப் பெறுக (AI Ingest)",
+    fetchPlaceholder: "தமிழ் செவ்வியல் அல்லது நவீன நாவலின் பெயரை உள்ளிடுக...",
+    fetchBtn: "நாவலைப் பெறுக",
+    visitArchive: "காப்பகத்தைப் பார்வையிடுக",
+    openCommunity: "சமூகத்தில் இணைக",
+    openLocalBook: "உள்ளூர் புத்தகத்தைத் திறக்க",
 
     // Feature Highlights
     feature1Title: "பெரிய இலக்கியத் தொகுப்பு",
@@ -84,6 +112,8 @@ export const translations = {
     chapters: "அத்தியாயங்கள்",
     rating: "மதிப்பீடு",
     addCustomBook: "புதிய புத்தகம் சேர்க்க",
+    readNow: "இப்போது படிக்க",
+    addToLibrary: "நூலகத்தில் சேர்",
 
     // Book Details
     aboutBook: "புத்தகம் பற்றி",
@@ -162,24 +192,52 @@ export const translations = {
 
     // Navigation
     navHome: "Home",
-    navLibrary: "Library",
+    navTamilLibrary: "Tamil Library",
+    navCatalogLibrary: "Catalog Library",
     navMyBooks: "My Books",
     navProgress: "Progress",
     navAIFeatures: "AI Features",
+    navProfileSettings: "Profile Settings",
+    navMailbox: "Mailbox",
+    navLocalDB: "Local DB",
+    navHelpFAQ: "Help & FAQ",
     navAbout: "About",
     navBookmarks: "Bookmarks",
     navFavorites: "Favorites",
     navSettings: "Settings",
     navProfile: "Profile",
+    navAdmin: "Admin Panel",
     signIn: "Sign In",
     signOut: "Sign Out",
     createAccount: "Create Account",
     welcomeBack: "Welcome Back",
 
     // Header & Search
-    searchPlaceholder: "Search novels, authors, books...",
+    searchPlaceholder: "Search Tamil books, novels, authors...",
     notifications: "Notifications",
     guestMode: "Guest",
+
+    // Tamil Library Sections
+    tamilClassics: "Tamil Classics",
+    tamilNovels: "Tamil Novels",
+    historicalNovels: "Historical Novels",
+    romanticNovels: "Romantic Novels",
+    shortStories: "Short Stories",
+    literaryWorks: "Literary Works",
+    modernTamilLit: "Modern Tamil Literature",
+    freeTamilBooks: "Free Tamil Books",
+    rareAcademicBooks: "Rare & Academic Books",
+
+    // Archives & Resources
+    onlineArchivesTitle: "Major Online Archives & Databases",
+    novelHubsTitle: "Contemporary & Romantic Novel Hubs",
+    offlinePresetsTitle: "Personal Offline Downloads & Presets",
+    fetchNovelTitle: "Search & Fetch Novel (AI Ingest)",
+    fetchPlaceholder: "Enter Tamil classic or modern novel title...",
+    fetchBtn: "Fetch Novel",
+    visitArchive: "Visit Archive",
+    openCommunity: "Open Community",
+    openLocalBook: "Open Local Book",
 
     // Feature Highlights
     feature1Title: "Digital Library",
@@ -232,6 +290,8 @@ export const translations = {
     chapters: "Chapters",
     rating: "Rating",
     addCustomBook: "Add Custom Book",
+    readNow: "Read Now",
+    addToLibrary: "Add to Library",
 
     // Book Details
     aboutBook: "About the Book",

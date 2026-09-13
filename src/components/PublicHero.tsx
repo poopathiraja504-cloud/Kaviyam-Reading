@@ -1,6 +1,9 @@
 import React from "react";
 import { BookOpen, Sparkles, TrendingUp, Volume2, Globe, Search, ArrowRight, Star, Shield, Award } from "lucide-react";
 import { Language, translations } from "../utils/i18n";
+import Book3D from "./Book3D";
+import TiltCard from "./TiltCard";
+import { PRESET_BOOKS } from "../booksData";
 
 interface PublicHeroProps {
   lang: Language;
@@ -95,54 +98,53 @@ export default function PublicHero({ lang, onBrowseBooks, onStartReading }: Publ
 
           </div>
 
-          {/* Right Hero Visual Illustration (Temple + Manuscript + Glowing Book) */}
+          {/* Right Hero Visual — 3D bookshelf */}
           <div className="lg:col-span-5 relative flex items-center justify-center">
-            
-            {/* Visual Container */}
-            <div className="relative w-full max-w-md aspect-square rounded-3xl bg-gradient-to-b from-[#5C121E]/60 to-[#2A080E]/90 p-4 border border-[#D4AF37]/30 shadow-2xl overflow-hidden flex flex-col justify-between">
-              
-              {/* Temple Silhouette / Image backdrop */}
-              <div className="absolute inset-0 opacity-40 mix-blend-overlay">
+            <div className="relative w-full max-w-md aspect-square rounded-3xl bg-gradient-to-b from-[#5C121E]/60 to-[#2A080E]/90 p-4 border border-[#D4AF37]/30 shadow-2xl overflow-hidden">
+              <div className="absolute inset-0 opacity-30 mix-blend-overlay">
                 <img
                   src="https://images.unsplash.com/photo-1608659597669-b45511779f93?auto=format&fit=crop&q=80&w=800"
                   alt="Tamil Heritage Temple"
                   className="w-full h-full object-cover"
                 />
               </div>
-
-              {/* Glowing Aura overlay */}
               <div className="absolute inset-0 bg-gradient-to-t from-[#25060A] via-transparent to-[#3B0B12]/80" />
 
-              {/* Temple Gopuram SVG illustration */}
-              <div className="relative z-10 text-center pt-6">
-                <div className="inline-block p-4 rounded-2xl bg-[#3B0B12]/80 border border-[#D4AF37]/40 shadow-xl backdrop-blur-md">
-                  <span className="text-3xl tracking-widest text-[#D4AF37] font-serif block">𑿀 ௐ 𑿀</span>
-                  <p className="text-xs font-bold text-amber-100 tracking-wider uppercase mt-1">
+              <div className="relative z-10 text-center pt-3">
+                <div className="inline-block px-4 py-2 rounded-2xl bg-[#3B0B12]/80 border border-[#D4AF37]/40 shadow-xl backdrop-blur-md">
+                  <span className="text-2xl tracking-widest text-[#D4AF37] font-serif block">𑿀 ௐ 𑿀</span>
+                  <p className="text-[10px] font-bold text-amber-100 tracking-wider uppercase mt-0.5">
                     {lang === "ta" ? "காவியம் தமிழ் நூலகம்" : "Kaviyam Tamil Archives"}
                   </p>
                 </div>
               </div>
 
-              {/* Manuscript & Book Artwork */}
-              <div className="relative z-10 text-center space-y-3 pb-4">
-                <div className="relative inline-block">
-                  <div className="w-32 h-32 mx-auto rounded-2xl bg-gradient-to-tr from-[#D4AF37] via-[#FFE599] to-[#9A7B24] p-1 shadow-2xl rotate-3 animate-pulse">
-                    <div className="w-full h-full bg-[#3B0B12] rounded-xl flex items-center justify-center">
-                      <BookOpen className="w-14 h-14 text-[#D4AF37]" />
-                    </div>
-                  </div>
+              <div className="hero-bookshelf z-10">
+                <div className="hero-book hero-book-left">
+                  <Book3D
+                    coverUrl={PRESET_BOOKS[1]?.coverUrl || PRESET_BOOKS[0].coverUrl}
+                    title={PRESET_BOOKS[1]?.title || PRESET_BOOKS[0].title}
+                    tilt="none"
+                  />
                 </div>
-
-                <div className="px-6 py-2 rounded-xl bg-[#3B0B12]/90 border border-[#D4AF37]/30 backdrop-blur-md inline-block max-w-xs">
-                  <p className="text-xs italic text-amber-100">
-                    "நன்றே தொடங்குவோம், நல்வரவு காண்போம்"
-                  </p>
-                  <span className="text-[10px] text-[#D4AF37] block mt-0.5">– சங்க இலக்கியம்</span>
+                <div className="hero-book hero-book-center">
+                  <Book3D
+                    coverUrl={PRESET_BOOKS[0].coverUrl}
+                    title={PRESET_BOOKS[0].title}
+                    tilt="pointer"
+                    float
+                  />
                 </div>
+                <div className="hero-book hero-book-right">
+                  <Book3D
+                    coverUrl={PRESET_BOOKS[2]?.coverUrl || PRESET_BOOKS[0].coverUrl}
+                    title={PRESET_BOOKS[2]?.title || PRESET_BOOKS[0].title}
+                    tilt="none"
+                  />
+                </div>
+                <div className="hero-shelf" />
               </div>
-
             </div>
-
           </div>
 
         </div>
@@ -158,9 +160,10 @@ export default function PublicHero({ lang, onBrowseBooks, onStartReading }: Publ
           ].map((feat, idx) => {
             const Icon = feat.icon;
             return (
-              <div
+              <TiltCard
                 key={idx}
-                className="p-3 sm:p-4 rounded-2xl bg-[#3B0B12]/70 hover:bg-[#5C121E]/80 border border-[#D4AF37]/20 hover:border-[#D4AF37]/50 shadow-lg backdrop-blur-md transition-all duration-300 transform hover:-translate-y-1"
+                className="p-3 sm:p-4 rounded-2xl bg-[#3B0B12]/70 hover:bg-[#5C121E]/80 border border-[#D4AF37]/20 hover:border-[#D4AF37]/50 shadow-lg backdrop-blur-md"
+                intensity={8}
               >
                 <div className="w-8 h-8 rounded-xl bg-[#5C121E] flex items-center justify-center mb-2.5 border border-[#D4AF37]/30">
                   <Icon className="w-4 h-4 text-[#D4AF37]" />
@@ -170,7 +173,7 @@ export default function PublicHero({ lang, onBrowseBooks, onStartReading }: Publ
                 <span className="inline-block mt-2 px-2 py-0.5 rounded text-[9px] font-semibold bg-[#25060A] text-[#D4AF37] border border-[#5C121E]">
                   {feat.tag}
                 </span>
-              </div>
+              </TiltCard>
             );
           })}
         </div>

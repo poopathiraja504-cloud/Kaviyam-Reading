@@ -39,8 +39,13 @@ export default function Footer({ lang, onLanguageChange, onSelectTab }: FooterPr
             </h4>
             <ul className="space-y-2 text-xs">
               <li>
-                <button onClick={() => onSelectTab("library")} className="hover:text-white transition-colors">
-                  {t("navLibrary")}
+                <button onClick={() => onSelectTab("tamil-library")} className="hover:text-white transition-colors">
+                  {t("navTamilLibrary")}
+                </button>
+              </li>
+              <li>
+                <button onClick={() => onSelectTab("catalog")} className="hover:text-white transition-colors">
+                  {t("navCatalogLibrary")}
                 </button>
               </li>
               <li>

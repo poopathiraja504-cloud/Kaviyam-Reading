@@ -1,25 +1,47 @@
 import React, { useState } from "react";
-import { Globe, BookOpen, ExternalLink, Bookmark, MessageSquare, Download, Sparkles, BookMarked, Loader2, Search, ArrowRight } from "lucide-react";
-import { motion } from "motion/react";
+import { 
+  BookOpen, 
+  Users, 
+  Clock, 
+  Bookmark, 
+  ArrowRight, 
+  Sparkles, 
+  TrendingUp, 
+  PieChart, 
+  Play, 
+  PlusCircle, 
+  ChevronRight,
+  Award
+} from "lucide-react";
+import { Book } from "../types";
+import { Language, translations } from "../utils/i18n";
+import Book3D from "./Book3D";
+import TiltCard from "./TiltCard";
 
 interface TamilDashboardProps {
+  books: Book[];
   onSelectBook: (bookId: string) => void;
   bookmarks: string[];
   onToggleBookmark: (bookId: string) => void;
   onAddCustomBook: (newBook: any) => void;
+  lang: Language;
 }
 
 export default function TamilDashboard({
+  books,
   onSelectBook,
   bookmarks,
   onToggleBookmark,
   onAddCustomBook,
+  lang,
 }: TamilDashboardProps) {
-
   const [ingestName, setIngestName] = useState("");
   const [isIngesting, setIsIngesting] = useState(false);
   const [ingestError, setIngestError] = useState<string | null>(null);
 
+  const t = (key: keyof typeof translations["ta"]) => translations[lang][key] || key;
+
+  // Handle AI Ingestion of missing Tamil book
   const handleIngestBook = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!ingestName.trim()) return;
@@ -30,24 +52,22 @@ export default function TamilDashboard({
     try {
       const response = await fetch("/api/gemini/ingest-book", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ bookName: ingestName }),
       });
 
       const data = await response.json();
       if (!response.ok || data.error) {
-        throw new Error(data.error || "Failed to retrieve or compile requested Tamil book.");
+        throw new Error(data.error || "Failed to compile requested book.");
       }
 
-      const newBook = {
+      const newBook: Book = {
         id: `ingested-${Date.now()}`,
         title: data.title || ingestName,
         author: data.author || "Tamil Historical Archives",
-        description: data.description || `A curated bilingual masterpiece covering the epic story of ${ingestName}.`,
+        description: data.description || `A curated masterpiece covering ${ingestName}.`,
         coverUrl: "https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&q=80&w=400",
-        genre: data.genre || "Adventure",
+        genre: data.genre || "Classic",
         rating: 5.0,
         ratingCount: 120,
         chapters: data.chapters || [],
@@ -59,417 +79,253 @@ export default function TamilDashboard({
       onSelectBook(newBook.id);
       setIngestName("");
     } catch (err: any) {
-      console.error("Ingestion error:", err);
-      setIngestError(err.message || "Could not retrieve the book. Please try again.");
+      setIngestError(err.message || "Could not retrieve the book.");
     } finally {
       setIsIngesting(false);
     }
   };
 
-  const downloadHTMLDashboard = () => {
-    const htmlContent = `<!DOCTYPE html>
-<html lang="ta">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Tamil Novel Collection Dashboard</title>
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9; color: #333; margin: 0; padding: 20px; }
-        header { background-color: #003366; color: white; padding: 20px; text-align: center; border-radius: 8px; margin-bottom: 20px; }
-        .container { max-width: 1000px; margin: 0 auto; }
-        .section { background: white; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        h2 { color: #003366; border-bottom: 2px solid #f0f0f0; padding-bottom: 10px; }
-        ul { list-style-type: none; padding: 0; }
-        li { padding: 12px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
-        li:last-child { border-bottom: none; }
-        .btn { background-color: #28a745; color: white; padding: 6px 12px; text-decoration: none; border-radius: 4px; font-size: 14px; }
-        .btn:hover { background-color: #218838; }
-        .btn-visit { background-color: #007bff; }
-        .btn-visit:hover { background-color: #0069d9; }
-        .tag { background: #e9ecef; padding: 3px 8px; border-radius: 4px; font-size: 12px; color: #495057; }
-    </style>
-</head>
-<body>
-
-<div class="container">
-    <header>
-        <h1>தமிழ் நாவல்கள் நூலகம் (Tamil Novels Library)</h1>
-        <p>Access and download thousands of Tamil books from primary web databases.</p>
-    </header>
-
-    <!-- SECTION 1: TOP DIGITAL LIBRARIES -->
-    <div class="section">
-        <h2>🌐 Major Online Archives & Databases</h2>
-        <ul>
-            <li>
-                <div>
-                    <strong>Tamil Digital Library</strong> <span class="tag">Rare &amp; Academic</span>
-                    <br><small>Massive government archive of digitized historical books and rare texts.</small>
-                </div>
-                <a href="https://tamildigitallibrary.in" target="_blank" class="btn btn-visit">Visit Archive</a>
-            </li>
-            <li>
-                <div>
-                    <strong>Free Tamil Ebooks</strong> <span class="tag">Creative Commons</span>
-                    <br><small>Thousands of copyright-free classics like Ponniyin Selvan, fully formatted.</small>
-                </div>
-                <a href="https://freetamilebooks.com" target="_blank" class="btn btn-visit">Visit Site</a>
-            </li>
-            <li>
-                <div>
-                    <strong>Tamil Books PDF</strong> <span class="tag">2000+ Novels</span>
-                    <br><small>Collection featuring top contemporary, romance, and thriller authors.</small>
-                </div>
-                <a href="https://tamilbookspdf.com" target="_blank" class="btn btn-visit">Visit Site</a>
-            </li>
-        </ul>
-    </div>
-
-    <!-- SECTION 2: POPULAR COMMUNITY FORUMS -->
-    <div class="section">
-        <h2>💬 Contemporary & Romantic Novel Hubs</h2>
-        <ul>
-            <li>
-                <div>
-                    <strong>SM Tamil Novels Forum</strong> <span class="tag">Daily Updates</span>
-                    <br><small>Popular forum for independent and romantic Tamil fiction web-novels.</small>
-                </div>
-                <a href="https://forum.smtamilnovels.com" target="_blank" class="btn btn-visit">Open Forum</a>
-            </li>
-            <li>
-                <div>
-                    <strong>All Tamil Novels Blog</strong> <span class="tag">Direct Downloads</span>
-                    <br><small>Curated indexing site for popular romance and family story writers.</small>
-                </div>
-                <a href="https://alltamilnovelsdownload.blogspot.com" target="_blank" class="btn btn-visit">Open Blog</a>
-            </li>
-        </ul>
-    </div>
-
-    <!-- SECTION 3: LOCAL DOWNLOAD LINKS (Add your own links here) -->
-    <div class="section">
-        <h2>📂 My Personal Offline Downloads / Links</h2>
-        <p><small><em>Edit this section in your HTML file to add direct paths to PDFs saved on your hard drive!</em></small></p>
-        <ul>
-            <li>
-                <div><strong>Kalki - Ponniyin Selvan (Full Book)</strong></div>
-                <!-- Replace '#' with your actual downloaded file path, e.g., 'C:/Books/Ponniyin_Selvan.pdf' -->
-                <a href="#" class="btn">Open Local PDF</a>
-            </li>
-            <li>
-                <div><strong>Sandilyan - Yavana Rani</strong></div>
-                <a href="#" class="btn">Open Local PDF</a>
-            </li>
-        </ul>
-    </div>
-</div>
-
-</body>
-</html>`;
-
-    const blob = new Blob([htmlContent], { type: "text/html;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", "Tamil_Novels_Library_Dashboard.html");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-  
-  const archives = [
-    {
-      title: "Tamil Digital Library",
-      tag: "Rare & Academic",
-      desc: "Massive government archive of digitized historical books, manuscripts, and rare scholarly texts.",
-      url: "https://tamildigitallibrary.in",
-      domain: "tamildigitallibrary.in"
-    },
-    {
-      title: "Free Tamil Ebooks",
-      tag: "Creative Commons",
-      desc: "Thousands of copyright-free Tamil classics, formatted professionally for mobile readers and e-readers.",
-      url: "https://freetamilebooks.com",
-      domain: "freetamilebooks.com"
-    },
-    {
-      title: "Tamil Books PDF",
-      tag: "2000+ Novels",
-      desc: "Curated collection featuring contemporary, romantic, detective and historical thriller novels.",
-      url: "https://tamilbookspdf.com",
-      domain: "tamilbookspdf.com"
-    }
-  ];
-
-  const forums = [
-    {
-      title: "SM Tamil Novels Forum",
-      tag: "Daily Updates",
-      desc: "Leading active forum for independent writers and romantic Tamil web-novelists.",
-      url: "https://forum.smtamilnovels.com",
-      domain: "forum.smtamilnovels.com"
-    },
-    {
-      title: "All Tamil Novels Blog",
-      tag: "Direct Downloads",
-      desc: "Curated indexing and hosting site for popular contemporary romance and family drama writers.",
-      url: "https://alltamilnovelsdownload.blogspot.com",
-      domain: "alltamilnovelsdownload.blogspot.com"
-    }
-  ];
-
-  const localBooks = [
+  // Mock Continue Reading items matching reference dashboard
+  const continueReadingBooks = [
     {
       id: "ponniyin-selvan",
-      title: "Kalki - Ponniyin Selvan (Full Book)",
-      desc: "The timeless historical thriller epic describing the rise of Rajaraja Chola. Fully integrated bilingually into the reader.",
-      btnText: "Open Local Book"
+      title: "பொன்னியின் செல்வன்",
+      author: "கல்கி",
+      progress: 74,
+      cover: "https://images.unsplash.com/photo-1608659597669-b45511779f93?auto=format&fit=crop&q=80&w=300"
     },
     {
-      id: "yavana-rani",
-      title: "Sandilyan - Yavana Rani (Full Book)",
-      desc: "A thrilling ancient maritime adventure featuring Chola commanders and a Roman Queen.",
-      btnText: "Open Local Book"
+      id: "silappatikaram",
+      title: "சிலப்பதிகாரம்",
+      author: "இளங்கோ அடிகள்",
+      progress: 40,
+      cover: "https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&q=80&w=300"
+    },
+    {
+      id: "manimekalai",
+      title: "மணிமேகலை",
+      author: "சீத்தலை சாத்தனார்",
+      progress: 60,
+      cover: "https://images.unsplash.com/photo-1507842217343-583bb7270b66?auto=format&fit=crop&q=80&w=300"
+    },
+    {
+      id: "bharathiyar-poems",
+      title: "பாரதியார் கவிதைகள்",
+      author: "சுப்பிரமணிய பாரதி",
+      progress: 25,
+      cover: "https://images.unsplash.com/photo-1510519138101-570d1dca3d66?auto=format&fit=crop&q=80&w=300"
     }
   ];
 
   return (
-    <div className="space-y-8 text-left" id="tamil-dashboard-root">
+    <div className="space-y-8 font-sans pb-12">
       
-      {/* Tamil Header Banner */}
-      <div className="relative bg-gradient-to-r from-[#003366] to-[#001f3f] text-white rounded-3xl p-6 md:p-8 overflow-hidden shadow-md">
-        {/* Decorative background grid pattern */}
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-[#004080] via-[#002244] to-[#001122] opacity-90 z-0" />
-        <div className="absolute -right-16 -top-16 w-64 h-64 bg-[#bfa030]/10 blur-[50px] rounded-full pointer-events-none z-0" />
-
-        <div className="relative z-10 space-y-3">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/10 backdrop-blur-md text-[#bfa030] text-[10px] tracking-wider uppercase font-mono font-bold rounded-full border border-white/10">
-            <Sparkles size={11} className="animate-pulse" /> தமிழ் நாவல்கள் நூலகம்
-          </div>
-          <h1 className="font-serif text-2xl md:text-3xl font-extrabold text-white">
-            Tamil Novels Library & Dashboard
+      {/* Top Banner & Header */}
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-[#E2DDD5] shadow-sm">
+        <div>
+          <h1 className="font-serif text-2xl sm:text-3xl font-bold text-[#3B0B12]">
+            {t("dashTitle")}
           </h1>
-          <p className="text-stone-300 text-xs md:text-sm max-w-2xl leading-relaxed font-serif">
-            Welcome to your curated Tamil literary terminal! Access thousands of classics and contemporary stories from top digital archives, or read pre-loaded masterpiece editions directly inside our eye-safe, sandboxed reader.
+          <p className="text-xs sm:text-sm text-stone-500 mt-1">
+            {lang === "ta" ? "இன்றைய வாசிப்புச் சுருக்கம் மற்றும் முன்னேற்றம்" : "Your daily reading analytics & active bookshelf"}
           </p>
+        </div>
+
+        {/* AI Ingestion Quick Launcher */}
+        <form onSubmit={handleIngestBook} className="w-full md:w-auto flex items-center gap-2">
+          <input
+            type="text"
+            value={ingestName}
+            onChange={(e) => setIngestName(e.target.value)}
+            placeholder={lang === "ta" ? "புத்தகத்தின் பெயர் உள்ளிடுக..." : "Enter Tamil book title..."}
+            className="w-full md:w-64 px-3 py-2 text-xs rounded-xl bg-[#F7F2EB] text-stone-900 border border-[#E2DDD5] focus:outline-none focus:border-[#3B0B12]"
+          />
+          <button
+            type="submit"
+            disabled={isIngesting}
+            className="px-4 py-2 rounded-xl bg-[#3B0B12] text-[#D4AF37] text-xs font-semibold hover:brightness-110 flex items-center gap-1.5 flex-shrink-0 shadow-md"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>{isIngesting ? "..." : (lang === "ta" ? "AI மூலம் தேடுக" : "AI Ingest")}</span>
+          </button>
+        </form>
+      </div>
+
+      {/* 4 Summary Stats Cards Row */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          { label: t("totalBooks"), count: "1,286", change: "+12 " + t("thisWeek"), icon: BookOpen },
+          { label: t("totalAuthors"), count: "245", change: "+5 " + t("thisWeek"), icon: Users },
+          { label: t("readingTime"), count: "48h 36m", change: "+5h " + t("thisWeek"), icon: Clock },
+          { label: t("totalSeries"), count: "24", change: "+2 " + t("thisWeek"), icon: Bookmark },
+        ].map((stat, i) => {
+          const Icon = stat.icon;
+          return (
+            <TiltCard
+              key={i}
+              className="p-5 rounded-2xl bg-white border border-[#E2DDD5] shadow-sm hover:shadow-md"
+            >
+              <div className="flex items-center justify-between text-stone-500 mb-3">
+                <span className="text-xs font-semibold text-stone-600">{stat.label}</span>
+                <div className="w-8 h-8 rounded-xl bg-[#F7F2EB] flex items-center justify-center text-[#3B0B12]">
+                  <Icon className="w-4 h-4" />
+                </div>
+              </div>
+              <p className="font-serif text-2xl font-bold text-[#3B0B12]">{stat.count}</p>
+              <span className="text-[11px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full inline-block mt-1">
+                {stat.change}
+              </span>
+            </TiltCard>
+          );
+        })}
+      </div>
+
+      {/* Continue Reading Section */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="font-serif text-xl font-bold text-[#3B0B12] flex items-center gap-2">
+            <BookOpen className="w-5 h-5 text-[#D4AF37]" />
+            <span>{t("continueReading")}</span>
+          </h2>
+          <button className="text-xs font-semibold text-[#5C121E] hover:underline flex items-center gap-1">
+            <span>{t("viewAll")}</span>
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {continueReadingBooks.map((item) => (
+            <div
+              key={item.id}
+              onClick={() => onSelectBook(item.id)}
+              className="group cursor-pointer p-3.5 rounded-2xl bg-white border border-[#E2DDD5] shadow-sm hover:border-[#D4AF37] hover:shadow-lg transition-all duration-300 flex flex-col justify-between"
+            >
+              <div className="aspect-[3/4] w-full mb-3 relative">
+                <Book3D
+                  coverUrl={item.cover}
+                  title={item.title}
+                  overlay={
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="w-10 h-10 rounded-full bg-[#D4AF37] text-[#3B0B12] flex items-center justify-center shadow-xl">
+                        <Play className="w-5 h-5 fill-current ml-0.5" />
+                      </div>
+                    </div>
+                  }
+                />
+              </div>
+
+              <div>
+                <h3 className="font-serif font-bold text-stone-900 text-sm truncate group-hover:text-[#3B0B12]">
+                  {item.title}
+                </h3>
+                <p className="text-xs text-stone-500 truncate mt-0.5">{item.author}</p>
+
+                {/* Progress Bar */}
+                <div className="mt-3 space-y-1">
+                  <div className="flex justify-between text-[10px] font-bold text-stone-600">
+                    <span>{t("progress")}</span>
+                    <span className="text-[#3B0B12]">{item.progress}%</span>
+                  </div>
+                  <div className="w-full h-1.5 bg-stone-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-[#D4AF37] to-[#3B0B12] rounded-full"
+                      style={{ width: `${item.progress}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      {/* Analytics Section Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
-        {/* Left column: Archives and Forums */}
-        <div className="lg:col-span-8 space-y-8">
-          
-          {/* Instant Open Archive Book Ingestor - Guest Compatible */}
-          <div className="bg-white border border-stone-200/80 rounded-3xl p-6 shadow-sm space-y-4 text-left relative overflow-hidden">
-            <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-[#003366] to-[#bfa030]" />
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Search size={18} className="text-[#003366]" />
-                <h2 className="font-serif text-base font-bold text-stone-800">
-                  Search & Fetch Novel
-                </h2>
-              </div>
+        {/* Reading Progress Line Graph (8 Cols) */}
+        <div className="lg:col-span-8 p-6 rounded-2xl bg-white border border-[#E2DDD5] shadow-sm space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-serif font-bold text-lg text-[#3B0B12]">{t("readingActivity")}</h3>
+              <p className="text-xs text-stone-500">
+                {lang === "ta" ? "மாதாந்திர வாசிப்பு சதவீதங்கள்" : "Monthly reading completion percentages"}
+              </p>
             </div>
-            
-            <p className="text-stone-600 text-xs leading-relaxed font-serif">
-              Enter the title of any Tamil classic or modern novel to add it to your reading tray instantly.
-            </p>
-
-            <form onSubmit={handleIngestBook} className="space-y-3 pt-1">
-              <div>
-                <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1.5">
-                  Book Name / Novel Title
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g., Sivagamiyin Sabatham, Parthiban Kanavu, Kadal Pura, Alai Osai..."
-                    value={ingestName}
-                    onChange={(e) => setIngestName(e.target.value)}
-                    disabled={isIngesting}
-                    className="flex-grow px-4 py-2.5 rounded-xl border border-stone-200 bg-stone-50 text-stone-800 placeholder-stone-400 text-xs focus:outline-none focus:border-stone-400 focus:bg-white transition-all"
-                    id="guest-ingest-book-input"
-                  />
-                  <button
-                    type="submit"
-                    disabled={isIngesting || !ingestName.trim()}
-                    className={`px-5 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center gap-1.5 shrink-0 ${
-                      isIngesting || !ingestName.trim()
-                        ? "bg-stone-100 text-stone-400 border border-stone-200 cursor-not-allowed"
-                        : "bg-[#003366] hover:bg-[#002244] text-white shadow-sm"
-                    }`}
-                    id="guest-ingest-submit-btn"
-                  >
-                    {isIngesting ? (
-                      <>
-                        <Loader2 className="animate-spin text-white" size={13} />
-                        Ingesting...
-                      </>
-                    ) : (
-                      <>
-                        Fetch Novel
-                        <ArrowRight size={13} />
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-              
-              {ingestError && (
-                <div className="p-3 bg-red-50 border border-red-100 text-red-700 text-xs rounded-xl">
-                  {ingestError}
-                </div>
-              )}
-            </form>
+            <span className="text-xs font-semibold px-3 py-1 rounded-full bg-[#F7F2EB] text-[#3B0B12]">
+              2026
+            </span>
           </div>
 
-          {/* Section 1: Major Online Archives */}
-          <div className="bg-white border border-stone-200/80 rounded-3xl p-6 shadow-sm space-y-5 text-left">
-            <div className="flex items-center gap-2 border-b border-stone-100 pb-3">
-              <Globe size={18} className="text-[#003366]" />
-              <h2 className="font-serif text-base font-bold text-stone-800">
-                🌐 Major Online Archives & Databases
-              </h2>
-            </div>
-            
-            <div className="space-y-4">
-              {archives.map((archive, idx) => (
-                <div 
-                  key={idx}
-                  className="p-4 border border-stone-100 bg-stone-50/50 rounded-2xl hover:border-stone-200/80 hover:bg-white transition duration-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
-                >
-                  <div className="space-y-1 text-left">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <strong className="text-stone-800 font-serif text-sm">{archive.title}</strong>
-                      <span className="text-[9px] font-mono font-bold uppercase bg-stone-200 text-stone-700 px-2 py-0.5 rounded">
-                        {archive.tag}
-                      </span>
-                    </div>
-                    <p className="text-stone-500 text-xs leading-relaxed max-w-lg">{archive.desc}</p>
-                    <span className="text-[10px] font-mono text-[#003366] hover:underline cursor-pointer block pt-0.5">
-                      {archive.domain}
+          {/* Canvas SVG Line Graph */}
+          <div className="h-52 w-full pt-4 flex items-end justify-between gap-2 border-b border-[#E2DDD5] pb-2">
+            {[
+              { month: "Jan", val: 35 },
+              { month: "Feb", val: 48 },
+              { month: "Mar", val: 62 },
+              { month: "Apr", val: 55 },
+              { month: "May", val: 78 },
+              { month: "Jun", val: 88 },
+              { month: "Jul", val: 70 },
+              { month: "Aug", val: 92 },
+            ].map((d, idx) => (
+              <div key={idx} className="flex-1 flex flex-col items-center gap-2 group">
+                <div className="w-full flex justify-center items-end h-40">
+                  <div
+                    className="w-full max-w-[28px] bg-gradient-to-t from-[#3B0B12] to-[#D4AF37] rounded-t-lg group-hover:brightness-125 transition-all duration-300 relative"
+                    style={{ height: `${d.val}%` }}
+                  >
+                    <span className="opacity-0 group-hover:opacity-100 absolute -top-7 left-1/2 -translate-x-1/2 bg-[#3B0B12] text-[#D4AF37] text-[9px] font-bold px-1.5 py-0.5 rounded shadow whitespace-nowrap transition-opacity">
+                      {d.val}%
                     </span>
                   </div>
-                  
-                  <a 
-                    href={archive.url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    referrerPolicy="no-referrer"
-                    className="w-full sm:w-auto px-4 py-2 bg-[#003366] hover:bg-[#002244] text-white text-xs font-bold rounded-xl transition shadow-sm flex items-center justify-center gap-1.5 flex-shrink-0"
-                  >
-                    Visit Archive
-                    <ExternalLink size={12} />
-                  </a>
                 </div>
-              ))}
-            </div>
+                <span className="text-[11px] font-semibold text-stone-500">{d.month}</span>
+              </div>
+            ))}
           </div>
-
-          {/* Section 2: Forums & Communities */}
-          <div className="bg-white border border-stone-200/80 rounded-3xl p-6 shadow-sm space-y-5 text-left">
-            <div className="flex items-center gap-2 border-b border-stone-100 pb-3">
-              <MessageSquare size={18} className="text-[#003366]" />
-              <h2 className="font-serif text-base font-bold text-stone-800">
-                💬 Contemporary & Romantic Novel Hubs
-              </h2>
-            </div>
-            
-            <div className="space-y-4">
-              {forums.map((forum, idx) => (
-                <div 
-                  key={idx}
-                  className="p-4 border border-stone-100 bg-stone-50/50 rounded-2xl hover:border-stone-200/80 hover:bg-white transition duration-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
-                >
-                  <div className="space-y-1 text-left">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <strong className="text-stone-800 font-serif text-sm">{forum.title}</strong>
-                      <span className="text-[9px] font-mono font-bold uppercase bg-stone-200 text-stone-700 px-2 py-0.5 rounded">
-                        {forum.tag}
-                      </span>
-                    </div>
-                    <p className="text-stone-500 text-xs leading-relaxed max-w-lg">{forum.desc}</p>
-                    <span className="text-[10px] font-mono text-[#003366] hover:underline cursor-pointer block pt-0.5">
-                      {forum.domain}
-                    </span>
-                  </div>
-                  
-                  <a 
-                    href={forum.url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    referrerPolicy="no-referrer"
-                    className="w-full sm:w-auto px-4 py-2 bg-[#003366] hover:bg-[#002244] text-white text-xs font-bold rounded-xl transition shadow-sm flex items-center justify-center gap-1.5 flex-shrink-0"
-                  >
-                    Open Community
-                    <ExternalLink size={12} />
-                  </a>
-                </div>
-              ))}
-            </div>
-          </div>
-
         </div>
 
-        {/* Right column: Local reads / Offline Downloads */}
-        <div className="lg:col-span-4 space-y-6">
-          
-          <div className="bg-white border border-stone-200/80 rounded-3xl p-6 shadow-sm space-y-5 text-left relative overflow-hidden">
-            <div className="absolute top-0 inset-x-0 h-1 bg-[#bfa030]" />
+        {/* Genre Distribution Pie / Donut Chart (4 Cols) */}
+        <div className="lg:col-span-4 p-6 rounded-2xl bg-white border border-[#E2DDD5] shadow-sm space-y-4">
+          <h3 className="font-serif font-bold text-lg text-[#3B0B12]">{t("genreDistribution")}</h3>
 
-            <div className="flex items-center gap-2 border-b border-stone-100 pb-3">
-              <Download size={18} className="text-[#bfa030]" />
-              <h2 className="font-serif text-base font-bold text-stone-800">
-                📂 Personal Offline Downloads & Presets
-              </h2>
+          <div className="flex flex-col items-center justify-center py-4">
+            <div className="relative w-36 h-36 rounded-full border-8 border-[#3B0B12] border-t-[#D4AF37] border-r-amber-700 flex items-center justify-center">
+              <div className="text-center">
+                <span className="text-2xl font-bold font-serif text-[#3B0B12]">100%</span>
+                <span className="block text-[10px] text-stone-500 uppercase">{lang === "ta" ? "வகைகள்" : "Genres"}</span>
+              </div>
             </div>
-            
-            <p className="text-[11px] text-stone-500 leading-relaxed font-serif">
-              Open preset epic volumes or link files below. You can bookmark them to add them directly to your personal reading shelf for safe session logging!
-            </p>
+          </div>
 
-            <div className="space-y-4 pt-2">
-              {localBooks.map((book) => {
-                const isBookmarked = bookmarks.includes(book.id);
-                return (
-                  <div 
-                    key={book.id}
-                    className="p-4 border border-stone-150 bg-[#faf9f5] rounded-2xl flex flex-col justify-between space-y-3 shadow-inner hover:bg-amber-50/20 transition duration-200"
-                  >
-                    <div className="space-y-1">
-                      <h4 className="font-serif font-bold text-stone-800 text-xs">
-                        {book.title}
-                      </h4>
-                      <p className="text-[10px] text-stone-500 leading-relaxed">
-                        {book.desc}
-                      </p>
-                    </div>
-
-                    <div className="flex gap-2 pt-1">
-                      <button
-                        onClick={() => onSelectBook(book.id)}
-                        className="flex-1 py-1.5 bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold rounded-lg transition text-center shadow-sm"
-                      >
-                        {book.btnText}
-                      </button>
-                      
-                      <button
-                        onClick={() => onToggleBookmark(book.id)}
-                        className={`px-2.5 py-1.5 border rounded-lg transition flex items-center justify-center ${
-                          isBookmarked 
-                            ? "bg-[#bfa030] border-[#aa8e28] text-black" 
-                            : "bg-white border-stone-200 text-stone-500 hover:text-stone-800"
-                        }`}
-                        title={isBookmarked ? "Remove Bookmark" : "Save to Bookshelf"}
-                      >
-                        <Bookmark size={13} className={isBookmarked ? "fill-current" : ""} />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
+          <div className="space-y-2 text-xs font-medium">
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-[#3B0B12]" />
+                {lang === "ta" ? "நாவல்கள்" : "Novels"}
+              </span>
+              <span className="font-bold text-stone-800">40%</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-[#D4AF37]" />
+                {lang === "ta" ? "காவியங்கள்" : "Epics"}
+              </span>
+              <span className="font-bold text-stone-800">25%</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-amber-700" />
+                {lang === "ta" ? "கவிதைகள்" : "Poetry"}
+              </span>
+              <span className="font-bold text-stone-800">20%</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-stone-300" />
+                {lang === "ta" ? "கட்டுரைகள்" : "Essays"}
+              </span>
+              <span className="font-bold text-stone-800">15%</span>
             </div>
           </div>
         </div>
