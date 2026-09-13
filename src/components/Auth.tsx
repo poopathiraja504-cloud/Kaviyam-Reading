@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import {
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithRedirect,
   ConfirmationResult,
 } from "firebase/auth";
 import { auth } from "../firebase";
@@ -87,7 +88,7 @@ export default function Auth({
   useEffect(() => {
     if (phoneCountdown <= 0) return;
     const timer = setInterval(() => {
-      setPhoneCountdown((prev) => prev - 1);
+      setPhoneCountdown((prev: number) => prev - 1);
     }, 1000);
     return () => clearInterval(timer);
   }, [phoneCountdown]);
@@ -98,17 +99,24 @@ export default function Auth({
     }
   }, [resetToken]);
 
-  // Google Sign-In with GoogleAuthProvider and signInWithPopup(auth, provider)
+  // Google Sign-In with GoogleAuthProvider and signInWithPopup/Redirect
   const isGooglePopupActiveRef = useRef(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const handleGoogleLoginClick = async () => {
-    if (isGooglePopupActiveRef.current) return;
+    if (isGooglePopupActiveRef.current || isGoogleLoading) return;
     setErrorMsg(null);
     setSuccessMsg(null);
 
     const isIframe = typeof window !== "undefined" && window.self !== window.top;
 
+    if (isIframe) {
+      setErrorMsg("Google Sign-In is unavailable inside the embedded preview. Please open the app in a new browser tab to continue.");
+      return;
+    }
+
     isGooglePopupActiveRef.current = true;
+    setIsGoogleLoading(true);
 
     try {
       if (onGoogleLogin) {
@@ -116,25 +124,38 @@ export default function Auth({
       } else {
         const provider = new GoogleAuthProvider();
         provider.setCustomParameters({ prompt: "select_account" });
-        await signInWithPopup(auth, provider);
+        try {
+          await signInWithPopup(auth, provider);
+        } catch (popupErr: any) {
+          if (popupErr?.code === "auth/popup-blocked") {
+            await signInWithRedirect(auth, provider);
+            return;
+          }
+          throw popupErr;
+        }
       }
     } catch (err: any) {
+      console.error("Google Sign-In Diagnostic Error details:", {
+        code: err?.code,
+        message: err?.message,
+        name: err?.name,
+        customData: err?.customData,
+        fullError: err
+      });
       const errCode = err?.code || "";
       let errMsg = "";
       if (errCode === "auth/popup-closed-by-user") {
-        errMsg = "The Google sign-in window was closed before completing authentication. Please try again.";
+        errMsg = "Google Sign-In was cancelled.";
       } else if (errCode === "auth/popup-blocked") {
-        errMsg = "The sign-in popup was blocked by your browser. Please allow popups for this site or open the app in a new browser tab.";
+        errMsg = "Your browser blocked the Google Sign-In window. Please allow popups and try again.";
       } else if (errCode === "auth/cancelled-popup-request") {
         errMsg = "A sign-in request was already in progress and has been reset. Please click again.";
       } else if (errCode === "auth/unauthorized-domain") {
-        errMsg = "This domain is not authorized in your Firebase Authentication settings. Please add this domain to 'Authorized domains' in Firebase Console (Authentication > Settings > Authorized domains).";
-      } else if (
-        errCode === "auth/internal-error" ||
-        isIframe ||
-        (typeof window !== "undefined" && (errCode.includes("internal-error") || err?.message?.includes("iframe") || errCode.includes("network-request-failed")))
-      ) {
-        errMsg = "Google Sign-In popup could not complete within the embedded iframe environment. Google OAuth blocks popups inside embedded frames for security. Please click the button below to open the application in a new browser tab to sign in with Google, or sign in using Email or Phone login.";
+        errMsg = "Google Sign-In is not enabled for this website domain. Please add this domain to Firebase Authorized Domains in Firebase Console.";
+      } else if (errCode === "auth/network-request-failed" || err?.message?.includes("network")) {
+        errMsg = "Network error. Please check your internet connection and try again.";
+      } else if (errCode) {
+        errMsg = `Firebase Error [${errCode}]: ${err?.message || "Google Sign-In failed."}`;
       } else {
         errMsg = err?.message || (typeof err === "string" ? err : "Google Sign-In failed.");
       }
@@ -142,6 +163,7 @@ export default function Auth({
       addSystemLog(`Google Sign-In Notice: ${errCode || errMsg}`, "Blocked");
     } finally {
       isGooglePopupActiveRef.current = false;
+      setIsGoogleLoading(false);
     }
   };
 
@@ -421,8 +443,8 @@ export default function Auth({
             <div>
               <span className="font-extrabold text-[#f0c15c] block text-[11px] uppercase tracking-wider">SECURE AUTH:</span>
               <span className="text-stone-300 text-[11px]">
-                {view === "phoneLogin" 
-                  ? "Firebase Phone Authentication with SMS verification code." 
+                {view === "phoneLogin"
+                  ? "Firebase Phone Authentication with SMS verification code."
                   : "Firebase Authentication enabled with Email/Password & Google Sign-In."}
               </span>
             </div>
@@ -440,11 +462,10 @@ export default function Auth({
                 clearRecaptchaVerifier();
                 setView("login");
               }}
-              className={`flex-1 py-2.5 px-3 rounded-xl font-extrabold text-xs md:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                view === "login"
+              className={`flex-1 py-2.5 px-3 rounded-xl font-extrabold text-xs md:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer ${view === "login"
                   ? "bg-gradient-to-r from-[#f0c15c] via-[#f2a93b] to-[#d48c1a] text-stone-950 shadow-md scale-[1.02]"
                   : "text-stone-300 hover:text-white hover:bg-[#122347]"
-              }`}
+                }`}
               id="tab-login-email"
             >
               <Mail size={15} />
@@ -458,11 +479,10 @@ export default function Auth({
                 clearRecaptchaVerifier();
                 setView("phoneLogin");
               }}
-              className={`flex-1 py-2.5 px-3 rounded-xl font-extrabold text-xs md:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                view === "phoneLogin"
+              className={`flex-1 py-2.5 px-3 rounded-xl font-extrabold text-xs md:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer ${view === "phoneLogin"
                   ? "bg-gradient-to-r from-[#f0c15c] via-[#f2a93b] to-[#d48c1a] text-stone-950 shadow-md scale-[1.02]"
                   : "text-stone-300 hover:text-white hover:bg-[#122347]"
-              }`}
+                }`}
               id="tab-login-phone"
             >
               <Smartphone size={15} />
@@ -476,16 +496,16 @@ export default function Auth({
             <AlertTriangle size={14} className="mt-0.5 flex-shrink-0 text-red-400" />
             <div className="flex-1">
               <span className="leading-relaxed block whitespace-pre-line font-medium">{errorMsg}</span>
-              {(typeof window !== "undefined" && window.self !== window.top || errorMsg.includes("iframe") || errorMsg.includes("Google")) && (
+              {typeof window !== "undefined" && window.self !== window.top && (
                 <a
-                  href={`${window.location.origin}${window.location.pathname}?auth=google`}
+                  href={`${window.location.origin}${window.location.pathname}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="mt-2.5 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#f0c15c] via-[#f2a93b] to-[#d48c1a] text-stone-950 font-extrabold text-[11px] hover:brightness-110 transition-all shadow-md cursor-pointer"
                   id="open-in-new-tab-auth-btn"
                 >
                   <ExternalLink size={13} />
-                  Open App in New Tab to Sign In with Google
+                  Open App in New Tab
                 </a>
               )}
             </div>
@@ -518,7 +538,7 @@ export default function Auth({
                     required
                     placeholder="e.g. reader@example.com"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e: { target: { value: any; }; }) => setEmail(e.target.value)}
                     className="w-full pl-10 pr-4 py-3 border border-[#1e3258] bg-[#0a152d] text-stone-100 placeholder-stone-500 rounded-xl focus:outline-none focus:border-[#f0c15c] transition-all text-xs md:text-sm"
                     id="login-email-input"
                   />
@@ -544,7 +564,7 @@ export default function Auth({
                     required
                     placeholder="••••••••"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e: { target: { value: any; }; }) => setPassword(e.target.value)}
                     className="w-full pl-10 pr-10 py-3 border border-[#1e3258] bg-[#0a152d] text-stone-100 placeholder-stone-500 rounded-xl focus:outline-none focus:border-[#f0c15c] transition-all text-xs md:text-sm"
                     id="login-password-input"
                   />
@@ -579,7 +599,8 @@ export default function Auth({
                 <button
                   type="button"
                   onClick={handleGoogleLoginClick}
-                  className="flex items-center justify-center gap-2 py-3 px-3 border border-[#1e3258] bg-[#0c1830] hover:bg-[#132549] text-stone-100 font-bold rounded-2xl transition duration-200 text-xs md:text-sm shadow-sm cursor-pointer"
+                  disabled={isGoogleLoading}
+                  className="flex items-center justify-center gap-2 py-3 px-3 border border-[#1e3258] bg-[#0c1830] hover:bg-[#132549] text-stone-100 font-bold rounded-2xl transition duration-200 text-xs md:text-sm shadow-sm cursor-pointer disabled:opacity-60"
                   id="login-google-signin-btn"
                 >
                   <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24">
@@ -588,7 +609,7 @@ export default function Auth({
                     <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
                     <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
                   </svg>
-                  <span className="truncate">Google</span>
+                  <span className="truncate">{isGoogleLoading ? "Signing in..." : "Google"}</span>
                 </button>
 
                 <button
@@ -633,7 +654,7 @@ export default function Auth({
                     <div className="flex gap-2">
                       <select
                         value={phoneCountryCode}
-                        onChange={(e) => setPhoneCountryCode(e.target.value)}
+                        onChange={(e: { target: { value: any; }; }) => setPhoneCountryCode(e.target.value)}
                         className="py-3 px-2.5 border border-[#1e3258] bg-[#0a152d] text-stone-100 rounded-xl font-bold focus:outline-none focus:border-[#f0c15c] transition-all text-xs cursor-pointer shadow-sm"
                         id="phone-country-select"
                       >
@@ -653,7 +674,7 @@ export default function Auth({
                           required
                           placeholder="81234 56789"
                           value={phoneNumber}
-                          onChange={(e) => setPhoneNumber(e.target.value)}
+                          onChange={(e: { target: { value: any; }; }) => setPhoneNumber(e.target.value)}
                           className="w-full px-4 py-3 border border-[#1e3258] bg-[#0a152d] text-stone-100 placeholder-stone-500 rounded-xl focus:outline-none focus:border-[#f0c15c] transition-all text-xs md:text-sm font-mono tracking-wider"
                           id="phone-number-input"
                         />
@@ -797,7 +818,7 @@ export default function Auth({
                     required
                     placeholder="e.g. reader@example.com"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e: { target: { value: any; }; }) => setEmail(e.target.value)}
                     className="w-full pl-10 pr-4 py-3 border border-[#1e3258] bg-[#0a152d] text-stone-100 placeholder-stone-500 rounded-xl focus:outline-none focus:border-[#f0c15c] transition-all text-xs md:text-sm"
                     id="register-email-input"
                   />
@@ -813,7 +834,7 @@ export default function Auth({
                     required
                     placeholder="Choose an author moniker"
                     value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    onChange={(e: { target: { value: any; }; }) => setUsername(e.target.value)}
                     className="w-full pl-10 pr-4 py-3 border border-[#1e3258] bg-[#0a152d] text-stone-100 placeholder-stone-500 rounded-xl focus:outline-none focus:border-[#f0c15c] transition-all text-xs md:text-sm"
                     id="register-username-input"
                   />
@@ -828,7 +849,7 @@ export default function Auth({
                     type={showRegisterPassword ? "text" : "password"}
                     placeholder="Create a secure password"
                     value={registerPassword}
-                    onChange={(e) => setRegisterPassword(e.target.value)}
+                    onChange={(e: { target: { value: any; }; }) => setRegisterPassword(e.target.value)}
                     className="w-full pl-10 pr-10 py-3 border border-[#1e3258] bg-[#0a152d] text-stone-100 placeholder-stone-500 rounded-xl focus:outline-none focus:border-[#f0c15c] transition-all text-xs md:text-sm"
                     id="register-password-input"
                   />
@@ -849,7 +870,7 @@ export default function Auth({
                     type="date"
                     required
                     value={dob}
-                    onChange={(e) => setDob(e.target.value)}
+                    onChange={(e: { target: { value: any; }; }) => setDob(e.target.value)}
                     className="w-full px-3 py-2.5 border border-[#1e3258] bg-[#0a152d] text-stone-100 rounded-xl focus:outline-none focus:border-[#f0c15c]"
                     id="register-dob-input"
                   />
@@ -858,7 +879,7 @@ export default function Auth({
                   <label className="block font-bold text-stone-200 mb-1.5">Gender</label>
                   <select
                     value={gender}
-                    onChange={(e) => setGender(e.target.value)}
+                    onChange={(e: { target: { value: any; }; }) => setGender(e.target.value)}
                     className="w-full px-3 py-2.5 border border-[#1e3258] bg-[#0a152d] text-stone-100 focus:outline-none focus:border-[#f0c15c] rounded-xl text-xs cursor-pointer"
                     id="register-gender-input"
                   >
@@ -910,7 +931,7 @@ export default function Auth({
                     required
                     placeholder="name@example.com"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e: { target: { value: any; }; }) => setEmail(e.target.value)}
                     className="w-full pl-10 pr-4 py-3 border border-[#1e3258] bg-[#0a152d] text-stone-100 placeholder-stone-500 rounded-xl focus:outline-none focus:border-[#f0c15c]"
                     id="forgot-email-input"
                   />
@@ -959,7 +980,7 @@ export default function Auth({
                     required
                     placeholder="At least 6 complex characters"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e: { target: { value: any; }; }) => setPassword(e.target.value)}
                     className="w-full pl-10 pr-4 py-3 border border-[#1e3258] bg-[#0a152d] text-stone-100 focus:outline-none focus:border-[#f0c15c] rounded-xl"
                     id="reset-password-input"
                   />

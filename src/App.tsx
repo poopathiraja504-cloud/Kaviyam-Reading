@@ -13,7 +13,9 @@ import {
   onAuthStateChanged,
   ConfirmationResult,
   GoogleAuthProvider,
-  signInWithPopup
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult
 } from "firebase/auth";
 import { sendPhoneOtp, verifyPhoneOtp, clearRecaptchaVerifier } from "./lib/phoneAuth";
 import { 
@@ -243,34 +245,22 @@ export default function App() {
     return () => unsubscribe();
   }, [users]);
 
-  // Auto-trigger Google Auth if opened with ?auth=google in a top-level window tab
+  // Listen for Firebase Redirect Result (for signInWithRedirect authentication flow)
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const isTopWindow = window.self === window.top;
-    const urlParams = new URLSearchParams(window.location.search);
-    if (isTopWindow && urlParams.get("auth") === "google" && !currentUser) {
-      const newUrl = window.location.pathname + window.location.hash;
-      window.history.replaceState({}, document.title, newUrl);
-
-      const timer = setTimeout(() => {
-        const provider = new GoogleAuthProvider();
-        provider.setCustomParameters({ prompt: "select_account" });
-        signInWithPopup(auth, provider)
-          .then((result) => {
-            if (result?.user) {
-              addSystemLog(`Google Sign-In Success (${result.user.email || result.user.uid})`, "Success");
-              setActiveTab("library");
-              setIsGuestMode(false);
-            }
-          })
-          .catch((err) => {
-            console.warn("Auto-triggered Google Sign-In notice:", err?.message || err);
-          });
-      }, 500);
-
-      return () => clearTimeout(timer);
-    }
-  }, [currentUser]);
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result?.user) {
+          addSystemLog(`Google Sign-In via Redirect Success (${result.user.email || result.user.uid})`, "Success");
+          setActiveTab("library");
+          setIsGuestMode(false);
+        }
+      })
+      .catch((err: any) => {
+        if (err?.code && err.code !== "auth/credential-already-in-use") {
+          console.warn("Firebase getRedirectResult notice:", err?.message || err);
+        }
+      });
+  }, []);
 
   // Load Initial Local & Firestore State
   useEffect(() => {
@@ -798,38 +788,57 @@ export default function App() {
 
     const isIframe = typeof window !== "undefined" && window.self !== window.top;
 
+    if (isIframe) {
+      throw new Error("Google Sign-In is unavailable inside the embedded preview. Open the app in a new browser tab to continue.");
+    }
+
     isGooglePopupActiveRef.current = true;
 
     try {
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: "select_account" });
-      const result = await signInWithPopup(auth, provider);
+      
+      let result;
+      try {
+        result = await signInWithPopup(auth, provider);
+      } catch (popupErr: any) {
+        if (popupErr?.code === "auth/popup-blocked") {
+          await signInWithRedirect(auth, provider);
+          return;
+        }
+        throw popupErr;
+      }
+
       if (result?.user) {
         addSystemLog(`Google Sign-In Success (${result.user.email || result.user.uid})`, "Success");
         setActiveTab("library");
         setIsGuestMode(false);
       }
     } catch (err: any) {
+      console.error("Firebase Google Auth Diagnostic Error details:", {
+        code: err?.code,
+        message: err?.message,
+        name: err?.name,
+        customData: err?.customData,
+        fullError: err
+      });
       const errCode = err?.code || "";
       let userFriendlyMessage = "";
 
       if (errCode === "auth/popup-closed-by-user") {
-        userFriendlyMessage = "The Google sign-in window was closed before completing authentication. Please try again.";
+        userFriendlyMessage = "Google Sign-In was cancelled.";
       } else if (errCode === "auth/popup-blocked") {
-        userFriendlyMessage = "The sign-in popup was blocked by your browser. Please allow popups for this site or open the app in a new tab.";
+        userFriendlyMessage = "Your browser blocked the Google Sign-In window. Please allow popups and try again.";
       } else if (errCode === "auth/cancelled-popup-request") {
         userFriendlyMessage = "A sign-in request was already in progress and has been reset. Please click again.";
       } else if (errCode === "auth/unauthorized-domain") {
-        userFriendlyMessage = "This domain is not authorized in your Firebase Authentication settings. Please add this domain to 'Authorized domains' in Firebase Console (Authentication > Settings > Authorized domains).";
-      } else if (
-        errCode === "auth/internal-error" ||
-        errCode.includes("internal-error") ||
-        isIframe ||
-        (typeof window !== "undefined" && (errCode.includes("network-request-failed") || err?.message?.includes("iframe")))
-      ) {
-        userFriendlyMessage = "Google Sign-In popup cannot complete within an embedded iframe environment. Please open the app in a new browser tab to sign in with Google, or use Email or Phone login.";
+        userFriendlyMessage = "Google Sign-In is not enabled for this website domain. Please add this domain to Firebase Authorized Domains in Firebase Console.";
+      } else if (errCode === "auth/network-request-failed" || err?.message?.includes("network")) {
+        userFriendlyMessage = "Network error. Please check your internet connection and try again.";
+      } else if (errCode) {
+        userFriendlyMessage = `Firebase Error [${errCode}]: ${err?.message || "Google Sign-In failed."}`;
       } else {
-        userFriendlyMessage = err?.message || (typeof err === "string" ? err : "Google Sign-In failed.");
+        userFriendlyMessage = err?.message || "Authentication is temporarily unavailable. Please try again.";
       }
 
       addSystemLog(`Google Sign-In Notice: ${errCode || userFriendlyMessage}`, "Blocked");
