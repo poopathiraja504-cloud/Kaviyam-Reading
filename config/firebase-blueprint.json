@@ -2,22 +2,13 @@
   "entities": {
     "User": {
       "title": "User",
-      "description": "Represents a user profile document in /users/{userId} in Kaviyam Reading",
+      "description": "Represents a user profile in Kaviyam Reading",
       "type": "object",
       "properties": {
-        "uid": { "type": "string", "description": "The unique identifier of the user (Firebase Auth UID)" },
-        "id": { "type": "string", "description": "Alias for the user's UID" },
-        "name": { "type": "string", "description": "User's full display name" },
+        "id": { "type": "string", "description": "The unique identifier of the user (Firebase Auth UID)" },
         "email": { "type": "string", "description": "User's email address" },
-        "photoFileName": { "type": "string", "description": "File name of user profile picture (e.g., avatar_tamil_scholar.png)" },
-        "avatarUrl": { "type": "string", "description": "Optional image URL for the avatar" },
-        "username": { "type": "string", "description": "User's username handle" },
-        "bio": { "type": "string", "description": "User biography or reading summary" },
-        "phone": { "type": "string", "description": "User phone number" },
-        "dob": { "type": "string", "description": "Date of birth" },
-        "gender": { "type": "string", "description": "Gender identification" },
+        "username": { "type": "string", "description": "User's display name" },
         "isVerified": { "type": "boolean", "description": "Whether the user email is verified" },
-        "role": { "type": "string", "description": "Access role: reader, author, admin" },
         "profile": {
           "type": "object",
           "description": "Inner user profile configurations"
@@ -26,10 +17,9 @@
           "type": "object",
           "description": "Inner security parameters"
         },
-        "createdAt": { "type": "string", "format": "date-time", "description": "Profile registration timestamp" },
-        "updatedAt": { "type": "string", "format": "date-time", "description": "Last profile update timestamp" }
+        "createdAt": { "type": "string", "format": "date-time", "description": "Profile registration timestamp" }
       },
-      "required": ["name", "email", "photoFileName"]
+      "required": ["id", "email", "username"]
     },
     "Book": {
       "title": "Book",
@@ -89,23 +79,6 @@
         "read": { "type": "boolean", "description": "Read confirmation state" }
       },
       "required": ["id", "recipient", "subject", "body", "sentAt", "category", "read"]
-    },
-    "ProjectLink": {
-      "title": "ProjectLink",
-      "description": "Historical project links, API docs, OTP gateways, and uploaded archives",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string", "description": "Unique link identifier" },
-        "title": { "type": "string", "description": "Display title of the link" },
-        "titleTa": { "type": "string", "description": "Tamil translated title" },
-        "url": { "type": "string", "description": "Destination Web URL" },
-        "category": { "type": "string", "enum": ["app", "security", "api", "archive", "novel", "custom"], "description": "Link category classification" },
-        "description": { "type": "string", "description": "Summary or note regarding this link" },
-        "descriptionTa": { "type": "string", "description": "Tamil summary description" },
-        "uploadedAt": { "type": "string", "format": "date-time", "description": "Uploaded or saved timestamp" },
-        "isSystem": { "type": "boolean", "description": "Whether this is a built-in historical system link" }
-      },
-      "required": ["id", "title", "url", "category", "uploadedAt"]
     }
   },
   "firestore": {
@@ -128,10 +101,6 @@
     "/emails/{emailId}": {
       "schema": "SimulatedEmail",
       "description": "Captured local SMTP outbound simulated email records"
-    },
-    "/links/{linkId}": {
-      "schema": "ProjectLink",
-      "description": "Historical legacy URLs, API specs, and uploaded literary links repository"
     }
   }
 }
