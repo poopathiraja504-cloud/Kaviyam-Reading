@@ -438,8 +438,8 @@ export default function App() {
   // REAL FIREBASE AUTH METHOD 3: GOOGLE SIGN-IN
   const isGooglePopupActiveRef = useRef(false);
 
-  const handleGoogleLogin = async (): Promise<void> => {
-    if (isGooglePopupActiveRef.current) return;
+  const handleGoogleLogin = async (): Promise<{ success: boolean; error?: string }> => {
+    if (isGooglePopupActiveRef.current) return { success: false, error: "Popup already active" };
     isGooglePopupActiveRef.current = true;
 
     try {
@@ -460,7 +460,9 @@ export default function App() {
       if (result?.user) {
         addSystemLog(`Google Sign-In Success (${result.user.email || result.user.uid})`, "Success");
         navigateTo("home");
+        return { success: true };
       }
+      return { success: true };
     } catch (err: any) {
       console.error("Google Auth error:", err);
       const code = err?.code || "";
@@ -477,7 +479,7 @@ export default function App() {
       }
 
       addSystemLog(`Google Sign-In Failed: ${code || friendly}`, "Failed");
-      throw new Error(friendly);
+      return { success: false, error: friendly };
     } finally {
       isGooglePopupActiveRef.current = false;
     }
@@ -543,7 +545,7 @@ export default function App() {
           onRegister={handleRegister}
           onForgotPassword={handleForgotPassword}
           onResetPasswordWithToken={async () => ({ success: true })}
-          onResendVerification={() => {}}
+          onResendVerification={async () => ({ success: true })}
           resetToken={resetToken}
           setResetToken={setResetToken}
           addSystemLog={addSystemLog}

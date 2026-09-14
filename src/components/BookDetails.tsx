@@ -22,7 +22,10 @@ export default function BookDetails({
   lang,
 }: BookDetailsProps) {
   const [activeTab, setActiveTab] = useState<"about" | "chapters" | "reviews">("about");
-  const t = (key: keyof typeof translations["ta"]) => translations[lang][key] || key;
+  const t = (key: string): string => {
+    const res = (translations[lang] as Record<string, any>)[key];
+    return typeof res === "string" ? res : key;
+  };
 
   return (
     <div className="space-y-6 font-sans pb-12 max-w-6xl mx-auto">

@@ -24,7 +24,10 @@ export default function Library({
   const [selectedAuthor, setSelectedAuthor] = useState<string>("all");
   const [selectedSort, setSelectedSort] = useState<string>("rating");
 
-  const t = (key: keyof typeof translations["ta"]) => translations[lang][key] || key;
+  const t = (key: string): string => {
+    const res = (translations[lang] as Record<string, any>)[key];
+    return typeof res === "string" ? res : key;
+  };
 
   // Extract unique genres and authors
   const genres = useMemo(() => {

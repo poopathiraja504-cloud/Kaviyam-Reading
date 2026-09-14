@@ -69,6 +69,14 @@ export const translations = {
     saveLink: "இணைப்பை பதிவேற்றுக",
     allCategories: "அனைத்து பிரிவுகள்",
     totalLinks: "மொத்த இணைப்புகள்",
+    navTamilLibrary: "தமிழ் நாவல்கள்",
+    readNow: "உடனே வாசிக்க",
+    offlinePresetsTitle: "பதிவிறக்கம் செய்த தமிழ் நூல்கள்",
+    openLocalBook: "புத்தகத்தைத் திறக்க",
+    onlineArchivesTitle: "இணைய மின்னூலகக் காப்பகங்கள்",
+    visitArchive: "காப்பகத்தைப் பார்வையிடுக",
+    novelHubsTitle: "தமிழ் இலக்கியக் சமூகங்கள் & குழுக்கள்",
+    openCommunity: "குழுவில் இணைய",
     categories: {
       novel: "நாவல்கள் & கதைகள் (Novels)",
       archive: "மின்னூலகக் காப்பகம் (Archive)",
@@ -150,6 +158,14 @@ export const translations = {
     saveLink: "Upload Link",
     allCategories: "All Categories",
     totalLinks: "Total Links",
+    navTamilLibrary: "Tamil Library",
+    readNow: "Read Now",
+    offlinePresetsTitle: "Offline Downloaded Tamil Books",
+    openLocalBook: "Open Local Book",
+    onlineArchivesTitle: "Online Digital Archives",
+    visitArchive: "Visit Archive",
+    novelHubsTitle: "Tamil Novel Communities & Groups",
+    openCommunity: "Join Community",
     categories: {
       novel: "Novels & Stories",
       archive: "Digital Archive",
@@ -164,3 +180,17 @@ export const translations = {
     }
   }
 };
+
+export function getStoredLanguage(): Language {
+  if (typeof window !== "undefined") {
+    const saved = localStorage.getItem("kaviyam_lang");
+    if (saved === "ta" || saved === "en") return saved;
+  }
+  return "ta";
+}
+
+export function setStoredLanguage(lang: Language): void {
+  if (typeof window !== "undefined") {
+    localStorage.setItem("kaviyam_lang", lang);
+  }
+}

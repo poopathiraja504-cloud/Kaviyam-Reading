@@ -1,0 +1,154 @@
+import React from "react";
+import { TrendingUp, Clock, BookOpen, Award, CheckCircle2, Flame, Calendar } from "lucide-react";
+import { Language } from "../utils/i18n";
+
+interface ProgressDashboardProps {
+  lang: Language;
+}
+
+export default function ProgressDashboard({ lang }: ProgressDashboardProps) {
+  const stats = [
+    {
+      titleTa: "வாசித்த நேரங்கள்",
+      titleEn: "Hours Read",
+      value: "14.5 hrs",
+      icon: Clock,
+      color: "bg-amber-100 text-amber-800",
+    },
+    {
+      titleTa: "படித்த பக்கங்கள்",
+      titleEn: "Pages Completed",
+      value: "420 pgs",
+      icon: BookOpen,
+      color: "bg-emerald-100 text-emerald-800",
+    },
+    {
+      titleTa: "தொடர் நாட்கள் (Streak)",
+      titleEn: "Current Streak",
+      value: "7 Days 🔥",
+      icon: Flame,
+      color: "bg-orange-100 text-orange-800",
+    },
+    {
+      titleTa: "முடிந்த நாவல்கள்",
+      titleEn: "Completed Books",
+      value: "2 Books",
+      icon: CheckCircle2,
+      color: "bg-blue-100 text-blue-800",
+    },
+  ];
+
+  const weeklyActivity = [
+    { day: "Mon", hrs: 1.5 },
+    { day: "Tue", hrs: 2.0 },
+    { day: "Wed", hrs: 1.0 },
+    { day: "Thu", hrs: 2.5 },
+    { day: "Fri", hrs: 3.0 },
+    { day: "Sat", hrs: 2.2 },
+    { day: "Sun", hrs: 2.3 },
+  ];
+
+  return (
+    <div className="space-y-8 font-sans pb-12">
+      
+      {/* Header */}
+      <div>
+        <h2 className="font-serif font-bold text-2xl text-[#3B0B12]">
+          {lang === "ta" ? "வாசிப்பு முன்னேற்ற புள்ளிவிவரங்கள்" : "Reading Progress & Stats"}
+        </h2>
+        <p className="text-xs text-stone-500 mt-1">
+          {lang === "ta"
+            ? "உங்கள் தினசரி வாசிப்பு இலக்குகள் மற்றும் மைல்கற்கள்"
+            : "Track your reading habits, streaks, and completed milestones"}
+        </p>
+      </div>
+
+      {/* Top 4 Stat Metric Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {stats.map((stat, idx) => {
+          const Icon = stat.icon;
+          return (
+            <div key={idx} className="p-5 rounded-3xl bg-white border border-[#E2DDD5] shadow-sm space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-stone-500 font-semibold">
+                  {lang === "ta" ? stat.titleTa : stat.titleEn}
+                </span>
+                <div className={`p-2 rounded-2xl ${stat.color}`}>
+                  <Icon className="w-4 h-4" />
+                </div>
+              </div>
+              <p className="font-serif font-bold text-2xl text-stone-900">{stat.value}</p>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Weekly Activity Bar Chart */}
+      <div className="p-6 rounded-3xl bg-white border border-[#E2DDD5] shadow-sm space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="font-serif font-bold text-base text-[#3B0B12]">
+            {lang === "ta" ? "இந்த வார வாசிப்பு நேரம்" : "Weekly Reading Activity"}
+          </h3>
+          <span className="text-xs font-semibold text-stone-500">Total: 14.5 hrs</span>
+        </div>
+
+        <div className="h-44 flex items-end justify-between gap-3 pt-6 px-2">
+          {weeklyActivity.map((item, i) => {
+            const heightPercent = (item.hrs / 3.5) * 100;
+            return (
+              <div key={i} className="flex-1 flex flex-col items-center gap-2 h-full justify-end">
+                <span className="text-[10px] text-stone-500 font-semibold">{item.hrs}h</span>
+                <div
+                  style={{ height: `${heightPercent}%` }}
+                  className="w-full max-w-[36px] bg-gradient-to-t from-[#5C121E] to-[#8B1D2F] rounded-t-xl transition-all hover:brightness-110"
+                />
+                <span className="text-xs text-stone-600 font-medium">{item.day}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Achievements / Badges Section */}
+      <div className="p-6 rounded-3xl bg-amber-50/70 border border-amber-200/80 shadow-sm space-y-4">
+        <h3 className="font-serif font-bold text-base text-[#3B0B12] flex items-center gap-2">
+          <Award className="w-5 h-5 text-amber-600" />
+          <span>{lang === "ta" ? "பெறப்பட்ட விருதுகள் & பேட்ஜ்கள்" : "Unlocked Milestones & Badges"}</span>
+        </h3>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="p-4 rounded-2xl bg-white border border-amber-200 flex items-center gap-3">
+            <span className="text-2xl">📚</span>
+            <div>
+              <p className="font-semibold text-xs text-stone-900">
+                {lang === "ta" ? "முதல் வாசிப்பு" : "First Masterpiece"}
+              </p>
+              <p className="text-[10px] text-stone-500">Read 1st chapter of Ponniyin Selvan</p>
+            </div>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-white border border-amber-200 flex items-center gap-3">
+            <span className="text-2xl">🔥</span>
+            <div>
+              <p className="font-semibold text-xs text-stone-900">
+                {lang === "ta" ? "7 நாட்கள் தொடர்" : "7-Day Streak"}
+              </p>
+              <p className="text-[10px] text-stone-500">Read every day for 1 week</p>
+            </div>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-white border border-amber-200 flex items-center gap-3">
+            <span className="text-2xl">👑</span>
+            <div>
+              <p className="font-semibold text-xs text-stone-900">
+                {lang === "ta" ? "சோழ வரலாற்று அறிஞர்" : "Chola Scholar"}
+              </p>
+              <p className="text-[10px] text-stone-500">Read over 10 hours of historical fiction</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  );
+}

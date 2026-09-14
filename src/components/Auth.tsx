@@ -34,8 +34,8 @@ interface AuthProps {
   setResetToken: (token: string | null) => void;
   addSystemLog: (action: string, status: "Success" | "Failed" | "Blocked") => void;
   onGoogleLogin: () => Promise<{ success: boolean; error?: string }>;
-  onPhoneLogin: (phone: string) => Promise<{ success: boolean; error?: string }>;
-  onGuestLogin: () => void;
+  onPhoneLogin?: (phone: string) => Promise<{ success: boolean; error?: string }>;
+  onGuestLogin?: () => void;
   isDarkMode?: boolean;
   lang?: Language;
   onLanguageChange?: (lang: Language) => void;

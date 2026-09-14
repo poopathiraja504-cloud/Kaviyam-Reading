@@ -49,7 +49,10 @@ export default function TamilLibrary({
   const [ingestResult, setIngestResult] = useState<Book | null>(null);
   const [ingestError, setIngestError] = useState<string | null>(null);
 
-  const t = (key: keyof typeof translations["ta"]) => translations[lang][key] || key;
+  const t = (key: string): string => {
+    const res = (translations[lang] as Record<string, any>)[key];
+    return typeof res === "string" ? res : key;
+  };
 
   // Categories list matching user requirement #2
   const categories = [
