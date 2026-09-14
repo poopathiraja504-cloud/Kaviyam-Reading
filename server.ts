@@ -78,6 +78,66 @@ app.delete("/api/records/:id", (req, res) => {
   }
 });
 
+// Explicit endpoints to serve project documentation and historical files
+app.get("/otp-gateway.html", (req, res) => {
+  const filePath = path.join(process.cwd(), "otp-gateway.html");
+  if (fs.existsSync(filePath)) {
+    res.sendFile(filePath);
+  } else {
+    res.status(404).send("OTP Gateway Portal file not found.");
+  }
+});
+
+app.get("/security_spec.md", (req, res) => {
+  const filePath = path.join(process.cwd(), "security_spec.md");
+  if (fs.existsSync(filePath)) {
+    res.setHeader("Content-Type", "text/markdown; charset=utf-8");
+    res.sendFile(filePath);
+  } else {
+    res.status(404).send("Security spec not found.");
+  }
+});
+
+app.get("/backend/mailercloud-api.json", (req, res) => {
+  const filePath = path.join(process.cwd(), "backend", "mailercloud-api.json");
+  if (fs.existsSync(filePath)) {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.sendFile(filePath);
+  } else {
+    res.status(404).json({ error: "Mailercloud API spec not found." });
+  }
+});
+
+app.get("/backend/OtpService.java", (req, res) => {
+  const filePath = path.join(process.cwd(), "backend", "OtpService.java");
+  if (fs.existsSync(filePath)) {
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.sendFile(filePath);
+  } else {
+    res.status(404).send("OtpService.java not found.");
+  }
+});
+
+app.get("/send_email.js", (req, res) => {
+  const filePath = path.join(process.cwd(), "send_email.js");
+  if (fs.existsSync(filePath)) {
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.sendFile(filePath);
+  } else {
+    res.status(404).send("send_email.js not found.");
+  }
+});
+
+app.get("/send_email.py", (req, res) => {
+  const filePath = path.join(process.cwd(), "send_email.py");
+  if (fs.existsSync(filePath)) {
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.sendFile(filePath);
+  } else {
+    res.status(404).send("send_email.py not found.");
+  }
+});
+
 // Lazy-loaded GoogleGenAI Client
 let aiClient: GoogleGenAI | null = null;
 function getGeminiClient(): GoogleGenAI {
@@ -109,7 +169,7 @@ async function generateContentWithFallback(
     temperature?: number;
   }
 ) {
-  const modelsToTry = ["gemini-2.5-flash", "gemini-1.5-flash"];
+  const modelsToTry = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.1-flash-lite", "gemini-flash-latest"];
   let lastError: any = null;
 
   for (const modelName of modelsToTry) {
@@ -152,7 +212,7 @@ async function sendChatMessageWithFallback(
     message: string;
   }
 ) {
-  const modelsToTry = ["gemini-2.5-flash", "gemini-1.5-flash"];
+  const modelsToTry = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.1-flash-lite", "gemini-flash-latest"];
   let lastError: any = null;
 
   for (const modelName of modelsToTry) {
@@ -353,7 +413,7 @@ app.post("/api/gemini/ingest-book", async (req, res) => {
 });
 
 // API endpoint for AI Reading Companion (Chatbot inside the reader)
-app.post("/api/gemini/companion", async (req, res) => {
+app.post(["/api/companion", "/api/gemini/companion"], async (req, res) => {
   try {
     const { message, contextBook, contextChapter, history } = req.body;
     if (!message) {

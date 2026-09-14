@@ -1,109 +1,177 @@
 import { Book } from "./types";
 
-export const PRESET_BOOKS: Book[] = [
+export const SAMPLE_BOOKS: Book[] = [
   {
     id: "ponniyin-selvan",
-    title: "Ponniyin Selvan (பொன்னியின் செல்வன்)",
-    author: "Kalki Krishnamurthy (கல்கி)",
-    description: "The legendary historical fiction masterpiece about the early life of Prince Arulmozhivarman (Rajaraja Chola I). Ride with Vandiyathevan along the banks of the vast Veeranarayana lake on a golden Aadi Perukku evening as he embarks on a dangerous imperial mission.",
-    coverUrl: "https://images.unsplash.com/photo-1608659597669-b45511779f93?auto=format&fit=crop&q=80&w=400",
-    genre: "Adventure",
-    rating: 5.0,
-    ratingCount: 1250,
+    title: "பொன்னியின் செல்வன்",
+    author: "கல்கி கிருஷ்ணமூர்த்தி",
+    description: "சோழப் பேரரசின் பொற்காலப் பின்னணியில் வந்தியத்தேவனின் சாகசங்களும், அருள்மொழிவர்மனின் தியாகமும், நந்தினியின் மர்மமும் நிறைந்த தமிழ் இலக்கியத்தின் இணையற்ற வரலாற்றுப் பெருங்காவியம்.",
+    coverUrl: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=600&q=80",
+    genre: "வரலாற்றுப் புதினம் (Historical Fiction)",
+    rating: 4.9,
+    ratingCount: 3840,
+    language: "தமிழ்",
+    views: 52100,
     chapters: [
       {
+        id: "ps-ch-1",
         chapterNumber: 1,
-        chapterTitle: "ஆடிப் பெருக்கு (The Golden Floods of Aadi)",
-        content: `ஆதித்த கரிகாலரின் ஓலை தாங்கி வந்தியத்தேவன் வீரநாராயண ஏரிக்கரையில் குதிரை ஏறிச் செல்லும் அழகிய மாலைப் பொழுது...\n\nIt was late in the afternoon on the day of Aadi Perukku. The golden sun was beginning to dip in the western sky as Vallavarayan Vandiyathevan rode his weary horse along the high banks of the vast Veeranarayana Lake. Built by the valorous Chola kings, the lake stretched like an inland sea, its waters rippling with the golden rays of the setting sun.\n\nVandiyathevan was on an urgent, top-secret mission for the Crown Prince Aditya Karikalan. In his silk pouch lay two scrolls of critical palm-leaf letters that could decide the fate of the entire Chola empire. As he gazed upon the beautiful blue waters of the lake, his heart swelled with pride and excitement.\n\nHundreds of sailboats hovered in the distance, and women from nearby villages were singing festive songs, pouring flowers and lamps into the swirling currents of the lake. Vandiyathevan patted his horse's mane and smiled. "Ride on, my friend," he whispered. "The throne of Tanjore is waiting, and we have many rivers to cross."`
+        chapterTitle: "அத்தியாயம் 1: ஆதித்த கரிகாலன் ஓலை",
+        wordCount: 1420,
+        releaseDate: "2026-01-01",
+        content: `ஆடிப் பெருக்கு நாளன்று வீரநாராயண ஏரிக்கரையின் மீது ஒரு குதிரை வீரன் உற்சாகமாகச் சவாரி செய்து கொண்டிருந்தான். அவன் பெயர் வல்லவரையன் வந்தியத்தேவன். வாணர் குலத்து இளவரசன். காஞ்சிபுரத்திலிருந்து தஞ்சாவூருக்கு அவன் ஒரு முக்கியமான ரகசிய ஓலையுடன் புறப்பட்டிருந்தான்.
+
+அடிவானத்தில் மேகக் கூட்டங்கள் திரண்டு பொன் வண்ணத்தில் மிளிர்ந்தன. ஏரியின் அலைகள் கரையை மோதி நுரை தள்ளின. எங்கும் ஆடி மாதத்து திருவிழாக் கோலம். கிராமத்து மக்கள் பாட்டுகளும் ஆட்டங்களுமாகப் பொங்கிப் பெருகிய காவிரியின் உபநதியை வணங்கிக் கொண்டிருந்தனர்.
+
+வந்தியத்தேவன் குதிரையை மெதுவாக நடத்திச் சென்றான். அவன் நெஞ்சில் வீரம் ததும்பியது. "சோழ நாட்டின் தலைநகரான தஞ்சாவூருக்குள் நுழைவது அத்தனை சுலபமல்ல. பழுவேட்டரையர்களின் கடுமையான கண்காணிப்பைக் கடந்து சக்கரவர்த்தி சுந்தர சோழரையும், இளவரசி குந்தவையையும் நான் நேரில் சந்திக்க வேண்டும். ஆதித்த கரிகாலர் என்னிடம் ஒப்படைத்த ஓலை சோழப் பேரரசின் எதிர்காலத்தையே தீர்மானிக்கப் போகிறது" என்று தனக்குள் நினைத்துக் கொண்டான்.`
       },
       {
+        id: "ps-ch-2",
         chapterNumber: 2,
-        chapterTitle: "குடந்தை சோதிடர் (The Kudanthai Astrologer)",
-        content: `வந்தியத்தேவன் குடந்தை நகரின் சோதிடரைச் சந்தித்து இளவரசர் அருண்மொழியின் ஜாதக ரகசியங்களைக் கேட்டறிதல்...\n\nHaving ridden through the night, Vandiyathevan arrived in the historic town of Kudanthai (Kumbakonam). Guided by whispers of imperial intrigue, he sought out the famous astrologer of the town, whose predictions were whispered to be incredibly accurate, almost prophetic.\n\n"Ah, young warrior from the Bana clan," the astrologer said, eyes glittering under the dim light of a sesame oil lamp. "Your path is strewn with both heavy laurels and sharp swords. Tell me, whose shadow do you cast? The rising sun of Kanchi, or the mysterious waves of Lanka?"\n\nVandiyathevan leaned forward, keeping his voice extremely low. "I cast no shadow but my own, master. But I seek to know if the great Prince of the Cholas, Arulmozhivarman, will return safely from the island of Ceylon."`
-      }
-    ],
-    reviews: [
+        chapterTitle: "அத்தியாயம் 2: ஆழ்வார்க்கடியான் நம்பி",
+        wordCount: 1350,
+        releaseDate: "2026-01-02",
+        content: `ஏரிக்கரையின் மரத்தடியில் ஒரு பெரிய கூட்டம் கூடியிருந்தது. அங்கே இருவர் நடுவே கடுமையான வாக்குவாதம் நடந்து கொண்டிருந்தது. ஒருவர் வீரசைவர், இன்னொருவர் தலையில் குடுமியும் கையில் தடியும் தாங்கிய வீரவைணவர். அவர்தான் ஆழ்வார்க்கடியான் நம்பி!
+
+"சிவனே முழுமுதற் கடவுள்!" என்று வீரசைவர் கூச்சலிட்டார்.
+"இல்லை, நாராயணனே பரம்பொருள்! எம்பெருமானே உலகை இரட்சிப்பவர்!" என்று கணீரென்ற குரலில் கர்ஜித்தார் நம்பி.
+
+வந்தியத்தேவன் புன்னகையுடன் குதிரையை நிறுத்தி அவர்களைப் பார்த்தான். "ஐயா பெரியவர்களே! எம்பெருமானும் ஈசனும் ஒன்றுதான் என்று பெரியோர்கள் சொல்லக் கேட்டதில்லையா? எதற்காக இந்த வீண் வாதம்?" என்றான்.
+
+ஆழ்வார்க்கடியான் தன் கூரிய கண்களால் வந்தியத்தேவனை உற்று நோக்கினான். அவனது தோற்றமும் குதிரையின் வேகமும் நம்பியின் கவனத்தை ஈர்த்தது. "தம்பி, நீ யார்? சோழ தேசத்துக்குப் புதியவனாகத் தெரிகிறதே! உன் இடுப்பில் செருகப்பட்டிருக்கும் உடைவாள் சாதாரண வீரனின் வாள் அல்லவே?" என்று வினவினான்.`
+      },
       {
-        id: "r-ps-1",
-        userId: "user-reader",
-        username: "Evelyn Reed",
-        userPhoto: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=100",
-        rating: 5,
-        comment: "This bilingual presentation is incredible! Reading the opening of Ponniyin Selvan with parallel translation is an absolute treat.",
-        createdAt: "2026-07-08T06:22:00Z"
+        id: "ps-ch-3",
+        chapterNumber: 3,
+        chapterTitle: "அத்தியாயம் 3: குடந்தை ஜோதிடர் இல்லம்",
+        wordCount: 1280,
+        releaseDate: "2026-01-03",
+        content: `குடந்தையின் புகழ்பெற்ற ஜோதிடர் இல்லத்தில் மாலை நேரம் நிசப்தம் நிலவியது. ஜோதிடர் பழங்கால சுவடிகளைப் புரட்டி வானசாஸ்திரக் கணக்குகளை ஆராய்ந்து கொண்டிருந்தார்.
+
+வாசலில் குதிரை குளம்பொலி கேட்டது. வந்தியத்தேவன் உள்ளே நுழைந்தான். "ஐயா! என் எதிர்காலத்தைப் பற்றி அறிய விரும்புகிறேன். சோழ தேசத்தில் நிகழவிருக்கும் பெரு மாற்றங்கள் என்ன?" என்று கேட்டான்.
+
+ஜோதிடர் வந்தியத்தேவனின் முகத்தையும் அவன் கைகளையும் உற்றுப் பார்த்தார். பின்னர் சோழ தேசத்து அரச குடும்பத்தின் ஜாதகக் குறிப்புகளைப் பார்த்தார். அவருடைய முகம் தீவிரமடைந்தது.
+
+"இளைஞனே! உன் பாதையில் பெரும் அபாயங்கள் காத்திருக்கின்றன. ஆனால் உனக்கு ஒரு பெரும் அரண் இருக்கிறது. சோழப் பேரரசின் அரியணையைச் சுற்றி கருமேகங்கள் சூழ்கின்றன. ஆனால் கடல் கடந்த இளவரசன் அருள்மொழிவர்மனின் புகழ் உலகம் முழுவதும் பரவும். நீ அந்த வரலாற்றின் முக்கியமான சாட்சியாக நிற்கப் போகிறாய்!" என்றார்.`
+      }
+    ]
+  },
+  {
+    id: "parthiban-kanavu",
+    title: "பார்த்திபன் கனவு",
+    author: "கல்கி கிருஷ்ணமூர்த்தி",
+    description: "பல்லவர் ஆதிக்கத்தை எதிர்த்து சோழ நாட்டின் சுதந்திரத்திற்காக உயிர்நீத்த பார்த்திப மகாராஜாவின் கனவை நனவாக்கப் போராடும் இளவரசன் விக்கிரமனின் வீர வரலாறு.",
+    coverUrl: "https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=600&q=80",
+    genre: "வரலாற்றுப் புதினம் (Historical Fiction)",
+    rating: 4.8,
+    ratingCount: 2150,
+    language: "தமிழ்",
+    views: 31200,
+    chapters: [
+      {
+        id: "pk-ch-1",
+        chapterNumber: 1,
+        chapterTitle: "அத்தியாயம் 1: சோழநாட்டின் சுதந்திரக் கனவு",
+        wordCount: 1150,
+        releaseDate: "2026-01-10",
+        content: `வெண்ணாற்றங்கரையில் பார்த்திப சோழ மன்னன் தன் மகன் விக்கிரமனுடன் நின்று கொண்டிருந்தான். சோழ நாடு அப்போது பல்லவப் பேரரசுக்குத் திறை செலுத்தும் சிற்றரசாக இருந்தது. மன்னன் பார்த்திபனின் உள்ளத்தில் அந்த அடிமைத்தனம் பெருநெருப்பாக எரிந்தது.
+
+"மகனே விக்கிரமா! நம் முன்னோர்கள் ஆண்ட இந்த சோழ தேசம் என்றைக்காவது சுதந்திரக் காற்றை சுவாசிக்க வேண்டும். புலிக்கொடி மீண்டும் இமயமலை வரை பறக்க வேண்டும். இதுவே என் கனவு!" என்று உணர்ச்சி பொங்கக் கூறினான் மன்னன்.
+
+இளவரசன் விக்கிரமன் தன் தந்தையின் பாதங்களைத் தொட்டு வணங்கி, "தந்தையே! உங்கள் கனவை என் உயிரைக் கொடுத்தாவது நிறைவேற்றுவேன்!" என்று உறுதி பூண்டான்.`
+      },
+      {
+        id: "pk-ch-2",
+        chapterNumber: 2,
+        chapterTitle: "அத்தியாயம் 2: மர்ம சிவனடியார்",
+        wordCount: 1200,
+        releaseDate: "2026-01-11",
+        content: `போர்க்களத்தில் பார்த்திப மகாராஜா வீரமரணம் அடைந்தார். விக்கிரமனுக்குத் துணையாக ஒரு மர்மமான சிவனடியார் தோன்றினார்.
+
+அவர் யார்? பல்லவ மன்னன் நரசிம்மவர்மனின் மாறுவேடமா அல்லது சோழ நாட்டின் நலம்விரும்பியா? சிவனடியாரின் அறிவுரைகளும் வழிகாட்டுதலும் விக்கிரமனை வியப்பில் ஆழ்த்தின.`
       }
     ]
   },
   {
     id: "sivagamiyin-sabatham",
-    title: "Sivagamiyin Sabatham (சிவகாமி சபதம்)",
-    author: "Kalki Krishnamurthy (கல்கி)",
-    description: "An epic historical novel detailing the Seventh-Century Pallava Empire under Mahendravarman I and Narasimhavarman I, the great sculptor Aayanar, and his dancer daughter Sivagami.",
-    coverUrl: "https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&q=80&w=400",
-    genre: "Epic",
+    title: "சிவகாமியின் சபதம்",
+    author: "கல்கி கிருஷ்ணமூர்த்தி",
+    description: "பல்லவ-சாளுக்கியப் போரின் கொடூரமும், மாமல்லபுரக் கலைப்படைப்புகளின் எழிலும், நாட்டிய தாரகை சிவகாமியின் சபதமும் சங்கமிக்கும் காவிய நாவல்.",
+    coverUrl: "https://images.unsplash.com/photo-1476275466078-4007374efbbe?auto=format&fit=crop&w=600&q=80",
+    genre: "இலக்கியம் / வரலாறு (Epic)",
     rating: 4.9,
-    ratingCount: 980,
+    ratingCount: 2980,
+    language: "தமிழ்",
+    views: 41800,
     chapters: [
       {
+        id: "ss-ch-1",
         chapterNumber: 1,
-        chapterTitle: "காஞ்சிபுரம் பரதநாட்டியம் (The Court of Kanchi)",
-        content: `பல்லவ மன்னன் மகேந்திரவர்மனின் ஆட்சிக்காலத்தில் காஞ்சி நகரின் கலைப் பொலிவும் சிவகாமியின் பரதநாட்டிய நடன அரங்கமும்...\n\nThe grand court of Kanchipuram glistened with polished granite pillars and lotus carvings. Emperor Mahendravarman, a master of poetry, music, and painting, sat upon the golden lion throne. Beside him stood the young Prince Narasimhavarman, his eyes locked on the dancing stage.\n\nSivagami, daughter of the royal sculptor Aayanar, stepped onto the silk stage. As the mridangam resonated, her graceful movements transformed the royal court into a realm of divine beauty.`
+        chapterTitle: "அத்தியாயம் 1: பரஞ்சோதி காஞ்சிக்குப் புறப்படுதல்",
+        wordCount: 1300,
+        releaseDate: "2026-01-20",
+        content: `செண்பகக் காடுகளின் நடுவே பரஞ்சோதி தன் தாய் மற்றும் தந்தையிடம் விடைபெற்றுப் பல்லவத் தலைநகரான காஞ்சிபுரத்தை நோக்கிப் பயணமானான். ஆயகலைகள் அறுபத்து நான்கும் தழைத்தோங்கும் காஞ்சியின் பெருமையைக் காண அவனது உள்ளம் துடித்தது.`
+      },
+      {
+        id: "ss-ch-2",
+        chapterNumber: 2,
+        chapterTitle: "அத்தியாயம் 2: மாமல்லபுர சிற்பங்கள்",
+        wordCount: 1400,
+        releaseDate: "2026-01-21",
+        content: `கடலோரப் பாறைகளில் ஆயிரமாயிரம் உளி சத்தங்கள் ஒலித்தன. சிற்பாசிரியர் ஆயனரின் விரல்கள் பாறைகளில் உயிரோட்டமான தேவதைகளையும் முனிவர்களையும் செதுக்கிக் கொண்டிருந்தன. அங்கே சிவகாமி ஆடிய நாட்டியம் தெய்விக ஒளியைப் பரப்பியது.`
       }
-    ],
-    reviews: []
+    ]
   },
   {
-    id: "silappatikaram",
-    title: "Silappatikaram (சிலப்பதிகாரம்)",
-    author: "Ilango Adigal (இளங்கோ அடிகள்)",
-    description: "One of the Five Great Epics of Tamil Literature. The tragedy of Kovalan and Kannagi in ancient Puhar and Madurai, illustrating the inescapable power of virtue and justice.",
-    coverUrl: "https://images.unsplash.com/photo-1507842217343-583bb7270b66?auto=format&fit=crop&q=80&w=400",
-    genre: "Classic",
+    id: "velpari",
+    title: "வீரயுக நாயகன் வேள்பாரி",
+    author: "சு. வெங்கடேசன்",
+    description: "பறம்பு மலையின் இயற்கை வளமும், முல்லைக்குத் தேர் தந்த பாரி வள்ளலின் அசைக்க முடியாத வீரமும், மூவேந்தர்களின் சூழ்ச்சிகளை எதிர்கொண்ட அற்புத சங்க கால வரலாறு.",
+    coverUrl: "https://images.unsplash.com/photo-1461360370896-922624d12aa1?auto=format&fit=crop&w=600&q=80",
+    genre: "சங்க இலக்கிய வீரகாவியம் (Sangam Epic)",
     rating: 5.0,
-    ratingCount: 1420,
+    ratingCount: 4200,
+    language: "தமிழ்",
+    views: 65400,
     chapters: [
       {
+        id: "vp-ch-1",
         chapterNumber: 1,
-        chapterTitle: "மங்கல வாழ்த்துப் பாடல் (Praise of Nature)",
-        content: `திங்களைப் போற்றுதும் திங்களைப் போற்றுதும்\nஞாயிறு போற்றுதும் ஞாயிறு போற்றுதும்\nமாமழை போற்றுதும் மாமழை போற்றுதும்...\n\nPraise be to the Moon that showers cool moonlight over the earth! Praise be to the Sun that turns its golden chariot over the Meru mountains! Praise be to the Great Rain that nourishes all living beings on Tamil soil!`
+        chapterTitle: "அத்தியாயம் 1: பறம்பு மலையின் அரசன்",
+        wordCount: 1500,
+        releaseDate: "2026-02-01",
+        content: `மூங்கில் காடுகளின் உச்சியிலிருந்து பாய்ந்து இறங்கும் அருவிகளின் சத்தம் பறம்பு மலை முழுவதும் எதிரொலித்தது. வேள்பாரி தன் கைகளில் வில்லேந்தி நின்றிருந்தான். அவனது தோள்களில் காட்டின் வலிமையும் நெஞ்சில் மலைவாழ் மக்களின் அன்பும் குடிகொண்டிருந்தன.`
+      },
+      {
+        id: "vp-ch-2",
+        chapterNumber: 2,
+        chapterTitle: "அத்தியாயம் 2: மூவேந்தர்களின் வியூகம்",
+        wordCount: 1450,
+        releaseDate: "2026-02-02",
+        content: `சேர, சோழ, பாண்டிய மன்னர்களின் கூட்டுப் படைகள் பறம்பு மலையைச் சூழ்ந்தன. ஆயினும் பாரியின் படை வீரர்கள் காட்டின் நுணுக்கமான தற்காப்பு உத்திகளால் எதிரிகளைத் திணறடித்தனர்.`
       }
-    ],
-    reviews: []
+    ]
   },
   {
-    id: "thirukkural",
-    title: "Thirukkural (திருக்குறள்)",
-    author: "Thiruvalluvar (திருவள்ளுவர்)",
-    description: "The universal Tamil code of ethics, life philosophy, wisdom, and love written in 1330 couplets divided into Aram (Virtue), Porul (Wealth), and Inbam (Love).",
-    coverUrl: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&q=80&w=400",
-    genre: "Philosophy",
-    rating: 5.0,
-    ratingCount: 2100,
+    id: "kadal-pura",
+    title: "கடல் புறா",
+    author: "சாண்டில்யன்",
+    description: "முதலாம் குலோத்துங்க சோழன் மற்றும் தளபதி கருணாகரத் தொண்டைமானின் கடற்படைச் சாகசங்கள், ஸ்ரீவிஜய சாம்ராஜ்யப் போர் மற்றும் ஆழ்கடல் போரியல்.",
+    coverUrl: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=600&q=80",
+    genre: "கடற்படை சாகச நாவல் (Maritime Adventure)",
+    rating: 4.8,
+    ratingCount: 1890,
+    language: "தமிழ்",
+    views: 28900,
     chapters: [
       {
+        id: "kp-ch-1",
         chapterNumber: 1,
-        chapterTitle: "அகர முதல (The Praise of God & Knowledge)",
-        content: `அகர முதல எழுத்தெல்லாம் ஆதி\nபகவன் முதற்றே உலகு.\n\nAs the letter 'A' is the first of all letters in speech, so is the Eternal Divine Lord the primary origin of the universe.\n\nகற்றதனால் ஆய பயனென்கொல் வாலறிவன்\nநற்றாள் தொழாஅர் எனின்.\n\nWhat is the true value of all learning, if one does not bow before the feet of Pure Supreme Wisdom?`
+        chapterTitle: "அத்தியாயம் 1: சோழர் போர்க்கப்பல்",
+        wordCount: 1250,
+        releaseDate: "2026-02-15",
+        content: `வங்கக் கடலின் கொந்தளிப்பான அலைகளைக் கிழித்துக் கொண்டு பாய்மரக் கப்பல் 'கடல் புறா' சீறிப் பாய்ந்தது. இளவரசன் இளஞ்செழியன் கப்பலின் சுக்கானைப் பிடித்தபடி திசைகாட்டியை நோக்கினான்.`
       }
-    ],
-    reviews: []
-  },
-  {
-    id: "yavana-rani",
-    title: "Yavana Rani (யவன ராணி)",
-    author: "Sandilyan (சாண்டில்யன்)",
-    description: "A thrilling maritime historical fiction novel set in ancient Puhar. Follow commander Karunagara Pallavan as he encounters Roman invaders and Queen Yavana Rani.",
-    coverUrl: "https://images.unsplash.com/photo-1510519138101-570d1dca3d66?auto=format&fit=crop&q=80&w=400",
-    genre: "Adventure",
-    rating: 4.9,
-    ratingCount: 840,
-    chapters: [
-      {
-        chapterNumber: 1,
-        chapterTitle: "பூம்புகார் கடற்கரை (The Beach of Puhar)",
-        content: `காவேரிபூம்புகாரின் மாலைப் பொழுதில் சோழர்களின் கப்பல் படையும் யவனர்களின் வருகையும்...\n\nThe sun was setting over Kaveripoompattinam, the grand harbor capital of the Cholas. Commander Karunagara Pallavan stood on the high stone pier, watching the massive Roman galley ships drop their iron anchors.`
-      }
-    ],
-    reviews: []
+    ]
   }
 ];

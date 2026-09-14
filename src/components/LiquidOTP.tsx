@@ -1,193 +1,177 @@
 import React, { useState, useRef, useEffect } from "react";
-import { motion } from "motion/react";
-
-const OTP_LENGTH = 6;
+import { KeyRound, RefreshCw, CheckCircle2 } from "lucide-react";
 
 interface LiquidOTPProps {
-  value: string;
-  onChange: (val: string) => void;
-  isDarkMode?: boolean;
+  length?: number;
+  onComplete: (otp: string) => void;
+  onResend?: () => void;
+  disabled?: boolean;
+  error?: string | null;
+  initialCountdown?: number;
 }
 
-export default function LiquidOTP({ value, onChange, isDarkMode = false }: LiquidOTPProps) {
-  const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(""));
-  const [activeIndex, setActiveIndex] = useState(0);
+export default function LiquidOTP({
+  length = 6,
+  onComplete,
+  onResend,
+  disabled = false,
+  error,
+  initialCountdown = 60
+}: LiquidOTPProps) {
+  const [digits, setDigits] = useState<string[]>(Array(length).fill(""));
+  const [countdown, setCountdown] = useState(initialCountdown);
+  const [canResend, setCanResend] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  // Keep internal state in sync with external value prop
   useEffect(() => {
-    const arr = Array(OTP_LENGTH).fill("");
-    for (let i = 0; i < OTP_LENGTH; i++) {
-      arr[i] = value[i] || "";
+    inputRefs.current[0]?.focus();
+  }, []);
+
+  useEffect(() => {
+    if (countdown <= 0) {
+      setCanResend(true);
+      return;
     }
-    setOtp(arr);
-    
-    // Set active index to first empty box or last box
-    const firstEmpty = arr.findIndex((v) => v === "");
-    if (firstEmpty !== -1) {
-      setActiveIndex(firstEmpty);
+    const timer = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          setCanResend(true);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [countdown]);
+
+  const handleChange = (index: number, val: string) => {
+    const clean = val.replace(/\D/g, "");
+    if (!clean) {
+      const updated = [...digits];
+      updated[index] = "";
+      setDigits(updated);
+      return;
+    }
+
+    const updated = [...digits];
+    // In case user pasted or typed multiple digits
+    const chars = clean.split("");
+    let nextFocus = index;
+    for (let i = 0; i < chars.length && index + i < length; i++) {
+      updated[index + i] = chars[i];
+      nextFocus = index + i + 1;
+    }
+    setDigits(updated);
+
+    if (nextFocus < length) {
+      inputRefs.current[nextFocus]?.focus();
     } else {
-      setActiveIndex(OTP_LENGTH - 1);
+      inputRefs.current[length - 1]?.focus();
     }
-  }, [value]);
 
-  const handleChange = (val: string, index: number) => {
-    // Only accept single digits
-    if (!/^\d?$/.test(val)) return;
-    
-    const newOtp = [...otp];
-    newOtp[index] = val;
-    setOtp(newOtp);
-    
-    const combined = newOtp.join("");
-    onChange(combined);
-
-    // Auto-focus next input
-    if (val && index < OTP_LENGTH - 1) {
-      setActiveIndex(index + 1);
-      inputRefs.current[index + 1]?.focus();
+    const joined = updated.join("");
+    if (joined.length === length) {
+      onComplete(joined);
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
+  const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Backspace") {
-      const newOtp = [...otp];
-      if (!otp[index] && index > 0) {
-        newOtp[index - 1] = "";
-        setOtp(newOtp);
-        setActiveIndex(index - 1);
+      if (!digits[index] && index > 0) {
         inputRefs.current[index - 1]?.focus();
-        onChange(newOtp.join(""));
-      } else {
-        newOtp[index] = "";
-        setOtp(newOtp);
-        onChange(newOtp.join(""));
       }
     } else if (e.key === "ArrowLeft" && index > 0) {
-      setActiveIndex(index - 1);
       inputRefs.current[index - 1]?.focus();
-    } else if (e.key === "ArrowRight" && index < OTP_LENGTH - 1) {
-      setActiveIndex(index + 1);
+    } else if (e.key === "ArrowRight" && index < length - 1) {
       inputRefs.current[index + 1]?.focus();
     }
-  };
-
-  const handleFocus = (index: number) => {
-    setActiveIndex(index);
   };
 
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
     e.preventDefault();
-    const pastedData = e.clipboardData.getData("text").trim();
-    if (!/^\d+$/.test(pastedData)) return;
+    const pasteData = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, length);
+    if (!pasteData) return;
 
-    const digits = pastedData.slice(0, OTP_LENGTH).split("");
-    const newOtp = [...otp];
-    for (let i = 0; i < OTP_LENGTH; i++) {
-      if (digits[i]) {
-        newOtp[i] = digits[i];
-      }
+    const updated = [...digits];
+    pasteData.split("").forEach((ch, i) => {
+      updated[i] = ch;
+    });
+    setDigits(updated);
+
+    const focusIdx = Math.min(pasteData.length, length - 1);
+    inputRefs.current[focusIdx]?.focus();
+
+    if (pasteData.length === length) {
+      onComplete(pasteData);
     }
-    setOtp(newOtp);
-    onChange(newOtp.join(""));
+  };
 
-    const focusTarget = Math.min(digits.length, OTP_LENGTH - 1);
-    setActiveIndex(focusTarget);
-    inputRefs.current[focusTarget]?.focus();
+  const handleResetAndResend = () => {
+    if (!canResend) return;
+    setDigits(Array(length).fill(""));
+    setCountdown(initialCountdown);
+    setCanResend(false);
+    inputRefs.current[0]?.focus();
+    if (onResend) onResend();
   };
 
   return (
-    <div className="flex flex-col items-center justify-center py-4 select-none">
-      <div className="relative flex items-center gap-2.5 p-1.5 rounded-2xl bg-stone-100/60 dark:bg-stone-900/40 border border-stone-200/50 dark:border-stone-800/50 shadow-inner">
-        {/* Sliding Liquid Backdrop */}
-        <motion.div
-          layoutId="liquidActiveGlow"
-          className="absolute top-1.5 bottom-1.5 rounded-xl bg-[#bfa030]/15 dark:bg-[#bfa030]/20 border border-[#bfa030]/30 shadow-[0_0_12px_rgba(191,160,48,0.2)]"
-          style={{
-            width: "44px",
-            left: `${6 + activeIndex * 54}px`, // Adjusted for 44px box + 10px gap (2.5rem = 10px spacing + 44px box)
-          }}
-          transition={{
-            type: "spring",
-            stiffness: 380,
-            damping: 30,
-            mass: 0.8,
-          }}
-        />
-
-        {otp.map((digit, index) => {
-          const isActive = index === activeIndex;
-          const hasValue = digit !== "";
-
-          return (
-            <div key={index} className="relative w-11 h-11 flex items-center justify-center">
-              {/* Pulsing Liquid Ripple Ring */}
-              {isActive && (
-                <motion.div
-                  layoutId="liquidRipple"
-                  className="absolute inset-0 rounded-xl border border-[#bfa030]/50"
-                  initial={{ scale: 0.9, opacity: 0 }}
-                  animate={{ 
-                    scale: [0.95, 1.15, 0.95], 
-                    opacity: [0.3, 0.1, 0.3],
-                    borderRadius: ["35% 65% 70% 30% / 30% 40% 60% 70%", "60% 40% 30% 70% / 50% 60% 40% 50%", "35% 65% 70% 30% / 30% 40% 60% 70%"]
-                  }}
-                  transition={{
-                    duration: 3,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                  }}
-                />
-              )}
-
-              {/* Individual Input Box */}
-              <input
-                ref={(el) => {
-                  inputRefs.current[index] = el;
-                }}
-                type="text"
-                maxLength={1}
-                value={digit}
-                onChange={(e) => handleChange(e.target.value, index)}
-                onKeyDown={(e) => handleKeyDown(e, index)}
-                onFocus={() => handleFocus(index)}
-                onPaste={handlePaste}
-                className={`w-full h-full text-center font-mono font-black text-lg focus:outline-none rounded-xl transition-all duration-200 z-10 ${
-                  isActive
-                    ? "text-black dark:text-[#bfa030] scale-105"
-                    : "text-stone-750 dark:text-stone-300"
-                } ${
-                  hasValue 
-                    ? "bg-white dark:bg-stone-850 border border-[#bfa030]/20 shadow-sm" 
-                    : "bg-transparent border border-transparent"
-                }`}
-                placeholder="•"
-                style={{
-                  caretColor: "#bfa030",
-                }}
-              />
-
-              {/* Dynamic Bottom Dot/Indicator */}
-              <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 z-10 pointer-events-none">
-                <motion.div
-                  animate={{
-                    scale: isActive ? 1.5 : hasValue ? 0 : 1,
-                    backgroundColor: isActive ? "#bfa030" : "rgb(168 162 158)", // stone-400
-                    borderRadius: "50%",
-                  }}
-                  className="w-1 h-1"
-                  transition={{ duration: 0.2 }}
-                />
-              </div>
-            </div>
-          );
-        })}
+    <div className="space-y-4">
+      <div className="flex items-center justify-between text-xs text-stone-400">
+        <span className="flex items-center gap-1.5 font-medium text-stone-300">
+          <KeyRound size={13} className="text-[#f0c15c]" />
+          6 இலக்க ஒருமுறை கடவுச்சொல் (OTP)
+        </span>
+        <span>
+          {countdown > 0 ? (
+            <span className="font-mono text-[#f0c15c]">{countdown}s</span>
+          ) : (
+            <button
+              type="button"
+              onClick={handleResetAndResend}
+              className="text-[#f0c15c] hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              <RefreshCw size={11} /> மறுஅனுப்பு (Resend)
+            </button>
+          )}
+        </span>
       </div>
 
-      {/* Helper text indicating active slot */}
-      <div className="mt-2.5 text-[9px] font-mono uppercase tracking-widest text-stone-400 dark:text-stone-500">
-        Digit <span className="font-extrabold text-[#bfa030]">{activeIndex + 1}</span> of 6
+      <div className="flex items-center justify-between gap-2">
+        {digits.map((digit, idx) => (
+          <input
+            key={idx}
+            ref={(el) => {
+              inputRefs.current[idx] = el;
+            }}
+            type="text"
+            inputMode="numeric"
+            maxLength={1}
+            value={digit}
+            disabled={disabled}
+            onChange={(e) => handleChange(idx, e.target.value)}
+            onKeyDown={(e) => handleKeyDown(idx, e)}
+            onPaste={handlePaste}
+            className={`w-11 h-12 text-center text-lg font-bold font-mono rounded-xl bg-[#091325] border transition-all outline-none ${
+              digit
+                ? "border-[#f0c15c] text-[#f0c15c] shadow-[0_0_12px_rgba(240,193,92,0.2)]"
+                : "border-stone-700 text-stone-200 focus:border-[#f0c15c]/80 focus:bg-[#0c1a33]"
+            } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
+            id={`otp-digit-${idx}`}
+          />
+        ))}
       </div>
+
+      {error && (
+        <p className="text-xs text-red-400 font-mono text-center">{error}</p>
+      )}
+
+      {digits.every((d) => d !== "") && (
+        <div className="flex items-center justify-center gap-1 text-xs text-emerald-400 font-medium">
+          <CheckCircle2 size={13} />
+          <span>OTP பூர்த்தி செய்யப்பட்டது</span>
+        </div>
+      )}
     </div>
   );
 }
