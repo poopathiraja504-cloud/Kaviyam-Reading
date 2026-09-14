@@ -1,5 +1,5 @@
-import React from "react";
-import { TrendingUp, Clock, BookOpen, Award, CheckCircle2, Flame, Calendar } from "lucide-react";
+import React, { useState } from "react";
+import { TrendingUp, Clock, BookOpen, Award, CheckCircle2, Flame, Calendar, Coins, Zap, Trophy, Gift, Users } from "lucide-react";
 import { Language } from "../utils/i18n";
 
 interface ProgressDashboardProps {
@@ -7,6 +7,11 @@ interface ProgressDashboardProps {
 }
 
 export default function ProgressDashboard({ lang }: ProgressDashboardProps) {
+  const [coins, setCoins] = useState<number>(350);
+  const [xp, setXp] = useState<number>(1250);
+  const [claimedMissions, setClaimedMissions] = useState<string[]>([]);
+  const [activeGamificationTab, setActiveGamificationTab] = useState<string>("missions");
+
   const stats = [
     {
       titleTa: "வாசித்த நேரங்கள்",
@@ -48,19 +53,55 @@ export default function ProgressDashboard({ lang }: ProgressDashboardProps) {
     { day: "Sun", hrs: 2.3 },
   ];
 
+  const missions = [
+    { id: "daily-1", title: "Read 15 mins today", reward: 50, xp: 100, icon: "🎯", type: "Daily Mission" },
+    { id: "weekly-1", title: "Complete 3 chapters", reward: 150, xp: 300, icon: "📅", type: "Weekly Challenge" },
+    { id: "monthly-1", title: "Read 1 Classic Epic", reward: 500, xp: 1000, icon: "🏆", type: "Monthly Challenge" },
+  ];
+
+  const leaderboard = [
+    { rank: 1, name: "Ilango Adigal Fan", xp: "4,850 XP", badge: "🥇 Sangam Legend" },
+    { rank: 2, name: "Kalki Scholar", xp: "3,920 XP", badge: "🥈 Ponniyin Scholar" },
+    { rank: 3, name: "You (Kaviyam Reader)", xp: `${xp} XP`, badge: "🥉 Chola Explorer" },
+    { rank: 4, name: "Tamil Literary Lover", xp: "1,100 XP", badge: "Aadi Scholar" },
+  ];
+
+  const handleClaimReward = (id: string, rewardCoins: number, rewardXp: number) => {
+    if (!claimedMissions.includes(id)) {
+      setClaimedMissions([...claimedMissions, id]);
+      setCoins(prev => prev + rewardCoins);
+      setXp(prev => prev + rewardXp);
+    }
+  };
+
   return (
     <div className="space-y-8 font-sans pb-12">
       
-      {/* Header */}
-      <div>
-        <h2 className="font-serif font-bold text-2xl text-[#3B0B12]">
-          {lang === "ta" ? "வாசிப்பு முன்னேற்ற புள்ளிவிவரங்கள்" : "Reading Progress & Stats"}
-        </h2>
-        <p className="text-xs text-stone-500 mt-1">
-          {lang === "ta"
-            ? "உங்கள் தினசரி வாசிப்பு இலக்குகள் மற்றும் மைல்கற்கள்"
-            : "Track your reading habits, streaks, and completed milestones"}
-        </p>
+      {/* Header with Kaviyam Coins & XP Banner */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-[#3B0B12] via-[#4A0E17] to-[#5C121E] text-white p-6 rounded-3xl border border-[#D4AF37]/30 shadow-lg">
+        <div>
+          <h2 className="font-serif font-bold text-2xl text-white">
+            {lang === "ta" ? "வாசிப்பு முன்னேற்ற புள்ளிவிவரங்கள்" : "Reading Missions & Level Rewards"}
+          </h2>
+          <p className="text-xs text-amber-100/80 mt-1">
+            {lang === "ta"
+              ? "உங்கள் தினசரி வாசிப்பு இலக்குகள், நாணயங்கள் மற்றும் பேட்ஜ்கள்"
+              : "Level up your status, earn Kaviyam Coins, and conquer monthly challenges"}
+          </p>
+        </div>
+
+        {/* Gamification Coins & Level Pill */}
+        <div className="flex items-center gap-3 bg-black/30 backdrop-blur-md p-2.5 rounded-2xl border border-[#D4AF37]/40 shrink-0">
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-amber-500/20 text-[#D4AF37] border border-[#D4AF37]/50 text-xs font-extrabold">
+            <Coins className="w-4 h-4 text-amber-400 animate-spin" />
+            <span>💰 {coins} Coins</span>
+          </div>
+
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-purple-500/20 text-purple-200 border border-purple-400/50 text-xs font-extrabold">
+            <Zap className="w-4 h-4 text-purple-300" />
+            <span>⚡ {xp} XP (Lvl 5)</span>
+          </div>
+        </div>
       </div>
 
       {/* Top 4 Stat Metric Cards */}

@@ -27,6 +27,13 @@ export interface User {
   bio?: string;
   updatedAt?: string;
   profile?: UserProfile;
+  totalXP?: number;
+  totalXp?: number;
+  levelUpAlert?: {
+    level: number;
+    levelNameTa: string;
+    xp: number;
+  };
   security?: {
     is2FAEnabled: boolean;
     isBlocked: boolean;
@@ -144,4 +151,88 @@ export interface AppNotification {
   read: boolean;
   category?: string;
   type?: "info" | "warning" | "success";
+}
+
+// Quiz System Interfaces
+export interface QuizQuestion {
+  questionId: string;
+  quizId: string;
+  question: string;
+  questionTa?: string;
+  options: {
+    A: string;
+    B: string;
+    C: string;
+    D: string;
+  };
+  optionsTa?: {
+    A: string;
+    B: string;
+    C: string;
+    D: string;
+  };
+  correctAnswer: "A" | "B" | "C" | "D";
+  explanation: string;
+  explanationTa?: string;
+  difficulty: "Easy" | "Medium" | "Hard";
+  category: string;
+  marks: number;
+}
+
+export interface QuizSet {
+  quizId: string;
+  title: string;
+  titleTa?: string;
+  description: string;
+  descriptionTa?: string;
+  category: string;
+  categoryTa?: string;
+  difficulty: "Easy" | "Medium" | "Hard";
+  totalQuestions: number;
+  marksPerQuestion: number;
+  totalMarks: number;
+  timeLimit: number; // in seconds (e.g. 600)
+  associatedBookId?: string;
+  questions: QuizQuestion[];
+}
+
+export interface QuizAttempt {
+  attemptId: string;
+  quizId: string;
+  quizTitle: string;
+  title?: string;
+  userId: string;
+  username: string;
+  answers: Record<string, "A" | "B" | "C" | "D">;
+  score: number;
+  percentage: number;
+  correctAnswers: number;
+  wrongAnswers: number;
+  unansweredQuestions: number;
+  timeUsed: number;
+  startedAt: string;
+  completedAt: string;
+  status: "Completed" | "Failed" | "In-Progress";
+}
+
+export interface QuizUserStats {
+  quizzesTaken: number;
+  questionsAnswered: number;
+  correctAnswers: number;
+  wrongAnswers: number;
+  averageScore: number;
+  highestScore: number;
+  completionRate: number;
+  quizStreak: number;
+  totalXp: number;
+}
+
+export interface QuizAchievement {
+  id: string;
+  title: string;
+  titleTa?: string;
+  description: string;
+  icon: string;
+  unlocked: boolean;
+  unlockedAt?: string;
 }

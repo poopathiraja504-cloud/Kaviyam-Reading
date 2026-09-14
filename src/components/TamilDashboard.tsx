@@ -78,17 +78,17 @@ export default function TamilDashboard({
           </div>
         </div>
 
-        {/* Grid of Books with 3D Realistic Covers */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-6">
+        {/* Single Row Horizontal Scrollable Carousel of Books */}
+        <div className="flex items-stretch gap-4 overflow-x-auto pb-4 pt-1 px-1 custom-scrollbar snap-x">
           {featuredBooks.map((book) => {
             const isBookmarked = bookmarks.includes(book.id);
             return (
               <div
                 key={book.id}
-                className="flex flex-col items-center text-center group cursor-pointer"
+                className="w-36 sm:w-44 shrink-0 snap-start flex flex-col justify-between items-center text-center group cursor-pointer bg-white p-3 rounded-2xl border border-[#E2DDD5] shadow-xs hover:border-[#D4AF37] hover:shadow-md transition-all overflow-hidden"
                 onClick={() => onSelectBook(book.id)}
               >
-                <div className="mb-3 transform group-hover:-translate-y-1 transition-transform">
+                <div className="mb-2 w-full flex justify-center transform group-hover:-translate-y-1 transition-transform">
                   <Book3D
                     coverUrl={book.coverUrl}
                     title={book.title}
@@ -103,14 +103,16 @@ export default function TamilDashboard({
                   />
                 </div>
 
-                <h3 className="font-serif font-bold text-xs sm:text-sm text-stone-900 line-clamp-1 group-hover:text-[#5C121E] transition-colors">
-                  {book.title}
-                </h3>
-                <p className="text-[11px] text-stone-500 line-clamp-1 mt-0.5 font-sans">
-                  {book.author}
-                </p>
+                <div className="w-full space-y-0.5">
+                  <h3 className="font-serif font-bold text-xs sm:text-sm text-stone-900 line-clamp-1 group-hover:text-[#5C121E] transition-colors">
+                    {book.title}
+                  </h3>
+                  <p className="text-[11px] text-stone-500 line-clamp-1 font-sans">
+                    {book.author}
+                  </p>
+                </div>
 
-                <div className="mt-2 flex items-center gap-2">
+                <div className="mt-2.5 flex items-center gap-2">
                   <span className="text-[10px] font-semibold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
                     ⭐ {book.rating.toFixed(1)}
                   </span>
@@ -119,7 +121,7 @@ export default function TamilDashboard({
                       e.stopPropagation();
                       onToggleBookmark(book.id);
                     }}
-                    className={`p-1 rounded-full text-xs transition-colors ${
+                    className={`p-1 rounded-full text-xs transition-colors cursor-pointer ${
                       isBookmarked ? "text-amber-600" : "text-stone-400 hover:text-stone-700"
                     }`}
                   >

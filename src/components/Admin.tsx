@@ -58,31 +58,69 @@ export default function Admin({
         </div>
       </div>
 
-      {/* Admin Tabs */}
-      <div className="flex gap-2 border-b border-[#E2DDD5] pb-2">
+      {/* Admin Control Buttons Navigation Bar (14 Requested Admin Buttons) */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-2 custom-scrollbar">
         <button
           onClick={() => setActiveTab("users")}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors ${
-            activeTab === "users" ? "bg-[#5C121E] text-white" : "bg-stone-100 text-stone-700 hover:bg-stone-200"
+          className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+            activeTab === "users" ? "bg-[#5C121E] text-white shadow-xs" : "bg-white border border-[#E2DDD5] text-stone-700 hover:bg-stone-50"
           }`}
         >
-          Users Management ({usersList.length})
-        </button>
-        <button
-          onClick={() => setActiveTab("security")}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors ${
-            activeTab === "security" ? "bg-[#5C121E] text-white" : "bg-stone-100 text-stone-700 hover:bg-stone-200"
-          }`}
-        >
-          Security Audit Logs ({allSecurityLogs.length})
+          📊 Dashboard
         </button>
         <button
           onClick={() => setActiveTab("books")}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors ${
-            activeTab === "books" ? "bg-[#5C121E] text-white" : "bg-stone-100 text-stone-700 hover:bg-stone-200"
+          className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+            activeTab === "books" ? "bg-[#5C121E] text-white shadow-xs" : "bg-white border border-[#E2DDD5] text-stone-700 hover:bg-stone-50"
           }`}
         >
-          Books Inventory ({booksList.length})
+          📚 Manage Books ({booksList.length})
+        </button>
+        <button
+          onClick={() => setActiveTab("users")}
+          className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+            activeTab === "users" ? "bg-[#5C121E] text-white shadow-xs" : "bg-white border border-[#E2DDD5] text-stone-700 hover:bg-stone-50"
+          }`}
+        >
+          👥 Manage Users ({usersList.length})
+        </button>
+        <button
+          onClick={() => setActiveTab("security")}
+          className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+            activeTab === "security" ? "bg-[#5C121E] text-white shadow-xs" : "bg-white border border-[#E2DDD5] text-stone-700 hover:bg-stone-50"
+          }`}
+        >
+          🔐 Security & Roles
+        </button>
+        <button className="px-3 py-1.5 rounded-xl bg-white border border-[#E2DDD5] text-stone-700 hover:bg-stone-50 text-xs font-bold whitespace-nowrap">
+          ✍️ Manage Authors
+        </button>
+        <button className="px-3 py-1.5 rounded-xl bg-white border border-[#E2DDD5] text-stone-700 hover:bg-stone-50 text-xs font-bold whitespace-nowrap">
+          🏷️ Manage Categories
+        </button>
+        <button className="px-3 py-1.5 rounded-xl bg-white border border-[#E2DDD5] text-stone-700 hover:bg-stone-50 text-xs font-bold whitespace-nowrap">
+          ⭐ Manage Reviews
+        </button>
+        <button className="px-3 py-1.5 rounded-xl bg-white border border-[#E2DDD5] text-stone-700 hover:bg-stone-50 text-xs font-bold whitespace-nowrap">
+          💬 Manage Comments
+        </button>
+        <button className="px-3 py-1.5 rounded-xl bg-white border border-[#E2DDD5] text-stone-700 hover:bg-stone-50 text-xs font-bold whitespace-nowrap">
+          🚨 Reports
+        </button>
+        <button className="px-3 py-1.5 rounded-xl bg-white border border-[#E2DDD5] text-stone-700 hover:bg-stone-50 text-xs font-bold whitespace-nowrap">
+          📢 Send Notifications
+        </button>
+        <button className="px-3 py-1.5 rounded-xl bg-white border border-[#E2DDD5] text-stone-700 hover:bg-stone-50 text-xs font-bold whitespace-nowrap">
+          🎁 Manage Rewards
+        </button>
+        <button className="px-3 py-1.5 rounded-xl bg-white border border-[#E2DDD5] text-stone-700 hover:bg-stone-50 text-xs font-bold whitespace-nowrap">
+          💳 Payments
+        </button>
+        <button className="px-3 py-1.5 rounded-xl bg-white border border-[#E2DDD5] text-stone-700 hover:bg-stone-50 text-xs font-bold whitespace-nowrap">
+          📈 Analytics
+        </button>
+        <button className="px-3 py-1.5 rounded-xl bg-white border border-[#E2DDD5] text-stone-700 hover:bg-stone-50 text-xs font-bold whitespace-nowrap">
+          ⚙️ System Settings
         </button>
       </div>
 

@@ -163,12 +163,13 @@ export default function Library({
             return (
               <div
                 key={book.id}
-                className="group p-3 rounded-2xl bg-white border border-[#E2DDD5] shadow-sm hover:border-[#D4AF37] hover:shadow-xl transition-all duration-300 flex flex-col justify-between"
+                className="group p-3 rounded-2xl bg-white border border-[#E2DDD5] shadow-sm hover:border-[#D4AF37] hover:shadow-xl transition-all duration-300 flex flex-col justify-between overflow-hidden"
               >
-                <div className="aspect-[3/4] w-full mb-3">
+                <div className="w-full mb-3 px-1 flex items-center justify-center">
                   <Book3D
                     coverUrl={book.coverUrl}
                     title={book.title}
+                    size="md"
                     overlay={
                       <>
                         <button

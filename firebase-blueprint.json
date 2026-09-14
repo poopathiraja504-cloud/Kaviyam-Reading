@@ -26,10 +26,41 @@
           "type": "object",
           "description": "Inner security parameters"
         },
+        "level": { "type": "number", "description": "User's current progression level (1-20)" },
+        "levelName": { "type": "string", "description": "Tamil name of the user's current level" },
+        "totalXP": { "type": "number", "description": "User's total experience points earned" },
+        "levelUpAlert": { "type": "object", "description": "Pending level up notification data if any" },
         "createdAt": { "type": "string", "format": "date-time", "description": "Profile registration timestamp" },
         "updatedAt": { "type": "string", "format": "date-time", "description": "Last profile update timestamp" }
       },
       "required": ["name", "email", "photoFileName"]
+    },
+    "XpTransaction": {
+      "title": "XpTransaction",
+      "description": "A transaction log of user experience points earned from actions",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique transaction ID" },
+        "type": { "type": "string", "enum": ["reading", "quiz", "achievement", "challenge", "streak"], "description": "The category of the earned XP" },
+        "description": { "type": "string", "description": "Tamil description of the activity" },
+        "xp": { "type": "number", "description": "Amount of XP awarded" },
+        "sourceId": { "type": "string", "description": "Unique event source ID (prevent duplication)" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp of the transaction" }
+      },
+      "required": ["id", "type", "description", "xp", "sourceId", "createdAt"]
+    },
+    "LevelHistory": {
+      "title": "LevelHistory",
+      "description": "Historical milestones of user leveling up",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique milestone ID" },
+        "previousLevel": { "type": "number", "description": "The user's level before level up" },
+        "newLevel": { "type": "number", "description": "The user's level after level up" },
+        "xp": { "type": "number", "description": "The total XP threshold reached" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp when level was reached" }
+      },
+      "required": ["id", "previousLevel", "newLevel", "xp", "createdAt"]
     },
     "Book": {
       "title": "Book",
@@ -106,6 +137,25 @@
         "isSystem": { "type": "boolean", "description": "Whether this is a built-in historical system link" }
       },
       "required": ["id", "title", "url", "category", "uploadedAt"]
+    },
+    "WordFinderAttempt": {
+      "title": "WordFinderAttempt",
+      "description": "Records completed word finder puzzle attempts",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "puzzleId": { "type": "string" },
+        "puzzleNumber": { "type": "number" },
+        "foundWords": { "type": "array" },
+        "score": { "type": "number" },
+        "hintsUsed": { "type": "number" },
+        "timeTaken": { "type": "number" },
+        "status": { "type": "string" },
+        "completedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "puzzleId", "score", "status"]
     }
   },
   "firestore": {
@@ -121,6 +171,14 @@
       "schema": "Bookmark",
       "description": "Association mapping a user's bookmarked stories"
     },
+    "/users/{userId}/xpHistory/{transactionId}": {
+      "schema": "XpTransaction",
+      "description": "The experience points earning history of the user"
+    },
+    "/users/{userId}/levelHistory/{historyId}": {
+      "schema": "LevelHistory",
+      "description": "The level-up history logs of the user"
+    },
     "/logs/{logId}": {
       "schema": "SecurityLog",
       "description": "System audit logging collection for tracking authentication and profile changes"
@@ -132,6 +190,10 @@
     "/links/{linkId}": {
       "schema": "ProjectLink",
       "description": "Historical legacy URLs, API specs, and uploaded literary links repository"
+    },
+    "/wordFinderAttempts/{attemptId}": {
+      "schema": "WordFinderAttempt",
+      "description": "Saved word finder puzzle scores and completion attempts"
     }
   }
 }

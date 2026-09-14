@@ -1,5 +1,5 @@
 import React from "react";
-import { Globe, Moon, Sun, Shield, Database, Bell, Lock } from "lucide-react";
+import { Globe, Moon, Sun, Shield, Database, Bell, Lock, ArrowLeft } from "lucide-react";
 import { Language } from "../utils/i18n";
 
 interface SettingsProps {
@@ -7,6 +7,7 @@ interface SettingsProps {
   onLanguageChange: (lang: Language) => void;
   isDarkMode: boolean;
   onToggleDarkMode: () => void;
+  onBack?: () => void;
 }
 
 export default function Settings({
@@ -14,10 +15,22 @@ export default function Settings({
   onLanguageChange,
   isDarkMode,
   onToggleDarkMode,
+  onBack,
 }: SettingsProps) {
   return (
     <div className="space-y-6 font-sans pb-12 max-w-4xl mx-auto">
       
+      {/* Top Navigation / Back Button */}
+      {onBack && (
+        <button
+          onClick={onBack}
+          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white hover:bg-[#3B0B12] text-stone-700 hover:text-white border border-[#E2DDD5] shadow-xs transition-all text-xs font-bold cursor-pointer group"
+        >
+          <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-0.5" />
+          <span>{lang === "ta" ? "← முகப்பிற்கு திரும்பு (Back)" : "← Back to Home"}</span>
+        </button>
+      )}
+
       {/* Header */}
       <div>
         <h2 className="font-serif font-bold text-2xl text-[#3B0B12]">

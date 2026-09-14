@@ -37,6 +37,22 @@ service cloud.firestore {
       allow update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
     }
 
+    // Word Finder game attempts, in-progress state, and leaderboard
+    match /wordFinderAttempts/{attemptId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    match /wordFinderProgress/{progressId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /wordFinderLeaderboard/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && request.auth.uid == userId;
+    }
+
     // 3. Default fallback: Deny all read and write access to all other paths
     match /{document=**} {
       allow read, write: if false;

@@ -6,9 +6,10 @@ interface PublicHeroProps {
   lang: Language;
   onBrowseBooks: () => void;
   onStartReading: () => void;
+  onPlayIntro?: () => void;
 }
 
-export default function PublicHero({ lang, onBrowseBooks, onStartReading }: PublicHeroProps) {
+export default function PublicHero({ lang, onBrowseBooks, onStartReading, onPlayIntro }: PublicHeroProps) {
   return (
     <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#3B0B12] via-[#5C121E] to-[#2A080D] text-white p-8 sm:p-12 mb-8 shadow-2xl border border-amber-900/30">
       
@@ -39,10 +40,10 @@ export default function PublicHero({ lang, onBrowseBooks, onStartReading }: Publ
         </p>
 
         {/* Action Buttons */}
-        <div className="flex flex-wrap items-center gap-4 pt-2">
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4 pt-2">
           <button
             onClick={onStartReading}
-            className="px-6 py-3 rounded-2xl bg-[#D4AF37] hover:bg-[#B89628] text-stone-950 font-bold text-xs sm:text-sm shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
+            className="px-6 py-3 rounded-2xl bg-[#D4AF37] hover:bg-[#B89628] text-stone-950 font-bold text-xs sm:text-sm shadow-lg hover:shadow-xl transition-all flex items-center gap-2 cursor-pointer"
           >
             <BookOpen className="w-4 h-4" />
             <span>{lang === "ta" ? "உடனே வாசிக்கத் தொடங்குக" : "Start Reading Now"}</span>
@@ -51,7 +52,7 @@ export default function PublicHero({ lang, onBrowseBooks, onStartReading }: Publ
 
           <button
             onClick={onBrowseBooks}
-            className="px-6 py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-semibold text-xs sm:text-sm border border-white/20 backdrop-blur-md transition-all"
+            className="px-6 py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-semibold text-xs sm:text-sm border border-white/20 backdrop-blur-md transition-all cursor-pointer"
           >
             {lang === "ta" ? "நூலகத்தை பார்வையிடுக" : "Browse Tamil Library"}
           </button>

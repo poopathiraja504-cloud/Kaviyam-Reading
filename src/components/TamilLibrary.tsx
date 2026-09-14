@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import { 
   BookOpen, 
   Search, 
@@ -13,6 +13,8 @@ import {
   Download, 
   Layers,
   ArrowRight,
+  ChevronLeft,
+  ChevronRight,
   Library as LibraryIcon
 } from "lucide-react";
 import { Book } from "../types";
@@ -27,6 +29,8 @@ interface TamilLibraryProps {
   onToggleBookmark: (bookId: string) => void;
   onAddCustomBook: (newBook: any) => void;
   lang: Language;
+  externalCategory?: string;
+  onCategoryChange?: (category: string) => void;
 }
 
 export default function TamilLibrary({
@@ -36,12 +40,28 @@ export default function TamilLibrary({
   onToggleBookmark,
   onAddCustomBook,
   lang,
+  externalCategory,
+  onCategoryChange,
 }: TamilLibraryProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [selectedGenre, setSelectedGenre] = useState<string>("all");
   const [selectedAuthor, setSelectedAuthor] = useState<string>("all");
   const [selectedSort, setSelectedSort] = useState<string>("popularity");
+
+  // Sync with external category prop
+  useEffect(() => {
+    if (externalCategory) {
+      setActiveCategory(externalCategory);
+    }
+  }, [externalCategory]);
+
+  const handleSetCategory = (catId: string) => {
+    setActiveCategory(catId);
+    if (onCategoryChange) {
+      onCategoryChange(catId);
+    }
+  };
 
   // Ingest Novel state
   const [ingestName, setIngestName] = useState("");
@@ -68,67 +88,143 @@ export default function TamilLibrary({
     { id: "rare", label: t("rareAcademicBooks") },
   ];
 
-  // Major Online Archives & Databases (#3)
+  // Major Online Archives & E-Book Libraries (6 Ref Links)
   const onlineArchives = [
     {
-      title: "Tamil Digital Library (தமிழ் இணையக் கல்விக்கழகம்)",
-      domain: "tamildigitallibrary.in",
-      url: "https://tamildigitallibrary.in/",
-      desc: lang === "ta"
-        ? "100,000 க்கும் மேற்பட்ட அரிய தமிழ் ஏட்டுச்சுவடிகள், நூல்கள் மற்றும் இதழ்களின் டிஜிட்டல் காப்பகம்."
-        : "Access over 100,000+ digitized rare Tamil palm-leaf manuscripts, books, and periodicals."
-    },
-    {
-      title: "Free Tamil Ebooks (இலவச தமிழ் புத்தகங்கள்)",
+      title: "Free Tamil Ebooks (Creative Commons)",
       domain: "freetamilebooks.com",
       url: "https://freetamilebooks.com/",
       desc: lang === "ta"
-        ? "கிரியேட்டிவ் காமன்ஸ் உரிமையுடைய நவீன மற்றும் செவ்வியல் தமிழ் மின்னூல்கள்."
-        : "Creative Commons licensed contemporary and classical Tamil ebooks for open reading."
+        ? "கிரியேட்டிவ் காமன்ஸ் உரிமையுடைய திறந்தநிலை தமிழ் செவ்வியல் மற்றும் நவீன மின்புத்தகங்கள்."
+        : "Thousands of copyright-free open access Tamil classic and contemporary novels for e-readers."
     },
     {
-      title: "Tamil Books PDF / Project Madurai (மதுரைத் திட்டம்)",
-      domain: "projectmadurai.org",
-      url: "https://www.projectmadurai.org/",
+      title: "Tamil Books PDF (2000+ Novels Archive)",
+      domain: "tamilbookspdf.com",
+      url: "https://tamilbookspdf.com/",
       desc: lang === "ta"
-        ? "சங்க இலக்கியம் முதல் தற்கால படைப்புகள் வரையிலான திறந்தநிலை மின்னூல் தொகுப்பு."
-        : "Open electronic library of ancient, medieval, and modern Tamil literary classics."
+        ? "2000-க்கும் மேற்பட்ட வரலாற்று நாவல்கள், துப்பறியும் கதைகள் மற்றும் தமிழ் இலக்கியப் பொக்கிஷங்கள்."
+        : "Downloadable PDF collection of 2000+ Tamil novels, historical thrillers, and classics."
     },
     {
-      title: "Noolaham Digital Archive (நூலகம் நிறுவனம்)",
-      domain: "noolaham.org",
-      url: "http://www.noolaham.org/",
+      title: "Free Tamil Books Portal",
+      domain: "freetamilbooks.com",
+      url: "https://freetamilbooks.com/",
       desc: lang === "ta"
-        ? "ஈழத்து தமிழ் ஆவணங்கள் மற்றும் கலாச்சார படைப்புகளின் சர்வதேச டிஜிட்டல் காப்பகம்."
-        : "Digital documentation of Sri Lankan Tamil literature, periodicals, and cultural heritage."
+        ? "தமிழ் இலக்கியங்கள், கட்டுரைகள், கவிதைகள் மற்றும் பொது அறிவு நூல்களின் இலவச மின் ஆவணம்."
+        : "Open-source digital library archiving Tamil literature, historical essays, and poems."
+    },
+    {
+      title: "Tamil Bookshelf Digital Library",
+      domain: "tamilbookshelf.in",
+      url: "https://tamilbookshelf.in/library.html#",
+      desc: lang === "ta"
+        ? "சங்க இலக்கியங்கள், காப்பியங்கள் மற்றும் அரிய வரலாற்று ஆய்வுகளின் பட்டியலிடப்பட்ட மின்னூலகம்."
+        : "Curated digital bookshelf cataloging ancient classics, Sangam literature, and epics."
+    },
+    {
+      title: "Tamilcube Free Tamil Books & Dictionaries",
+      domain: "shop.tamilcube.com",
+      url: "https://shop.tamilcube.com/tamil-books-free/",
+      desc: lang === "ta"
+        ? "சிங்கப்பூர் & உலகத் தமிழர்களுக்கான சிறுவர் கதைகள், இலக்கண நூல்கள் மற்றும் அகராதி."
+        : "Singapore & global Tamil education portal offering free children's books and dictionaries."
+    },
+    {
+      title: "TN Samacheer Kalvi School Textbooks",
+      domain: "tntextbooks.in",
+      url: "https://www.tntextbooks.in/p/school-books.html",
+      desc: lang === "ta"
+        ? "தமிழ்நாடு அரசு சமச்சீர் கல்வி 1 முதல் 12-ஆம் வகுப்பு வரையிலான அனைத்துப் பாடநூல்கள்."
+        : "Official repository of Tamil Nadu State Board Samacheer Kalvi school textbooks (Std 1-12)."
     }
   ];
 
-  // Contemporary & Romantic Novel Hubs (#4)
+  // Contemporary & Serialized Novel Hubs (4 Ref Links)
   const novelHubs = [
     {
       title: "SM Tamil Novels Forum",
-      domain: "smtamilnovels.com",
-      url: "https://smtamilnovels.com/",
+      domain: "forum.smtamilnovels.com",
+      url: "https://forum.smtamilnovels.com/",
       desc: lang === "ta"
-        ? "பிரபல தமிழ் நாவலாசிரியர்களின் தொடர்கதைகள் மற்றும் வாசகர் விவாதக் கூடம்."
-        : "Active reader community and serialization platform for popular Tamil romance and family fiction."
+        ? "சுயாதீன தமிழ் நாவலாசிரியர்களின் தினசரி தொடர்கதைகள் மற்றும் வாசகர் விவாதக் கூடம்."
+        : "Interactive reader community and serialization platform for romantic & family Tamil novels."
     },
     {
-      title: "All Tamil Novels Blog",
-      domain: "alltamilnovels.com",
-      url: "https://alltamilnovels.com/",
+      title: "All Tamil Novels Download",
+      domain: "alltamilnovelsdownload.blogspot.com",
+      url: "https://alltamilnovelsdownload.blogspot.com/",
       desc: lang === "ta"
-        ? "தமிழ் நாவலாசிரியர்கள், தொடர்கதைகள் மற்றும் இலக்கிய விமர்சனங்களின் தொகுப்பு."
-        : "Comprehensive index of Tamil writers, serial novels, and literary discussions."
+        ? "வரலாற்றுப் புதினங்கள், குடும்பக் கதைகள் மற்றும் பிரபல எழுத்தாளர்களின் நாவல் காப்பகம்."
+        : "Comprehensive web archive containing historical novels, romantic series, and classics."
     },
     {
-      title: "Chillzee Tamil Novels",
+      title: "Chillzee Tamil Novels & Stories",
       domain: "chillzee.in",
       url: "https://www.chillzee.in/",
       desc: lang === "ta"
-        ? "நவீன தமிழ் காதல், த்ரில்லர் மற்றும் குடும்ப நாவல்களின் முன்னணி தளம்."
-        : "Contemporary romance, mystery, and family drama Tamil stories."
+        ? "நவீன தமிழ் தொடர்கதைகள், சிறுகதைகள், காதல் நாவல்கள் மற்றும் ஆடியோ கதைகள்."
+        : "Vibrant online portal for serialized novels, audio stories, mystery, and family fiction."
+    },
+    {
+      title: "Pratilipi Tamil Story Community",
+      domain: "tamil.pratilipi.com",
+      url: "https://tamil.pratilipi.com/",
+      desc: lang === "ta"
+        ? "லட்சக்கணக்கான வாசகர்களைக் கொண்ட இந்தியாவின் முதன்மையான தமிழ் கதை & நாவல் தளம்."
+        : "Largest digital storytelling network with millions of Tamil web series, romance, and fantasy."
+    }
+  ];
+
+  // Tamil News & Regional Media Portals (6 Ref Links)
+  const newsPortals = [
+    {
+      title: "Dinamani (தினமணி) - Daily Tamil Newspaper",
+      domain: "dinamani.com",
+      url: "https://www.dinamani.com/",
+      desc: lang === "ta"
+        ? "தூய தமிழ் இதழியல், இலக்கிய சிறப்பிதழ்கள் மற்றும் நடுநிலையான தேசிய செய்திகள்."
+        : "Prestigious Tamil daily newspaper renowned for quality journalism and literary supplements."
+    },
+    {
+      title: "Asianet News Tamil - Political Desk",
+      domain: "tamil.asianetnews.com",
+      url: "https://tamil.asianetnews.com/politics",
+      desc: lang === "ta"
+        ? "தமிழ்நாடு அரசியல் கள நிலவரங்கள், தேர்தல் செய்திகள் மற்றும் நேரலை பகுப்பாய்வுகள்."
+        : "Fast-breaking political updates, assembly insights, and regional Tamil analysis."
+    },
+    {
+      title: "Polimer News 24x7 Channel",
+      domain: "polimernews.com",
+      url: "https://www.polimernews.com/",
+      desc: lang === "ta"
+        ? "24 மணி நேரமும் நேரலை செய்திகள், மாவட்ட நடப்புகள் மற்றும் சிறப்பு புலனாய்வுச் செய்திகள்."
+        : "24-hour satellite news network featuring live broadcasts, local headlines, and reports."
+    },
+    {
+      title: "The New Indian Express",
+      domain: "newindianexpress.com",
+      url: "https://www.newindianexpress.com/",
+      desc: lang === "ta"
+        ? "தமிழ்நாடு மற்றும் தென்னிந்திய நடப்புகள், தேசிய செய்திகளைத் துல்லியமாக வழங்கும் நாளிதழ்."
+        : "Major Indian English newspaper providing state reportage and investigative journalism."
+    },
+    {
+      title: "DT Next - Chennai & TN Portal",
+      domain: "dtnext.in",
+      url: "https://www.dtnext.in/",
+      desc: lang === "ta"
+        ? "சென்னை மற்றும் தமிழகத்தின் கலாச்சார, வணிக மற்றும் சமூக நிகழ்வுகளை வழங்கும் இதழ்."
+        : "Leading Chennai-based daily with rich city journalism, cultural features, and state news."
+    },
+    {
+      title: "The Hindu - Tamil Nadu News Edition",
+      domain: "thehindu.com",
+      url: "https://www.thehindu.com/news/national/tamil-nadu/",
+      desc: lang === "ta"
+        ? "தமிழ்நாட்டின் சட்டம், சமூகம், அரசியல் மற்றும் பண்பாட்டு நிகழ்வுகளை ஆழமாக ஆராயும் செய்தியகம்."
+        : "Authoritative statewide reportage on Tamil Nadu policies, heritage, and state developments."
     }
   ];
 
@@ -177,6 +273,35 @@ export default function TamilLibrary({
   };
 
   // Filtered books
+  const categoriesRef = useRef<HTMLDivElement>(null);
+  const discoveryRef = useRef<HTMLDivElement>(null);
+
+  const scrollCategories = (direction: "left" | "right") => {
+    if (categoriesRef.current) {
+      categoriesRef.current.scrollBy({
+        left: direction === "left" ? -220 : 220,
+        behavior: "smooth",
+      });
+    }
+  };
+
+  const scrollDiscovery = (direction: "left" | "right") => {
+    if (discoveryRef.current) {
+      discoveryRef.current.scrollBy({
+        left: direction === "left" ? -220 : 220,
+        behavior: "smooth",
+      });
+    }
+  };
+
+  // 🔮 Surprise Me & Random Book Handler
+  const handleSurpriseMe = () => {
+    if (books.length === 0) return;
+    const randomIndex = Math.floor(Math.random() * books.length);
+    const randomBook = books[randomIndex];
+    onSelectBook(randomBook.id);
+  };
+
   const filteredBooks = useMemo(() => {
     return books.filter((b) => {
       const matchesQuery =
@@ -214,22 +339,7 @@ export default function TamilLibrary({
         </p>
       </div>
 
-      {/* Category Navigation Pills (#2) */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-        {categories.map((cat) => (
-          <button
-            key={cat.id}
-            onClick={() => setActiveCategory(cat.id)}
-            className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
-              activeCategory === cat.id
-                ? "bg-[#3B0B12] text-[#D4AF37] border border-[#D4AF37]/40 shadow-md"
-                : "bg-white text-stone-700 border border-[#E2DDD5] hover:bg-stone-50"
-            }`}
-          >
-            {cat.label}
-          </button>
-        ))}
-      </div>
+
 
       {/* SECTION 6: SEARCH & FETCH NOVEL (AI Ingest) */}
       <div className="p-6 rounded-3xl bg-white border border-[#E2DDD5] shadow-sm space-y-4">
@@ -289,27 +399,31 @@ export default function TamilLibrary({
         )}
       </div>
 
-      {/* SECTION: TAMIL BOOKS GRID (#2) */}
+      {/* SECTION: TAMIL BOOKS (Single Row Horizontal Scroll Carousel) */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="font-serif font-bold text-xl text-[#3B0B12] flex items-center gap-2">
             <BookOpen className="w-5 h-5 text-[#D4AF37]" />
             <span>{t("navTamilLibrary")} ({filteredBooks.length})</span>
           </h2>
+          <span className="text-xs text-stone-500 font-sans italic">
+            {lang === "ta" ? "கிடைமட்டமாக உருட்டவும் →" : "Scroll horizontally →"}
+          </span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        <div className="flex items-stretch gap-4 overflow-x-auto pb-4 pt-1 px-1 custom-scrollbar snap-x">
           {filteredBooks.map((book) => {
             const isBookmarked = bookmarks.includes(book.id);
             return (
               <div
                 key={book.id}
-                className="group p-3 rounded-2xl bg-white border border-[#E2DDD5] shadow-sm hover:border-[#D4AF37] hover:shadow-xl transition-all duration-300 flex flex-col justify-between"
+                className="w-44 sm:w-52 shrink-0 snap-start group p-3 rounded-2xl bg-white border border-[#E2DDD5] shadow-sm hover:border-[#D4AF37] hover:shadow-xl transition-all duration-300 flex flex-col justify-between overflow-hidden"
               >
-                <div className="aspect-[3/4] w-full mb-3">
+                <div className="w-full mb-3 px-1 flex items-center justify-center">
                   <Book3D
                     coverUrl={book.coverUrl}
                     title={book.title}
+                    size="md"
                     overlay={
                       <div className="absolute top-2 right-2 p-1.5 rounded-full bg-black/50 text-[#D4AF37] backdrop-blur-md">
                         <Star className="w-3 h-3 fill-current" />
@@ -330,15 +444,15 @@ export default function TamilLibrary({
                   <div className="pt-3 flex items-center justify-between border-t border-stone-100 gap-1">
                     <button
                       onClick={() => onSelectBook(book.id)}
-                      className="flex-1 py-1.5 rounded-lg bg-[#3B0B12] text-[#D4AF37] text-[10px] font-bold hover:brightness-110 flex items-center justify-center gap-1 shadow-xs"
+                      className="flex-1 py-1.5 rounded-lg bg-[#3B0B12] text-[#D4AF37] text-[10px] font-bold hover:brightness-110 flex items-center justify-center gap-1 shadow-xs truncate"
                     >
-                      <Play className="w-3 h-3 fill-current" />
-                      <span>{t("readNow")}</span>
+                      <Play className="w-3 h-3 fill-current shrink-0" />
+                      <span className="truncate">{t("readNow")}</span>
                     </button>
 
                     <button
                       onClick={() => onToggleBookmark(book.id)}
-                      className={`p-1.5 rounded-lg border transition-all ${
+                      className={`p-1.5 rounded-lg border transition-all shrink-0 ${
                         isBookmarked ? "bg-[#D4AF37] text-[#3B0B12] border-[#D4AF37]" : "border-[#E2DDD5] text-stone-500"
                       }`}
                     >
@@ -352,32 +466,39 @@ export default function TamilLibrary({
         </div>
       </div>
 
-      {/* SECTION 5: PERSONAL OFFLINE DOWNLOADS & PRESETS */}
+      {/* SECTION 5: PERSONAL OFFLINE DOWNLOADS & PRESETS (Single Row Horizontal Scroll) */}
       <div className="space-y-4">
-        <h2 className="font-serif font-bold text-xl text-[#3B0B12] flex items-center gap-2">
-          <Download className="w-5 h-5 text-[#D4AF37]" />
-          <span>{t("offlinePresetsTitle")}</span>
-        </h2>
+        <div className="flex items-center justify-between">
+          <h2 className="font-serif font-bold text-xl text-[#3B0B12] flex items-center gap-2">
+            <Download className="w-5 h-5 text-[#D4AF37]" />
+            <span>{t("offlinePresetsTitle")}</span>
+          </h2>
+          <span className="text-xs text-stone-500 font-sans italic">
+            {lang === "ta" ? "கிடைமட்டமாக உருட்டவும் →" : "Scroll horizontally →"}
+          </span>
+        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="flex items-stretch gap-4 overflow-x-auto pb-4 pt-1 px-1 custom-scrollbar snap-x">
           {books.slice(0, 4).map((book) => (
             <div
               key={book.id}
-              className="p-4 rounded-2xl bg-white border border-[#E2DDD5] shadow-sm hover:border-[#D4AF37] transition-all flex gap-4 items-center"
+              className="w-72 sm:w-80 shrink-0 snap-start p-4 rounded-2xl bg-white border border-[#E2DDD5] shadow-sm hover:border-[#D4AF37] transition-all flex gap-3.5 items-center overflow-hidden min-w-0"
             >
-              <Book3D coverUrl={book.coverUrl} title={book.title} size="sm" />
-              <div className="flex-1 min-w-0">
+              <div className="shrink-0 flex items-center justify-center">
+                <Book3D coverUrl={book.coverUrl} title={book.title} size="sm" />
+              </div>
+              <div className="flex-1 min-w-0 space-y-1">
                 <h3 className="font-serif font-bold text-sm text-[#3B0B12] truncate">{book.title}</h3>
                 <p className="text-xs text-stone-500 truncate">{book.author}</p>
-                <p className="text-[11px] text-stone-600 line-clamp-1 mt-1">{book.description}</p>
+                <p className="text-[11px] text-stone-600 line-clamp-2 mt-1">{book.description}</p>
 
                 <div className="pt-2 flex items-center gap-2">
                   <button
                     onClick={() => onSelectBook(book.id)}
-                    className="px-3 py-1 rounded-lg bg-[#3B0B12] text-[#D4AF37] text-xs font-bold hover:brightness-110 flex items-center gap-1"
+                    className="px-3 py-1.5 rounded-xl bg-[#3B0B12] text-[#D4AF37] text-xs font-bold hover:brightness-110 flex items-center gap-1.5 shrink-0 max-w-full"
                   >
-                    <Play className="w-3 h-3 fill-current" />
-                    <span>{t("openLocalBook")}</span>
+                    <Play className="w-3 h-3 fill-current shrink-0" />
+                    <span className="truncate">{t("openLocalBook")}</span>
                   </button>
                 </div>
               </div>
@@ -386,30 +507,35 @@ export default function TamilLibrary({
         </div>
       </div>
 
-      {/* SECTION 3: MAJOR ONLINE ARCHIVES & DATABASES */}
+      {/* SECTION 3: MAJOR ONLINE ARCHIVES & DATABASES (Single Row Horizontal Scroll) */}
       <div className="space-y-4">
-        <h2 className="font-serif font-bold text-xl text-[#3B0B12] flex items-center gap-2">
-          <Globe className="w-5 h-5 text-[#D4AF37]" />
-          <span>{t("onlineArchivesTitle")}</span>
-        </h2>
+        <div className="flex items-center justify-between">
+          <h2 className="font-serif font-bold text-xl text-[#3B0B12] flex items-center gap-2">
+            <Globe className="w-5 h-5 text-[#D4AF37]" />
+            <span>{t("onlineArchivesTitle")}</span>
+          </h2>
+          <span className="text-xs text-stone-500 font-sans italic">
+            {lang === "ta" ? "கிடைமட்டமாக உருட்டவும் →" : "Scroll horizontally →"}
+          </span>
+        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="flex items-stretch gap-4 overflow-x-auto pb-4 pt-1 px-1 custom-scrollbar snap-x">
           {onlineArchives.map((arc, idx) => (
-            <TiltCard key={idx} className="p-5 rounded-2xl bg-white border border-[#E2DDD5] shadow-sm space-y-3 flex flex-col justify-between">
+            <TiltCard key={idx} className="w-72 sm:w-80 shrink-0 snap-start p-5 rounded-2xl bg-white border border-[#E2DDD5] shadow-sm space-y-3 flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-mono font-bold text-stone-400 uppercase">{arc.domain}</span>
                   <ExternalLink className="w-4 h-4 text-stone-400" />
                 </div>
                 <h3 className="font-serif font-bold text-base text-[#3B0B12] mt-1">{arc.title}</h3>
-                <p className="text-xs text-stone-600 leading-relaxed mt-1">{arc.desc}</p>
+                <p className="text-xs text-stone-600 leading-relaxed mt-1 line-clamp-3">{arc.desc}</p>
               </div>
 
               <a
                 href={arc.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-full py-2 rounded-xl bg-[#F7F2EB] text-[#3B0B12] font-bold text-xs border border-[#E2DDD5] hover:bg-[#3B0B12] hover:text-[#D4AF37] transition-all flex items-center justify-center gap-1.5"
+                className="w-full py-2 rounded-xl bg-[#F7F2EB] text-[#3B0B12] font-bold text-xs border border-[#E2DDD5] hover:bg-[#3B0B12] hover:text-[#D4AF37] transition-all flex items-center justify-center gap-1.5 mt-2"
               >
                 <span>{t("visitArchive")}</span>
                 <ExternalLink className="w-3.5 h-3.5" />
@@ -419,29 +545,72 @@ export default function TamilLibrary({
         </div>
       </div>
 
-      {/* SECTION 4: CONTEMPORARY & ROMANTIC NOVEL HUBS */}
+      {/* SECTION 4: CONTEMPORARY & ROMANTIC NOVEL HUBS (Single Row Horizontal Scroll) */}
       <div className="space-y-4">
-        <h2 className="font-serif font-bold text-xl text-[#3B0B12] flex items-center gap-2">
-          <Layers className="w-5 h-5 text-[#D4AF37]" />
-          <span>{t("novelHubsTitle")}</span>
-        </h2>
+        <div className="flex items-center justify-between">
+          <h2 className="font-serif font-bold text-xl text-[#3B0B12] flex items-center gap-2">
+            <Layers className="w-5 h-5 text-[#D4AF37]" />
+            <span>{t("novelHubsTitle")}</span>
+          </h2>
+          <span className="text-xs text-stone-500 font-sans italic">
+            {lang === "ta" ? "கிடைமட்டமாக உருட்டவும் →" : "Scroll horizontally →"}
+          </span>
+        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="flex items-stretch gap-4 overflow-x-auto pb-4 pt-1 px-1 custom-scrollbar snap-x">
           {novelHubs.map((hub, idx) => (
-            <TiltCard key={idx} className="p-5 rounded-2xl bg-white border border-[#E2DDD5] shadow-sm space-y-3 flex flex-col justify-between">
+            <TiltCard key={idx} className="w-72 sm:w-80 shrink-0 snap-start p-5 rounded-2xl bg-white border border-[#E2DDD5] shadow-sm space-y-3 flex flex-col justify-between">
               <div>
                 <span className="text-[10px] font-mono font-bold text-stone-400 uppercase">{hub.domain}</span>
                 <h3 className="font-serif font-bold text-sm text-[#3B0B12] mt-1">{hub.title}</h3>
-                <p className="text-xs text-stone-600 leading-relaxed mt-1">{hub.desc}</p>
+                <p className="text-xs text-stone-600 leading-relaxed mt-1 line-clamp-3">{hub.desc}</p>
               </div>
 
               <a
                 href={hub.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-full py-2 rounded-xl bg-[#F7F2EB] text-[#3B0B12] font-bold text-xs border border-[#E2DDD5] hover:bg-[#3B0B12] hover:text-[#D4AF37] transition-all flex items-center justify-center gap-1.5"
+                className="w-full py-2 rounded-xl bg-[#F7F2EB] text-[#3B0B12] font-bold text-xs border border-[#E2DDD5] hover:bg-[#3B0B12] hover:text-[#D4AF37] transition-all flex items-center justify-center gap-1.5 mt-2"
               >
                 <span>{t("openCommunity")}</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            </TiltCard>
+          ))}
+        </div>
+      </div>
+
+      {/* SECTION: TAMIL NEWS & REGIONAL MEDIA PORTALS (Single Row Horizontal Scroll) */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="font-serif font-bold text-xl text-[#3B0B12] flex items-center gap-2">
+            <Globe className="w-5 h-5 text-[#D4AF37]" />
+            <span>{lang === "ta" ? "தமிழ் செய்திகள் & ஊடகங்கள்" : "Tamil News & Regional Media"}</span>
+          </h2>
+          <span className="text-xs text-stone-500 font-sans italic">
+            {lang === "ta" ? "கிடைமட்டமாக உருட்டவும் →" : "Scroll horizontally →"}
+          </span>
+        </div>
+
+        <div className="flex items-stretch gap-4 overflow-x-auto pb-4 pt-1 px-1 custom-scrollbar snap-x">
+          {newsPortals.map((news, idx) => (
+            <TiltCard key={idx} className="w-72 sm:w-80 shrink-0 snap-start p-5 rounded-2xl bg-white border border-[#E2DDD5] shadow-sm space-y-3 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono font-bold text-stone-400 uppercase">{news.domain}</span>
+                  <ExternalLink className="w-4 h-4 text-stone-400" />
+                </div>
+                <h3 className="font-serif font-bold text-sm text-[#3B0B12] mt-1">{news.title}</h3>
+                <p className="text-xs text-stone-600 leading-relaxed mt-1 line-clamp-3">{news.desc}</p>
+              </div>
+
+              <a
+                href={news.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full py-2 rounded-xl bg-[#F7F2EB] text-[#3B0B12] font-bold text-xs border border-[#E2DDD5] hover:bg-[#3B0B12] hover:text-[#D4AF37] transition-all flex items-center justify-center gap-1.5 mt-2"
+              >
+                <span>{lang === "ta" ? "செய்திகளை வாசிக்க" : "Read News Portal"}</span>
                 <ExternalLink className="w-3.5 h-3.5" />
               </a>
             </TiltCard>

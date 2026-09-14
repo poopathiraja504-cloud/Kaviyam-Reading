@@ -36,6 +36,8 @@ interface AuthProps {
   onGoogleLogin: () => Promise<{ success: boolean; error?: string }>;
   onPhoneLogin?: (phone: string) => Promise<{ success: boolean; error?: string }>;
   onGuestLogin?: () => void;
+  onCancel?: () => void;
+  initialMode?: "login" | "register";
   isDarkMode?: boolean;
   lang?: Language;
   onLanguageChange?: (lang: Language) => void;
@@ -49,6 +51,8 @@ export default function Auth({
   onGoogleLogin,
   onPhoneLogin,
   onGuestLogin,
+  onCancel,
+  initialMode = "login",
   lang = "ta",
   onLanguageChange,
 }: AuthProps) {
@@ -63,7 +67,7 @@ export default function Auth({
   };
 
   // Auth screen modes
-  const [authMode, setAuthMode] = useState<"login" | "register" | "phone" | "forgot" | "verification">("login");
+  const [authMode, setAuthMode] = useState<"login" | "register" | "phone" | "forgot" | "verification">(initialMode || "login");
 
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -234,7 +238,21 @@ export default function Auth({
       <div className="w-full max-w-md relative z-10">
         {/* Brand Header with authentic Kaviyam Logo */}
         <div className="flex items-center justify-between mb-5">
-          <KaviyamBrandLogo size="md" variant="gold" titleText="KAVIYAM READING" showTagline={true} />
+          <div className="flex items-center gap-3">
+            {onCancel && (
+              <button
+                type="button"
+                onClick={onCancel}
+                id="auth-back-to-app-btn"
+                className="px-2.5 py-1 rounded-lg bg-[#070e1b] border border-stone-800 text-stone-300 hover:text-amber-300 hover:border-amber-400 text-xs font-medium transition-all cursor-pointer flex items-center gap-1"
+                title={currentLang === "ta" ? "செயலிக்குத் திரும்பு" : "Back to Website"}
+              >
+                <span>←</span>
+                <span>{currentLang === "ta" ? "முகப்பு" : "Home"}</span>
+              </button>
+            )}
+            <KaviyamBrandLogo size="md" variant="gold" titleText="KAVIYAM READING" showTagline={true} />
+          </div>
 
           {/* Language Selector: Tamil & English */}
           <div className="flex items-center bg-[#070e1b] border border-stone-800 rounded-lg p-0.5 text-[11px] font-semibold shadow-inner" id="auth-lang-toggle">
@@ -307,10 +325,56 @@ export default function Auth({
 
           {/* Feedback Error / Info Messages */}
           {errorMsg && (
-            <div className="mb-4 p-3 rounded-xl bg-red-950/50 border border-red-800/60 text-red-300 text-xs flex items-start gap-2">
-              <AlertCircle size={15} className="mt-0.5 flex-shrink-0 text-red-400" />
-              <span>{errorMsg}</span>
-            </div>
+            errorMsg.includes("unauthorized-domain") || errorMsg.toLowerCase().includes("domain") ? (
+              <div className="mb-4 p-4 rounded-xl bg-red-950/40 border border-red-500/30 text-xs space-y-3">
+                <div className="flex items-start gap-2 text-red-300">
+                  <AlertCircle size={16} className="mt-0.5 flex-shrink-0 text-red-400" />
+                  <div>
+                    <p className="font-bold text-red-200">
+                      {currentLang === "ta" ? "Firebase அங்கீகரிக்கப்படாத டொமைன் பிழை" : "Firebase Unauthorized Domain"}
+                    </p>
+                    <p className="mt-1 text-red-300/90 leading-relaxed">
+                      {currentLang === "ta" 
+                        ? "Google உள்நுழைவு செயல்பட, உங்கள் Firebase கன்சோலில் தற்போதைய டொமைனை அனுமதிக்க வேண்டும்." 
+                        : "Google Sign-In requires your current domain to be added to Authorized Domains in your Firebase Console."}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="bg-[#070e1b] p-2.5 rounded-lg border border-stone-800 space-y-1.5">
+                  <p className="text-[10px] text-stone-400 font-bold uppercase">
+                    {currentLang === "ta" ? "நகலெடுக்க வேண்டிய டொமைன் (Domain to copy):" : "Domain to add to Authorized Domains:"}
+                  </p>
+                  <div className="flex items-center justify-between gap-2">
+                    <code className="text-[11px] font-mono text-[#f0c15c] break-all bg-stone-900/50 p-1.5 rounded border border-stone-800/80 w-full select-all">
+                      {window.location.hostname}
+                    </code>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 pt-1 text-stone-300 text-[11px] leading-relaxed">
+                  <p>
+                    {currentLang === "ta" 
+                      ? "👉 தீர்வு: Firebase Console > Authentication > Settings > Authorized domains பகுதிக்குச் சென்று மேலே உள்ள டொமைனைச் சேர்க்கவும்." 
+                      : "👉 Action: Go to Firebase Console > Authentication > Settings > Authorized domains, and click 'Add domain' to enter the hostname above."}
+                  </p>
+                  <div className="flex gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={onGuestLogin}
+                      className="px-3 py-1.5 rounded-lg bg-[#f0c15c] text-black font-bold text-[11px] hover:brightness-110 transition-all cursor-pointer shadow-xs"
+                    >
+                      {currentLang === "ta" ? "டெமோ பயனராக தொடர்க (Bypass)" : "Continue as Guest / Bypass"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="mb-4 p-3 rounded-xl bg-red-950/50 border border-red-800/60 text-red-300 text-xs flex items-start gap-2">
+                <AlertCircle size={15} className="mt-0.5 flex-shrink-0 text-red-400" />
+                <span>{errorMsg}</span>
+              </div>
+            )
           )}
 
           {infoMsg && (

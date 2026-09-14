@@ -1,6 +1,6 @@
 {
   "name": "Kaviyam Reading",
-  "description": "An elegant, full-featured Tamil novel reading platform with email authentication simulation, interactive voices, and AI-powered custom novel builder and reading companion.",
+  "description": "An elegant, full-featured Tamil literature and novel reading platform with 500 Word Finder puzzles (சொல் கண்டுபிடி), quiz challenges, and reading progression systems.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

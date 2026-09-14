@@ -4,6 +4,9 @@
   * {
     box-sizing: border-box;
   }
+  html {
+    scroll-behavior: smooth;
+  }
   body {
     margin: 0;
     padding: 0;
@@ -24,4 +27,33 @@
   -ms-overflow-style: none !important;
   scrollbar-width: none !important;
 }
+
+/* Custom smooth scrollbar styling with forced WebKit & Firefox visibility */
+.custom-scrollbar {
+  scrollbar-width: thin !important;
+  scrollbar-color: #5C121E #E2DDD5 !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px !important;
+  height: 8px !important;
+  display: block !important;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #E2DDD5 !important;
+  border-radius: 9999px !important;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #5C121E !important;
+  border-radius: 9999px !important;
+  border: 1.5px solid #F8F5EE !important;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #3B0B12 !important;
+}
+
 

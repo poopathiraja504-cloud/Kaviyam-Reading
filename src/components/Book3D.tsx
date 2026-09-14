@@ -22,9 +22,9 @@ export default function Book3D({
   onClick,
 }: Book3DProps) {
   const sizeClasses = {
-    sm: "w-28 h-40 sm:w-32 sm:h-44",
-    md: "w-40 h-56 sm:w-48 sm:h-68",
-    lg: "w-52 h-72 sm:w-64 sm:h-88",
+    sm: "w-24 h-36 sm:w-28 sm:h-40 max-w-full",
+    md: "w-full max-w-full aspect-[2/3]",
+    lg: "w-full max-w-[260px] aspect-[2/3]",
   };
 
   const isHoverTilt = tilt === "hover" || tilt === "pointer";
@@ -32,10 +32,10 @@ export default function Book3D({
   return (
     <div
       onClick={onClick}
-      className={`relative group perspective-1000 select-none ${onClick ? "cursor-pointer" : ""} ${className}`}
+      className={`relative group perspective-1000 select-none w-full flex justify-center items-center ${onClick ? "cursor-pointer" : ""} ${className}`}
     >
       <div
-        className={`relative ${sizeClasses[size]} rounded-r-lg shadow-xl transition-all duration-500 ease-out transform-style-3d ${
+        className={`relative ${sizeClasses[size] || sizeClasses.md} rounded-r-lg shadow-xl transition-all duration-500 ease-out transform-style-3d ${
           isHoverTilt
             ? "group-hover:-rotate-y-12 group-hover:rotate-x-6 group-hover:scale-105 group-hover:shadow-2xl"
             : ""
