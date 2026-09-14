@@ -4,6 +4,7 @@ interface TiltCardProps {
   children: React.ReactNode;
   className?: string;
   intensity?: number;
+  key?: React.Key;
 }
 
 export default function TiltCard({ children, className = "", intensity = 10 }: TiltCardProps) {
