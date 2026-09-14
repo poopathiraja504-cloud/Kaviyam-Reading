@@ -13,6 +13,7 @@ import {
   Download, 
   Layers,
   ArrowRight,
+  FileText,
   Library as LibraryIcon
 } from "lucide-react";
 import { Book } from "../types";
@@ -308,8 +309,16 @@ export default function TamilLibrary({
                     coverUrl={book.coverUrl}
                     title={book.title}
                     overlay={
-                      <div className="absolute top-2 right-2 p-1.5 rounded-full bg-black/50 text-[#D4AF37] backdrop-blur-md">
-                        <Star className="w-3 h-3 fill-current" />
+                      <div className="absolute top-2 right-2 flex items-center gap-1">
+                        {book.isPdf && (
+                          <div className="px-1.5 py-0.5 rounded-full bg-[#D4AF37] text-[#3B0B12] text-[9px] font-extrabold shadow-md flex items-center gap-0.5">
+                            <FileText className="w-2.5 h-2.5" />
+                            <span>PDF</span>
+                          </div>
+                        )}
+                        <div className="p-1 rounded-full bg-black/50 text-[#D4AF37] backdrop-blur-md">
+                          <Star className="w-3 h-3 fill-current" />
+                        </div>
                       </div>
                     }
                   />

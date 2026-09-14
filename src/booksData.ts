@@ -10,6 +10,8 @@ export const PRESET_BOOKS: Book[] = [
     genre: "Adventure",
     rating: 5.0,
     ratingCount: 1250,
+    pdfUrl: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+    isPdf: true,
     chapters: [
       {
         chapterNumber: 1,
@@ -43,11 +45,53 @@ export const PRESET_BOOKS: Book[] = [
     genre: "Epic",
     rating: 4.9,
     ratingCount: 980,
+    pdfUrl: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+    isPdf: true,
     chapters: [
       {
         chapterNumber: 1,
         chapterTitle: "காஞ்சிபுரம் பரதநாட்டியம் (The Court of Kanchi)",
         content: `பல்லவ மன்னன் மகேந்திரவர்மனின் ஆட்சிக்காலத்தில் காஞ்சி நகரின் கலைப் பொலிவும் சிவகாமியின் பரதநாட்டிய நடன அரங்கமும்...\n\nThe grand court of Kanchipuram glistened with polished granite pillars and lotus carvings. Emperor Mahendravarman, a master of poetry, music, and painting, sat upon the golden lion throne. Beside him stood the young Prince Narasimhavarman, his eyes locked on the dancing stage.\n\nSivagami, daughter of the royal sculptor Aayanar, stepped onto the silk stage. As the mridangam resonated, her graceful movements transformed the royal court into a realm of divine beauty.`
+      }
+    ],
+    reviews: []
+  },
+  {
+    id: "parthiban-kanavu",
+    title: "Parthiban Kanavu (பார்த்திபன் கனவு)",
+    author: "Kalki Krishnamurthy (கல்கி)",
+    description: "The inspiring story of Chola King Parthiban's dream for Chola independence from Pallava rule, carried forward by his brave son Vikraman and the mysterious sword-wielding monk.",
+    coverUrl: "https://images.unsplash.com/photo-1532012197267-da84d127e765?auto=format&fit=crop&q=80&w=400",
+    genre: "Historical Fiction",
+    rating: 4.8,
+    ratingCount: 890,
+    pdfUrl: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+    isPdf: true,
+    chapters: [
+      {
+        chapterNumber: 1,
+        chapterTitle: "மன்னரின் கனவு (The King's Dream)",
+        content: `சோழ மன்னன் பார்த்திபன் தன் தலைநகர் உறையூரில் வைத்து சோழ சாம்ராஜ்யத்தின் சுதந்தரக் கனவைக் காணுதல்...\n\nKing Parthiban stood upon the ramparts of Uraiyur, gazing out over the Kaveri river. Though paying tribute to the mighty Pallavas of Kanchi, his heart burned with the dream of a restored, independent Chola flag flying high across Tamilakam.`
+      }
+    ],
+    reviews: []
+  },
+  {
+    id: "kadal-pura",
+    title: "Kadal Pura (கடல் புறா)",
+    author: "Sandilyan (சாண்டில்யன்)",
+    description: "An incredible three-part historical naval adventure featuring Prince Karunakara Tondaiman, the Chola navy, secret maps, ocean battles, and the legendary ship Kadal Pura.",
+    coverUrl: "https://images.unsplash.com/photo-1509281373149-e957c6296406?auto=format&fit=crop&q=80&w=400",
+    genre: "Naval Adventure",
+    rating: 4.95,
+    ratingCount: 1120,
+    pdfUrl: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+    isPdf: true,
+    chapters: [
+      {
+        chapterNumber: 1,
+        chapterTitle: "கடல் போர்க்கப்பல் (The Ocean Warship)",
+        content: `வங்கக் கடலில் பாயும் சோழர்களின் கடல் புறா போர்க்கப்பலின் வீரப் பயணம்...\n\nThe majestic Chola warship Kadal Pura sliced through the blue waves of the Bay of Bengal with its immense sails hoisted against the trade winds. Commander Karunakara Tondaiman gripped the helm tightly.`
       }
     ],
     reviews: []
@@ -61,6 +105,8 @@ export const PRESET_BOOKS: Book[] = [
     genre: "Classic",
     rating: 5.0,
     ratingCount: 1420,
+    pdfUrl: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+    isPdf: true,
     chapters: [
       {
         chapterNumber: 1,
@@ -79,11 +125,33 @@ export const PRESET_BOOKS: Book[] = [
     genre: "Philosophy",
     rating: 5.0,
     ratingCount: 2100,
+    pdfUrl: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+    isPdf: true,
     chapters: [
       {
         chapterNumber: 1,
         chapterTitle: "அகர முதல (The Praise of God & Knowledge)",
         content: `அகர முதல எழுத்தெல்லாம் ஆதி\nபகவன் முதற்றே உலகு.\n\nAs the letter 'A' is the first of all letters in speech, so is the Eternal Divine Lord the primary origin of the universe.\n\nகற்றதனால் ஆய பயனென்கொல் வாலறிவன்\nநற்றாள் தொழாஅர் எனின்.\n\nWhat is the true value of all learning, if one does not bow before the feet of Pure Supreme Wisdom?`
+      }
+    ],
+    reviews: []
+  },
+  {
+    id: "manimekalai",
+    title: "Manimekalai (மணிமேகலை)",
+    author: "Chithalai Chathanar (சீத்தலைச் சாத்தனார்)",
+    description: "The profound Buddhist epic continuation of Silappatikaram. Follow Manimekalai, daughter of Kovalan and Madhavi, on her quest for truth, compassion, and the divine bowl Amudhasurabi.",
+    coverUrl: "https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&q=80&w=400",
+    genre: "Epic",
+    rating: 4.85,
+    ratingCount: 760,
+    pdfUrl: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+    isPdf: true,
+    chapters: [
+      {
+        chapterNumber: 1,
+        chapterTitle: "விழாவறை காதை (The Announcement of Festival)",
+        content: `பூம்புகார் நகரில் இந்திர விழா அறிவிப்பும் மணிமேகலையின் துறவுப் பாதையும்...\n\nThe grand festival of Indra was proclaimed across ancient Puhar with beatings of bronze drums. Manimekalai, blossoming with ethereal youth and wisdom, renounced worldly pleasures to seek spiritual truth.`
       }
     ],
     reviews: []
@@ -97,6 +165,8 @@ export const PRESET_BOOKS: Book[] = [
     genre: "Adventure",
     rating: 4.9,
     ratingCount: 840,
+    pdfUrl: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+    isPdf: true,
     chapters: [
       {
         chapterNumber: 1,
@@ -105,5 +175,66 @@ export const PRESET_BOOKS: Book[] = [
       }
     ],
     reviews: []
+  },
+  {
+    id: "naaladiyar",
+    title: "Naaladiyar (நாலடியார்)",
+    author: "Jain Monks (சமண முனிவர்கள்)",
+    description: "An ancient Tamil ethical poetic work of 400 four-line verses compiled by Jain monks. Renowned alongside Thirukkural as a pillar of practical morality and wisdom.",
+    coverUrl: "https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&q=80&w=400",
+    genre: "Ethics & Poetry",
+    rating: 4.8,
+    ratingCount: 620,
+    pdfUrl: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+    isPdf: true,
+    chapters: [
+      {
+        chapterNumber: 1,
+        chapterTitle: "செல்வ நிலையாமை (Impermanence of Wealth)",
+        content: `அறுசுவை உண்டி அமைந்தாரும் மற்று\nமறுசிகை தின்பதும் ஆகும் - நெறிஅறிந்தும்\nதானம் தவறாதார்...\n\nEven those who feast on rich delicacies today may eat humble coarse grain tomorrow. Understanding the transience of wealth, one must practice righteous charity unconditionally.`
+      }
+    ],
+    reviews: []
+  },
+  {
+    id: "periya-puranam",
+    title: "Periya Puranam (பெரிய புராணம்)",
+    author: "Sekkizhar (சேக்கிழார்)",
+    description: "The grand hagiography of the 63 Nayanmars (Saivite Saints) of South India. Celebrates devotion, sacrifice, poetry, and temple culture in medieval Tamilakam.",
+    coverUrl: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&q=80&w=400",
+    genre: "Devotional Classic",
+    rating: 4.95,
+    ratingCount: 1040,
+    pdfUrl: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+    isPdf: true,
+    chapters: [
+      {
+        chapterNumber: 1,
+        chapterTitle: "திருமலைச் சருக்கம் (The Glory of Mount Kailash)",
+        content: `உலகெலாம் உணர்ந்து ஓதற்கரியவன்\nநிலவு உலாவிய நீர்மலி வேணியன்...\n\nHe who is beyond the comprehension of the whole universe, whose matted locks hold the crescent moon and the holy river... Sekkizhar begins the sacred puranam in praise of divine grace.`
+      }
+    ],
+    reviews: []
+  },
+  {
+    id: "kalingathu-parani",
+    title: "Kalingathu Parani (கலிங்கத்துப் பரணி)",
+    author: "Jayamkondar (ஜெயங்கொண்டார்)",
+    description: "The masterwork of Tamil martial poetry celebrating the victory of Kulottunga Chola I and his commander Karunakara Tondaiman in the Kalinga war.",
+    coverUrl: "https://images.unsplash.com/photo-1461360370896-922624d12aa1?auto=format&fit=crop&q=80&w=400",
+    genre: "War Epic & Poetry",
+    rating: 4.88,
+    ratingCount: 710,
+    pdfUrl: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+    isPdf: true,
+    chapters: [
+      {
+        chapterNumber: 1,
+        chapterTitle: "கடைதிறப்பு (Opening of the Doors)",
+        content: `சோழர்களின் வீரப் போர்ப் பயணமும் ஜெயங்கொண்டாரின் அழகிய கவிதை வரிகளும்...\n\nJayamkondar calls upon the maidens of the Chola realm to open their doors and listen to the song of victory of Karunakara Tondaiman over the Kalinga forces.`
+      }
+    ],
+    reviews: []
   }
 ];
+

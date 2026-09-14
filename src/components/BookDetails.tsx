@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { BookOpen, Star, Bookmark, Play, ArrowLeft, Volume2, MessageSquare, Share2, Clock, Check } from "lucide-react";
+import { BookOpen, Star, Bookmark, Play, ArrowLeft, Volume2, MessageSquare, Share2, Clock, Check, FileText, Download } from "lucide-react";
 import { Book, Chapter, Review } from "../types";
 import { Language, translations } from "../utils/i18n";
 import Book3D from "./Book3D";
@@ -8,6 +8,7 @@ interface BookDetailsProps {
   book: Book;
   onBack: () => void;
   onStartReading: (chapterNum?: number) => void;
+  onOpenPdf?: () => void;
   isBookmarked: boolean;
   onToggleBookmark: () => void;
   lang: Language;
@@ -17,6 +18,7 @@ export default function BookDetails({
   book,
   onBack,
   onStartReading,
+  onOpenPdf,
   isBookmarked,
   onToggleBookmark,
   lang,
@@ -112,6 +114,16 @@ export default function BookDetails({
               <Play className="w-4 h-4 fill-current" />
               <span>{t("startReadingNow")}</span>
             </button>
+
+            {onOpenPdf && (
+              <button
+                onClick={onOpenPdf}
+                className="px-6 py-3.5 rounded-xl bg-[#D4AF37] text-[#3B0B12] font-bold text-xs shadow-md hover:brightness-110 active:scale-95 transition-all flex items-center gap-2"
+              >
+                <FileText className="w-4 h-4" />
+                <span>{lang === "ta" ? "PDF வாசிக்க" : "Read PDF"}</span>
+              </button>
+            )}
 
             <button
               onClick={onToggleBookmark}

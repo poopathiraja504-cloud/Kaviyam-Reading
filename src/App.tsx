@@ -41,6 +41,7 @@ import EmailInbox from "./components/EmailInbox";
 import Admin from "./components/Admin";
 import Feedback from "./components/Feedback";
 import LocalDatabase from "./components/LocalDatabase";
+import PdfReaderModal from "./components/PdfReaderModal";
 
 // Initial Preset Users for fallback display
 const INITIAL_USERS: User[] = [
@@ -125,6 +126,7 @@ export default function App() {
   const [selectedBookId, setSelectedBookIdState] = useState<string | null>(null);
   const [readerMode, setReaderMode] = useState<boolean>(false);
   const [readingChapterNum, setReadingChapterNum] = useState<number>(1);
+  const [pdfBook, setPdfBook] = useState<Book | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [resetToken, setResetToken] = useState<string | null>(null);
@@ -638,6 +640,7 @@ export default function App() {
                   setReaderMode(true);
                   if (selectedBookId) window.history.pushState({}, "", `/reader/${selectedBookId}`);
                 }}
+                onOpenPdf={() => setPdfBook(selectedBook)}
                 isBookmarked={bookmarks.includes(selectedBook.id)}
                 onToggleBookmark={() => handleToggleBookmark(selectedBook.id)}
                 lang={lang}
@@ -775,6 +778,15 @@ export default function App() {
         </div>
 
       </div>
+
+      {/* PDF Viewer Modal */}
+      {pdfBook && (
+        <PdfReaderModal
+          book={pdfBook}
+          onClose={() => setPdfBook(null)}
+          lang={lang}
+        />
+      )}
 
     </div>
   );

@@ -26,7 +26,7 @@ export default function EmailInbox({ emails, onReadEmail, onDeleteEmail, onTrigg
   const parseSimulatedLinks = (body: string) => {
     // Looks for patterns like [Action: ResetPassword; token=1234] or [Action: VerifyEmail; email=test@test.com]
     const linkRegex = /\[Action:\s*([a-zA-Z0-9]+);\s*([^\]]+)\]/g;
-    const matches = [...body.matchAll(linkRegex)];
+    const matches = Array.from(body.matchAll(linkRegex));
 
     if (matches.length === 0) return null;
 

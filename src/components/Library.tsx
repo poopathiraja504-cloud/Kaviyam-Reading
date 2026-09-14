@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { Search, Filter, Star, BookOpen, Bookmark, Play, Plus, SlidersHorizontal, Award, Sparkles } from "lucide-react";
+import { Search, Filter, Star, BookOpen, Bookmark, Play, Plus, SlidersHorizontal, Award, Sparkles, FileText } from "lucide-react";
 import { Book } from "../types";
 import { Language, translations } from "../utils/i18n";
 import Book3D from "./Book3D";
@@ -168,6 +168,12 @@ export default function Library({
                     title={book.title}
                     overlay={
                       <>
+                        {book.isPdf && (
+                          <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded-full bg-[#D4AF37] text-[#3B0B12] text-[9px] font-extrabold shadow-md flex items-center gap-0.5 z-10">
+                            <FileText className="w-2.5 h-2.5" />
+                            <span>PDF</span>
+                          </div>
+                        )}
                         <button
                           onClick={(e) => {
                             e.stopPropagation();

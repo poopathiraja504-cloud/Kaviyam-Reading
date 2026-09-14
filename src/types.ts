@@ -54,6 +54,8 @@ export interface Book {
   ratingCount: number;
   reviews: Review[];
   isCustomAI?: boolean;
+  pdfUrl?: string;
+  isPdf?: boolean;
 }
 
 export interface SecurityLog {

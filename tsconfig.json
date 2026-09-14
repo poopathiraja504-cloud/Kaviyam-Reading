@@ -23,6 +23,9 @@
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,
     "allowImportingTsExtensions": true,
-    "noEmit": true
-  }
+    "noEmit": true,
+    "esModuleInterop": true
+  },
+  "include": ["src/**/*", "server.ts", "vite.config.ts"],
+  "exclude": ["node_modules", "dist"]
 }
