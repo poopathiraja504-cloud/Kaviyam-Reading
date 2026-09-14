@@ -1,0 +1,6 @@
+{
+  "files.associations": {
+    "bun.lock": "plaintext"
+  },
+  "css.lint.unknownAtRules": "ignore"
+}
