@@ -130,7 +130,7 @@ export default function Sidebar({
   // Persistent collapse states of sections in Sidebar
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(() => {
     try {
-      const saved = localStorage.getItem("kaviyam_sidebar_groups");
+      const saved = localStorage.getItem("kaviyam_sidebar_groups_v3");
       return saved ? JSON.parse(saved) : {
         main: true,
         myreading: true,
@@ -149,7 +149,7 @@ export default function Sidebar({
   });
 
   useEffect(() => {
-    localStorage.setItem("kaviyam_sidebar_groups", JSON.stringify(expandedGroups));
+    localStorage.setItem("kaviyam_sidebar_groups_v3", JSON.stringify(expandedGroups));
   }, [expandedGroups]);
 
   // Calculate unfinished quizzes count
@@ -184,7 +184,6 @@ export default function Sidebar({
       items: [
         { id: "home", labelEn: "Home", labelTa: "முகப்பு", icon: Home },
         { id: "explore", labelEn: "Explore", labelTa: "ஆராய்ந்து காண்க", icon: Compass },
-        { id: "tamil-library", labelEn: "Browse Tamil Library", labelTa: "நூலகத்தை ஆராய்க", icon: BookOpen },
       ],
     },
     {

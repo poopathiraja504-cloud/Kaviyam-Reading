@@ -6,7 +6,7 @@ import {
   Volume2, Search, Globe, FileText, ChevronRight, Flame, Shield, 
   Coins, Gift, Crown, MessageSquare, Vote, UserPlus, Bell, AlertCircle, 
   Megaphone, CreditCard, ShoppingBag, Download, Trash2, Heart, Plus, Minus, ArrowLeft,
-  Lock, LogIn
+  Lock, LogIn, Copy, Check, Palette, Maximize
 } from "lucide-react";
 import { Book, User, QuizAttempt } from "../types";
 import { Language } from "../utils/i18n";
@@ -124,6 +124,58 @@ export default function SidebarPages({
     { id: "n2", title: "Streak Saved!", text: "Congratulations! You maintained your 7-day reading streak.", time: "1 day ago", read: true },
     { id: "n3", title: "New Quiz Available", text: "Test your Chola lineage knowledge on the Ponniyin Selvan Act 2 quiz.", time: "2 days ago", read: true }
   ]);
+
+  // Notes State
+  const [userNotes, setUserNotes] = useState<{ id: string; bookTitle: string; chapter: string; text: string; date: string }[]>(() => {
+    const saved = localStorage.getItem("kaviyam_user_notes");
+    return saved ? JSON.parse(saved) : [
+      { id: "note-1", bookTitle: "பொன்னியின் செல்வன்", chapter: "அத்தியாயம் 1: ஆடிப்பெருக்கு", text: "வந்தியத்தேவன் வீராணம் ஏரிக்கரையில் பயணிக்கும் போது காவிரியின் நீர்வரத்து மற்றும் மக்களின் கொண்டாட்டங்கள் அருமையாக விவரிக்கப்பட்டுள்ளன.", date: "2026-09-12" },
+      { id: "note-2", bookTitle: "திருக்குறள்", chapter: "அறத்துப்பால் - கடவுள் வாழ்த்து", text: "அகர முதல எழுத்தெல்லாம் ஆதி பகவன் முதற்றே உலகு - உலகின் தொடக்கம் மற்றும் இறைத்தத்துவத்தின் எளிமையான வடிவம்.", date: "2026-09-13" }
+    ];
+  });
+  const [newNoteText, setNewNoteText] = useState("");
+  const [newNoteBook, setNewNoteBook] = useState("பொன்னியின் செல்வன்");
+
+  // Highlights State
+  const [userHighlights, setUserHighlights] = useState<{ id: string; bookTitle: string; quote: string; color: string; chapter: string }[]>(() => {
+    const saved = localStorage.getItem("kaviyam_user_highlights");
+    return saved ? JSON.parse(saved) : [
+      { id: "hl-1", bookTitle: "பொன்னியின் செல்வன்", quote: "குழப்பமான காலங்களில்தான் வீரர்களின் துணிச்சலும் அறிஞர்களின் விவேகமும் வெளிப்படும்.", color: "amber", chapter: "பாகம் 1" },
+      { id: "hl-2", bookTitle: "சிலப்பதிகாரம்", quote: "அரசியல் பிழைத்தோர்க்கு அறங்கூற்றாவதூஉம் உரைசால் பத்தினியை உயர்ந்தோர் ஏத்தலும்.", color: "emerald", chapter: "மங்கல வாழ்த்துப் பாடல்" },
+      { id: "hl-3", bookTitle: "சிவகாமியின் சபதம்", quote: "கலைஞனின் இதயம் சிற்பக் கல்லில் அல்ல, தன் கற்பனை உலகில்தான் வாழ்கிறது.", color: "rose", chapter: "பரஞ்சோதி யாத்திரை" }
+    ];
+  });
+
+  // Reading Mode State
+  const [readingPalette, setReadingPalette] = useState<string>(() => localStorage.getItem("kaviyam_reading_palette") || "papyrus");
+  const [readingFontSize, setReadingFontSize] = useState<string>(() => localStorage.getItem("kaviyam_reading_font_size") || "base");
+
+  // Reader Clubs State
+  const [joinedClubs, setJoinedClubs] = useState<string[]>(() => {
+    const saved = localStorage.getItem("kaviyam_joined_clubs");
+    return saved ? JSON.parse(saved) : ["club-1"];
+  });
+
+  // Persist local states
+  useEffect(() => {
+    localStorage.setItem("kaviyam_user_notes", JSON.stringify(userNotes));
+  }, [userNotes]);
+
+  useEffect(() => {
+    localStorage.setItem("kaviyam_user_highlights", JSON.stringify(userHighlights));
+  }, [userHighlights]);
+
+  useEffect(() => {
+    localStorage.setItem("kaviyam_reading_palette", readingPalette);
+  }, [readingPalette]);
+
+  useEffect(() => {
+    localStorage.setItem("kaviyam_reading_font_size", readingFontSize);
+  }, [readingFontSize]);
+
+  useEffect(() => {
+    localStorage.setItem("kaviyam_joined_clubs", JSON.stringify(joinedClubs));
+  }, [joinedClubs]);
 
   // Persist local states
   useEffect(() => {
@@ -1195,6 +1247,281 @@ export default function SidebarPages({
               </div>
             </div>
           )}
+
+          {activeTab === "notes" && (
+            <div className="space-y-6">
+              <div className="p-4 bg-stone-50 border border-stone-200 rounded-2xl space-y-3">
+                <h4 className="font-bold text-xs text-stone-800">Add Literary Annotation / Note:</h4>
+                <div className="flex gap-2 flex-wrap">
+                  <select
+                    value={newNoteBook}
+                    onChange={(e) => setNewNoteBook(e.target.value)}
+                    className="text-xs p-2 bg-white border border-stone-200 rounded-lg focus:outline-none"
+                  >
+                    {books.map((b) => (
+                      <option key={b.id} value={b.title}>
+                        {b.title}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="text"
+                    placeholder="Type note, insight, or reflection..."
+                    value={newNoteText}
+                    onChange={(e) => setNewNoteText(e.target.value)}
+                    className="flex-1 min-w-[200px] text-xs p-2 bg-white border border-stone-200 rounded-lg focus:outline-none"
+                  />
+                  <button
+                    onClick={() => {
+                      if (!newNoteText.trim()) return;
+                      setUserNotes([
+                        {
+                          id: `note-${Date.now()}`,
+                          bookTitle: newNoteBook,
+                          chapter: "வாசகர் குறிப்பு",
+                          text: newNoteText.trim(),
+                          date: new Date().toISOString().split("T")[0],
+                        },
+                        ...userNotes,
+                      ]);
+                      setNewNoteText("");
+                      triggerToast("Note successfully saved!");
+                    }}
+                    className="px-4 py-2 bg-[#5C121E] hover:bg-[#3B0B12] text-white text-xs font-bold rounded-lg transition-all"
+                  >
+                    Save Note
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold text-stone-700 uppercase tracking-wider">
+                  Saved Scholar Notes ({userNotes.length})
+                </h4>
+                {userNotes.map((note) => (
+                  <div key={note.id} className="p-4 bg-stone-50/50 border border-[#E2DDD5] rounded-2xl space-y-2">
+                    <div className="flex justify-between items-center text-[10px] text-stone-500">
+                      <span className="font-bold text-[#3B0B12]">📖 {note.bookTitle} • {note.chapter}</span>
+                      <div className="flex items-center gap-2">
+                        <span>{note.date}</span>
+                        <button
+                          onClick={() => {
+                            setUserNotes(userNotes.filter((n) => n.id !== note.id));
+                            triggerToast("Note removed.");
+                          }}
+                          className="p-1 hover:text-red-500 text-stone-400 transition-colors"
+                          title="Delete note"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                    <p className="text-xs text-stone-700 leading-relaxed font-serif">{note.text}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === "highlights" && (
+            <div className="space-y-6">
+              <div className="flex justify-between items-center">
+                <p className="text-xs text-stone-600">Cherished sentences, poetic lines, and memorable passages marked during your reading.</p>
+                <span className="text-xs font-bold text-amber-800 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
+                  {userHighlights.length} Highlights
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {userHighlights.map((hl) => (
+                  <div key={hl.id} className="p-4 rounded-2xl border bg-white border-amber-200/80 space-y-3 shadow-xs">
+                    <div className="flex justify-between items-center text-[10px]">
+                      <span className="font-bold text-[#3B0B12]">📖 {hl.bookTitle}</span>
+                      <span className="text-stone-400">{hl.chapter}</span>
+                    </div>
+                    <blockquote className="font-serif text-xs text-stone-800 italic border-l-2 border-amber-500 pl-3 leading-relaxed">
+                      "{hl.quote}"
+                    </blockquote>
+                    <div className="flex justify-between items-center pt-1 text-[10px]">
+                      <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-900 border border-amber-200 font-medium">
+                        Highlight
+                      </span>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard?.writeText(hl.quote);
+                          triggerToast("Highlight copied to clipboard!");
+                        }}
+                        className="flex items-center gap-1 text-stone-500 hover:text-[#5C121E] font-medium"
+                      >
+                        <Copy className="w-3 h-3" />
+                        <span>Copy</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === "reading-mode" && (
+            <div className="space-y-6">
+              <p className="text-xs text-stone-600">Customize your reading environment for optimal visual comfort and immersion.</p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="p-4 rounded-2xl bg-stone-50 border border-stone-200 space-y-2">
+                  <h4 className="text-xs font-bold text-stone-800 flex items-center gap-1.5">
+                    <Palette className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Background Palette</span>
+                  </h4>
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    {[
+                      { id: "papyrus", name: "Papyrus Cream", bg: "bg-[#FDFBF7]", text: "text-[#3B0B12]" },
+                      { id: "sepia", name: "Sepia Warm", bg: "bg-[#F4ECD8]", text: "text-[#2D1B08]" },
+                      { id: "night", name: "Night Scholar", bg: "bg-[#1C1917]", text: "text-stone-200" },
+                      { id: "milk", name: "Milk Paper", bg: "bg-white", text: "text-stone-900" },
+                    ].map((p) => (
+                      <button
+                        key={p.id}
+                        onClick={() => {
+                          setReadingPalette(p.id);
+                          triggerToast(`Reading palette set to ${p.name}`);
+                        }}
+                        className={`p-2.5 rounded-xl border text-xs font-medium text-left transition-all flex items-center justify-between ${
+                          readingPalette === p.id
+                            ? "border-amber-600 ring-2 ring-amber-400/30"
+                            : "border-stone-200 hover:border-stone-300"
+                        } ${p.bg} ${p.text}`}
+                      >
+                        <span>{p.name}</span>
+                        {readingPalette === p.id && <Check className="w-3.5 h-3.5 text-amber-600" />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-stone-50 border border-stone-200 space-y-2">
+                  <h4 className="text-xs font-bold text-stone-800">Font Size</h4>
+                  <div className="flex gap-2 pt-1">
+                    {[
+                      { id: "sm", label: "Small (14px)" },
+                      { id: "base", label: "Standard (16px)" },
+                      { id: "lg", label: "Large (18px)" },
+                    ].map((f) => (
+                      <button
+                        key={f.id}
+                        onClick={() => {
+                          setReadingFontSize(f.id);
+                          triggerToast(`Font size updated to ${f.label}`);
+                        }}
+                        className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
+                          readingFontSize === f.id
+                            ? "bg-[#3B0B12] text-amber-200 shadow-xs"
+                            : "bg-white border border-stone-200 text-stone-700 hover:bg-stone-100"
+                        }`}
+                      >
+                        {f.label.split(" ")[0]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className={`p-6 rounded-2xl border border-stone-300 transition-colors ${
+                readingPalette === "sepia" ? "bg-[#F4ECD8] text-[#2D1B08]" :
+                readingPalette === "night" ? "bg-[#1C1917] text-stone-200" :
+                readingPalette === "milk" ? "bg-white text-stone-900" :
+                "bg-[#FDFBF7] text-[#3B0B12]"
+              }`}>
+                <p className="text-[10px] uppercase font-bold tracking-widest opacity-60 mb-2">Live Reading Preview</p>
+                <h3 className="font-serif font-bold text-base mb-2">பொன்னியின் செல்வன் — முதற் பாகம்</h3>
+                <p className={`font-serif leading-relaxed ${
+                  readingFontSize === "sm" ? "text-xs" :
+                  readingFontSize === "lg" ? "text-base" : "text-sm"
+                }`}>
+                  ஆடிப் பெருக்கு நாளன்று மாலையில், வீராணம் ஏரிக்கரையின் மீது ஒரு வாலிபன் குதிரை மீது ஏறிப் பிரயாணம் செய்து கொண்டிருந்தான். அவன் பெயர் வல்லவரையன் வந்தியத்தேவன்...
+                </p>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "fullscreen-reader" && (
+            <div className="space-y-6">
+              <div className="p-8 rounded-3xl bg-gradient-to-br from-[#3B0B12] to-[#5C121E] text-white text-center space-y-4">
+                <Maximize className="w-12 h-12 text-[#D4AF37] mx-auto animate-pulse" />
+                <h3 className="font-serif text-xl font-bold">முழுத்திரை வாசிப்பு (Zen Fullscreen Mode)</h3>
+                <p className="text-xs text-amber-100/80 max-w-md mx-auto leading-relaxed">
+                  Immerse yourself completely in classical Tamil literature with zero distractions, edge-to-edge typography, and ambient lighting.
+                </p>
+                <div className="pt-2">
+                  <button
+                    onClick={() => {
+                      if (currentActiveBook) {
+                        onSelectBook(currentActiveBook.id);
+                        triggerToast(`Opening ${currentActiveBook.title} in reader...`);
+                      }
+                    }}
+                    className="px-6 py-3 rounded-2xl bg-[#D4AF37] text-[#3B0B12] font-black text-xs hover:scale-105 active:scale-95 transition-all shadow-lg"
+                  >
+                    🚀 Open Current Book in Reader Mode
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "bookmarks" && (
+            <div className="space-y-6">
+              <div className="flex justify-between items-center">
+                <p className="text-xs text-stone-600">Your saved books and bookmarks for quick resumption.</p>
+                <span className="text-xs font-bold text-[#5C121E]">{bookmarks.length} Bookmarks</span>
+              </div>
+
+              {bookmarks.length === 0 ? (
+                <div className="p-8 text-center bg-stone-50 rounded-2xl border border-dashed border-stone-300 space-y-3">
+                  <BookMarked className="w-8 h-8 text-stone-400 mx-auto" />
+                  <p className="text-xs text-stone-500">No books bookmarked yet.</p>
+                  <button
+                    onClick={() => navigateTo("explore")}
+                    className="px-4 py-2 bg-[#5C121E] text-white text-xs font-bold rounded-xl"
+                  >
+                    Explore Library
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                  {books.filter((b) => bookmarks.includes(b.id)).map((book) => (
+                    <div key={book.id} className="p-4 rounded-2xl border border-[#E2DDD5] bg-white space-y-3 flex flex-col justify-between">
+                      <div className="flex gap-3">
+                        <Book3D coverUrl={book.coverUrl} title={book.title} size="sm" />
+                        <div>
+                          <h4 className="font-serif font-bold text-xs text-[#3B0B12] line-clamp-1">{book.title}</h4>
+                          <p className="text-[10px] text-stone-500">{book.author}</p>
+                          <span className="inline-block mt-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-900 border border-amber-200">
+                            Bookmarked
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 pt-2 border-t border-stone-100">
+                        <button
+                          onClick={() => onSelectBook(book.id)}
+                          className="flex-1 py-1.5 bg-[#5C121E] text-white rounded-lg text-xs font-bold text-center hover:bg-[#3B0B12]"
+                        >
+                          Read Now
+                        </button>
+                        <button
+                          onClick={() => onToggleBookmark(book.id)}
+                          className="p-1.5 text-stone-400 hover:text-red-500 hover:bg-red-50 rounded-lg"
+                          title="Remove bookmark"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -1214,6 +1541,50 @@ export default function SidebarPages({
             </div>
             <Award className="w-12 h-12 text-[#D4AF37]" />
           </div>
+
+          {activeTab === "streak" && (
+            <div className="space-y-6">
+              <div className="p-6 rounded-3xl bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-300 flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-2xl bg-amber-500/20 border border-amber-400 flex items-center justify-center">
+                    <Flame className="w-8 h-8 text-amber-600 animate-bounce" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase font-bold tracking-widest text-amber-800">Active Reading Streak</span>
+                    <h3 className="font-serif text-2xl font-bold text-[#3B0B12]">7 Days Unbroken!</h3>
+                    <p className="text-xs text-stone-600">Read 15 minutes each day to maintain your literary fire.</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => triggerToast("Daily streak bonus +50 XP claimed!")}
+                  className="px-5 py-2.5 bg-[#3B0B12] text-amber-200 font-black text-xs rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-md shrink-0"
+                >
+                  Claim Daily Streak XP
+                </button>
+              </div>
+
+              <div className="p-5 bg-stone-50 border border-stone-200 rounded-2xl space-y-3">
+                <h4 className="text-xs font-bold text-stone-800 uppercase tracking-wider">7-Day Reading Rhythm (இந்த வார வாசிப்பு)</h4>
+                <div className="grid grid-cols-7 gap-2 text-center">
+                  {[
+                    { day: "Mon", active: true, mins: "25m" },
+                    { day: "Tue", active: true, mins: "30m" },
+                    { day: "Wed", active: true, mins: "20m" },
+                    { day: "Thu", active: true, mins: "40m" },
+                    { day: "Fri", active: true, mins: "35m" },
+                    { day: "Sat", active: true, mins: "45m" },
+                    { day: "Sun (Today)", active: true, mins: "22m" },
+                  ].map((d, i) => (
+                    <div key={i} className={`p-3 rounded-xl border ${d.active ? "bg-amber-50/70 border-amber-300 shadow-xs" : "bg-white border-stone-200"}`}>
+                      <p className="text-[10px] text-stone-500 font-medium">{d.day}</p>
+                      <Flame className={`w-5 h-5 mx-auto my-1 ${d.active ? "text-amber-500" : "text-stone-300"}`} />
+                      <p className="text-[10px] font-bold text-stone-800">{d.mins}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -1224,6 +1595,64 @@ export default function SidebarPages({
             <MessageSquare className="w-5 h-5 text-amber-500" />
             <span>{activeTab.replace("-", " ")}</span>
           </h2>
+
+          {activeTab === "reader-clubs" && (
+            <div className="space-y-6">
+              <div className="flex justify-between items-center">
+                <p className="text-xs text-stone-600">Join literary circles to read, discuss, and explore Tamil epics with fellow patrons.</p>
+                <span className="text-xs font-bold text-[#5C121E]">4 Active Clubs</span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {[
+                  { id: "club-1", name: "பொன்னியின் செல்வன் வரலாற்று ஆய்வு வட்டம்", members: "1,450 வாசகர்கள்", currentBook: "பொன்னியின் செல்வன் பாகம் 2", desc: "சோழப் பேரரசின் வரலாற்றுப் பின்னணி மற்றும் கல்கியின் எழுத்து நடை பற்றிய ஆழ்ந்த விவாதங்கள்." },
+                  { id: "club-2", name: "சங்க இலக்கியக் கூடம்", members: "820 வாசகர்கள்", currentBook: "சிலப்பதிகாரம் & மணிமேகலை", desc: "ஐம்பெருங்காப்பியங்களின் கவிதை நயம் மற்றும் அறநெறிகள் பற்றிய வாராந்திர வாசிப்பு." },
+                  { id: "club-3", name: "பாரதி பாசறை", members: "1,180 வாசகர்கள்", currentBook: "சுப்பிரமணிய பாரதியார் கவிதைகள்", desc: "புரட்சிக் கவிஞரின் தேசியப் பாடல்கள் மற்றும் தத்துவார்த்த கவிதைகள் பற்றிய விவாத அரங்கம்." },
+                  { id: "club-4", name: "நவீன நாவல் வாசகர் மன்றம்", members: "690 வாசகர்கள்", currentBook: "சிவகாமியின் சபதம்", desc: "பல்லவர் கால சிற்பக்கலை மற்றும் சாளுக்கியப் போர்கள் பின்னணியிலான கதை வாசிப்பு." },
+                ].map((c) => {
+                  const isJoined = joinedClubs.includes(c.id);
+                  return (
+                    <div key={c.id} className="p-5 rounded-2xl border border-[#E2DDD5] bg-white space-y-3 flex flex-col justify-between shadow-xs">
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-start">
+                          <h4 className="font-serif font-bold text-sm text-[#3B0B12]">{c.name}</h4>
+                          <span className="text-[10px] text-stone-500 font-medium whitespace-nowrap bg-stone-100 px-2 py-0.5 rounded-full">
+                            {c.members}
+                          </span>
+                        </div>
+                        <p className="text-xs text-stone-600 leading-relaxed">{c.desc}</p>
+                        <div className="pt-1">
+                          <span className="text-[10px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                            📖 Active Book: {c.currentBook}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="pt-3 border-t border-stone-100">
+                        <button
+                          onClick={() => {
+                            if (isJoined) {
+                              setJoinedClubs(joinedClubs.filter((id) => id !== c.id));
+                              triggerToast(`Left ${c.name}`);
+                            } else {
+                              setJoinedClubs([...joinedClubs, c.id]);
+                              triggerToast(`Joined ${c.name}! Welcome to the circle.`);
+                            }
+                          }}
+                          className={`w-full py-2 rounded-xl text-xs font-bold transition-all ${
+                            isJoined
+                              ? "bg-stone-100 text-stone-700 hover:bg-red-50 hover:text-red-600"
+                              : "bg-[#5C121E] text-white hover:bg-[#3B0B12]"
+                          }`}
+                        >
+                          {isJoined ? "Joined (மன்றத்தில் இணைந்துள்ளீர்) — Leave" : "Join Club (மன்றத்தில் இணைக)"}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {activeTab === "book-polls" && (
             <div className="space-y-4">
@@ -1346,6 +1775,93 @@ export default function SidebarPages({
               <p className="text-xs text-amber-100/80 leading-relaxed">Unlock parallel text translation, smart summaries powered by server-side Gemini, infinite custom audio narrations, and printable scholar certificates.</p>
             </div>
           </div>
+
+          {activeTab === "premium-books" && (
+            <div className="space-y-6">
+              <div className="flex justify-between items-center">
+                <p className="text-xs text-stone-600">Exclusive collector editions with classical commentary, annotations, and voice-over narrations.</p>
+                <span className="text-xs font-bold text-amber-800 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
+                  👑 Collector Editions
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                {books.map((book) => (
+                  <div key={book.id} className="p-5 rounded-3xl border border-amber-200/80 bg-gradient-to-b from-amber-50/30 to-white space-y-4 shadow-xs flex flex-col justify-between">
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-start">
+                        <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 text-[9px] font-black uppercase tracking-wider">
+                          Gold Edition
+                        </span>
+                        <Crown className="w-4 h-4 text-amber-600" />
+                      </div>
+                      <div className="flex justify-center py-2">
+                        <Book3D coverUrl={book.coverUrl} title={book.title} size="md" />
+                      </div>
+                      <h4 className="font-serif font-bold text-sm text-[#3B0B12] text-center">{book.title}</h4>
+                      <p className="text-[11px] text-stone-500 text-center">{book.author}</p>
+                      <p className="text-xs text-stone-600 text-center leading-relaxed">{book.description}</p>
+                    </div>
+
+                    <div className="pt-2">
+                      <button
+                        onClick={() => onSelectBook(book.id)}
+                        className="w-full py-2.5 bg-[#3B0B12] text-amber-200 hover:bg-[#5C121E] font-bold text-xs rounded-xl transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        <BookOpen className="w-3.5 h-3.5" />
+                        <span>Read Edition</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === "subscription" && (
+            <div className="space-y-6">
+              <div className="p-6 rounded-3xl bg-gradient-to-br from-[#3B0B12] via-[#4A0E17] to-amber-900 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-amber-300">Active Membership</span>
+                  <h3 className="font-serif text-2xl font-bold mt-1">காவியம் புலவர் திட்டம் (Kaviyam Scholar Pass)</h3>
+                  <p className="text-xs text-amber-100/70 mt-1">Unlimited access to Tamil literary catalog, audio narrations, and Gemini AI insights.</p>
+                </div>
+                <span className="px-4 py-1.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-xs font-bold">
+                  Active • Free Access
+                </span>
+              </div>
+
+              <div className="p-5 bg-stone-50 border border-stone-200 rounded-2xl space-y-3">
+                <h4 className="text-xs font-bold text-stone-800 uppercase tracking-wider">Plan Privileges Included</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-stone-700">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>50 Interactive Tamil Quizzes & Leaderboards</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>500 Word Finder Tamil Puzzles</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>Server-Side Gemini AI Summaries & Explanations</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>Full Distraction-Free Zen Reader Mode</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>Audio Narration Voice-Over Engine</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>Durable Reading Progress & Streak Tracking</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
