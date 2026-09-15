@@ -10,7 +10,7 @@ import {
   orderBy,
   limit,
 } from "firebase/firestore";
-import { db } from "../firebase";
+import { db, auth } from "../firebase";
 import { User } from "../types";
 import {
   WordFinderAttempt,
@@ -66,8 +66,9 @@ export async function savePuzzleAttempt(
 
   let leveledUp = false;
 
-  // Real Firebase Save if user is logged in
-  if (user && user.id && user.id !== "guest-user-session") {
+  // Real Firebase Save if user is logged in with matching Firebase Auth UID
+  const isFirebaseAuth = auth.currentUser && auth.currentUser.uid === user?.id;
+  if (user && user.id && user.id !== "guest-user-session" && isFirebaseAuth) {
     try {
       // 1. Save attempt doc to Firestore
       const attemptRef = doc(db, "wordFinderAttempts", attempt.id);

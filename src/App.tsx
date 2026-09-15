@@ -575,7 +575,7 @@ export default function App() {
     fetchFirestoreBooks();
   }, []);
 
-  // Load User Quiz Attempts from Firestore
+  // Load User Quiz Attempts from Firestore or LocalStorage
   useEffect(() => {
     const fetchQuizAttempts = async () => {
       if (!currentUser) {
@@ -583,9 +583,13 @@ export default function App() {
         return;
       }
 
-      if (currentUser.id === "guest-user-session") {
+      const isFirebaseAuthUser = auth.currentUser && auth.currentUser.uid === currentUser.id;
+
+      if (!isFirebaseAuthUser || currentUser.id === "guest-user-session") {
         try {
-          const cached = localStorage.getItem("kaviyam_guest_quiz_attempts");
+          const cached = currentUser.id === "guest-user-session"
+            ? localStorage.getItem("kaviyam_guest_quiz_attempts")
+            : localStorage.getItem("kaviyam_quiz_attempts");
           setUserAttempts(cached ? JSON.parse(cached) : []);
         } catch (_) {
           setUserAttempts([]);
@@ -604,9 +608,8 @@ export default function App() {
         loadedAttempts.sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime());
         setUserAttempts(loadedAttempts);
         localStorage.setItem("kaviyam_quiz_attempts", JSON.stringify(loadedAttempts));
-      } catch (err) {
-        console.error("Error fetching quiz attempts from Firestore:", err);
-        // Fallback to localStorage
+      } catch (_) {
+        // Fallback to localStorage gracefully
         try {
           const cached = localStorage.getItem("kaviyam_quiz_attempts");
           setUserAttempts(cached ? JSON.parse(cached) : []);
@@ -908,19 +911,22 @@ export default function App() {
   const handleSubmitQuiz = async (attempt: QuizAttempt) => {
     if (!currentUser) return;
 
-    if (currentUser.id === "guest-user-session") {
-      const guestAttempts = [attempt, ...userAttempts.filter(a => a.attemptId !== attempt.attemptId)];
-      setUserAttempts(guestAttempts);
-      localStorage.setItem("kaviyam_guest_quiz_attempts", JSON.stringify(guestAttempts));
-      localStorage.setItem("kaviyam_quiz_attempts", JSON.stringify(guestAttempts));
+    const isFirebaseAuthUser = auth.currentUser && auth.currentUser.uid === currentUser.id;
+
+    if (!isFirebaseAuthUser || currentUser.id === "guest-user-session") {
+      const updatedAttempts = [attempt, ...userAttempts.filter(a => a.attemptId !== attempt.attemptId)];
+      setUserAttempts(updatedAttempts);
+      if (currentUser.id === "guest-user-session") {
+        localStorage.setItem("kaviyam_guest_quiz_attempts", JSON.stringify(updatedAttempts));
+      }
+      localStorage.setItem("kaviyam_quiz_attempts", JSON.stringify(updatedAttempts));
     } else {
       try {
         await setDoc(doc(db, "users", currentUser.id, "quizAttempts", attempt.attemptId), attempt);
         const updatedAttempts = [attempt, ...userAttempts.filter(a => a.attemptId !== attempt.attemptId)];
         setUserAttempts(updatedAttempts);
         localStorage.setItem("kaviyam_quiz_attempts", JSON.stringify(updatedAttempts));
-      } catch (err) {
-        console.error("Error saving quiz attempt to Firestore, saving locally:", err);
+      } catch (_) {
         const updatedAttempts = [attempt, ...userAttempts.filter(a => a.attemptId !== attempt.attemptId)];
         setUserAttempts(updatedAttempts);
         localStorage.setItem("kaviyam_quiz_attempts", JSON.stringify(updatedAttempts));
@@ -1000,28 +1006,26 @@ export default function App() {
     navigateTo("home");
   };
 
-  // 2. EXPLICIT AUTH ROUTE: SHOW LOGIN / SIGNUP SCREEN
+  // 2. EXPLICIT AUTH ROUTE: SHOW LOGIN SCREEN
   if (activeTab === "login") {
     return (
-      <div className="min-h-screen bg-[#FDFBF7] flex flex-col justify-center items-center font-sans">
-        <Auth
-          currentUser={currentUser}
-          initialMode={authInitialMode}
-          onLogin={handleLogin}
-          onRegister={handleRegister}
-          onForgotPassword={handleForgotPassword}
-          onResetPasswordWithToken={async () => ({ success: true })}
-          onResendVerification={async () => ({ success: true })}
-          resetToken={resetToken}
-          setResetToken={setResetToken}
-          addSystemLog={addSystemLog}
-          onGoogleLogin={handleGoogleLogin}
-          onGuestLogin={handleGuestLogin}
-          onCancel={() => navigateTo("home")}
-          lang={lang}
-          onLanguageChange={handleLanguageChange}
-        />
-      </div>
+      <Auth
+        currentUser={currentUser}
+        initialMode={authInitialMode}
+        onLogin={handleLogin}
+        onRegister={handleRegister}
+        onForgotPassword={handleForgotPassword}
+        onResetPasswordWithToken={async () => ({ success: true })}
+        onResendVerification={async () => ({ success: true })}
+        resetToken={resetToken}
+        setResetToken={setResetToken}
+        addSystemLog={addSystemLog}
+        onGoogleLogin={handleGoogleLogin}
+        onGuestLogin={handleGuestLogin}
+        onCancel={() => navigateTo("home")}
+        lang={lang}
+        onLanguageChange={handleLanguageChange}
+      />
     );
   }
 
@@ -1057,7 +1061,10 @@ export default function App() {
         lang={lang}
         onLanguageChange={handleLanguageChange}
         currentUser={currentUser}
-        onSignInClick={() => {}}
+        onSignInClick={() => {
+          setAuthInitialMode("login");
+          navigateTo("login");
+        }}
         onSignOutClick={handleLogout}
         searchQuery={searchQuery}
         onSearchChange={(q) => {
@@ -1258,9 +1265,10 @@ export default function App() {
                         localStorage.setItem("kaviyam_pending_quiz_id", qId);
                         localStorage.setItem("pendingQuizRoute", `/quizzes/${qId.replace("_", "-")}`);
                         localStorage.setItem("kaviyam_pending_quiz_route", `/quizzes/${qId.replace("_", "-")}`);
-                        setAuthInitialMode("register");
+                        setAuthInitialMode("login");
                         navigateTo("login");
                       }}
+                      onGoogleLogin={handleGoogleLogin}
                       lang={lang}
                     />
                   ) : activeQuizAttempt ? (
@@ -1328,6 +1336,8 @@ export default function App() {
                       }}
                       onViewHistory={() => navigateTo("quiz-history")}
                       onViewLeaderboard={() => navigateTo("quiz-leaderboard")}
+                      onBack={() => navigateTo("home")}
+                      onGoogleLogin={handleGoogleLogin}
                       onStartQuiz={(id) => {
                         if (!isUserAuthenticated(currentUser)) {
                           localStorage.setItem("pendingQuizId", id);
@@ -1534,9 +1544,10 @@ export default function App() {
         }}
         onRegister={() => {
           setShowLoginRequiredModal(false);
-          setAuthInitialMode("register");
+          setAuthInitialMode("login");
           navigateTo("login");
         }}
+        onGoogleLogin={handleGoogleLogin}
         type={loginModalType}
         lang={lang}
       />

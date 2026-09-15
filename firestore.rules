@@ -12,9 +12,8 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    // 1. User documents and subcollections (bookmarks, preferences, history, notes):
+    // 1. User documents and subcollections (bookmarks, preferences, history, notes, quizAttempts, xpHistory, levelHistory, wordFinderAttempts):
     // Strictly restricted so that each user can ONLY read and write their own data.
-    // No other user can read or write this data.
     match /users/{userId} {
       allow read, write: if isOwner(userId);
 
@@ -23,8 +22,18 @@ service cloud.firestore {
       }
     }
 
+    // Books catalogue - public read for all patrons, write for authenticated users
+    match /books/{bookId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
+    // System connectivity test
+    match /test/{docId} {
+      allow read: if true;
+    }
+
     // 2. User-specific collections tagged with userId (e.g. user_data, bookmarks, annotations, links):
-    // Users can only create documents with their own userId, and can only read, update, or delete their own documents.
     match /user_data/{docId} {
       allow read, update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
@@ -51,6 +60,13 @@ service cloud.firestore {
     match /wordFinderLeaderboard/{userId} {
       allow read: if isAuthenticated();
       allow write: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Root-level quizAttempts collection fallback
+    match /quizAttempts/{attemptId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
     }
 
     // 3. Default fallback: Deny all read and write access to all other paths

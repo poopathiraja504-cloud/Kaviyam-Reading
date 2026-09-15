@@ -17,6 +17,9 @@ import {
   Zap,
   Volume2,
   VolumeX,
+  Send,
+  Keyboard,
+  X,
 } from "lucide-react";
 import { WordFinderPuzzle } from "../../types/wordFinder";
 import { User } from "../../types";
@@ -70,6 +73,8 @@ export default function WordFinderGame({
     }));
   }, [puzzle]);
 
+  const MAX_HINTS = 5;
+
   // Game state
   const [timeLeft, setTimeLeft] = useState<number>(300); // 5 minutes = 300 seconds
   const [isTimerRunning, setIsTimerRunning] = useState<boolean>(true);
@@ -81,6 +86,13 @@ export default function WordFinderGame({
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [dragStartCell, setDragStartCell] = useState<[number, number] | null>(null);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
+
+  // Direct word answer input box state
+  const [inputAnswer, setInputAnswer] = useState<string>("");
+  const [inputFeedback, setInputFeedback] = useState<{
+    type: "success" | "error" | "warning";
+    message: string;
+  } | null>(null);
 
   // Result dialog state
   const [isGameCompleted, setIsGameCompleted] = useState<boolean>(false);
@@ -97,14 +109,26 @@ export default function WordFinderGame({
     if (!currentUser) return;
     getPuzzleProgress(currentUser.id, puzzle.id).then((progress) => {
       if (progress) {
-        setFoundWords(progress.foundWords || []);
+        const loadedWords = progress.foundWords || [];
+        setFoundWords(loadedWords);
         setHintsUsed(progress.hintsUsed || 0);
         if (progress.remainingSeconds > 0) {
           setTimeLeft(progress.remainingSeconds);
         }
+        // Also restore highlighted cells on grid for found words
+        if (loadedWords.length > 0) {
+          const cellsMap: { [word: string]: [number, number][] } = {};
+          loadedWords.forEach((w) => {
+            const placement = generatedGrid.placedWords.find((p) => p.word === w);
+            if (placement) {
+              cellsMap[w] = placement.cells;
+            }
+          });
+          setFoundWordCells(cellsMap);
+        }
       }
     }).catch(() => {});
-  }, [puzzle.id, currentUser]);
+  }, [puzzle.id, currentUser, generatedGrid]);
 
   // 5-minute Countdown Timer
   useEffect(() => {
@@ -395,9 +419,112 @@ export default function WordFinderGame({
     }
   };
 
-  // Hint button clicked (Max 3 hints)
+  // Handle direct answer submission via Answer Input Box
+  const handleAnswerSubmit = (wordToVerify?: string) => {
+    if (isGameCompleted || isTimeOut) return;
+
+    const rawInput = (wordToVerify ?? inputAnswer).trim();
+    if (!rawInput) return;
+
+    // Clean and normalize input (remove spaces, punctuation, lowercase for phonetic/English comparison)
+    const normalizedInput = rawInput.toLowerCase().replace(/[\s\-_.,/]/g, "");
+
+    // Look for match in targetWords
+    const matchedTarget = targetWords.find((tw) => {
+      const tamilClean = tw.tamil.trim().toLowerCase().replace(/[\s\-_.,/]/g, "");
+      const englishClean = tw.english.trim().toLowerCase().replace(/[\s\-_.,/]/g, "");
+
+      if (tamilClean === normalizedInput || englishClean === normalizedInput) {
+        return true;
+      }
+
+      // Transliteration helper for common Tamil district/place/general names
+      const knownAliases: Record<string, string[]> = {
+        "சென்னை": ["chennai", "madras"],
+        "மதுரை": ["madurai", "madura"],
+        "கோவை": ["kovai", "coimbatore"],
+        "திருச்சி": ["trichy", "tiruchi", "tiruchirappalli"],
+        "சேலம்": ["salem"],
+        "தஞ்சை": ["thanjai", "thanjavur"],
+        "நெல்லை": ["nellai", "tirunelveli"],
+        "ஈரோடு": ["erode"],
+        "வேலூர்": ["vellore"],
+        "கரூர்": ["karur"],
+      };
+
+      if (knownAliases[tw.tamil]?.includes(normalizedInput)) {
+        return true;
+      }
+
+      return false;
+    });
+
+    if (!matchedTarget) {
+      if (soundEnabled) playSound.invalidWord();
+      setInputFeedback({
+        type: "error",
+        message:
+          lang === "ta"
+            ? `❌ '${rawInput}' தவறான விடை. பட்டியலில் உள்ள சொல்லை உள்ளிடவும்.`
+            : `❌ '${rawInput}' is not in the target list. Try again.`,
+      });
+      setTimeout(() => setInputFeedback(null), 3500);
+      return;
+    }
+
+    // Check if already found
+    if (foundWords.includes(matchedTarget.tamil)) {
+      if (soundEnabled) playSound.invalidWord();
+      setInputFeedback({
+        type: "warning",
+        message:
+          lang === "ta"
+            ? `⚠️ '${matchedTarget.tamil}' ஏற்கனவே கண்டுபிடிக்கப்பட்டுவிட்டது!`
+            : `⚠️ '${matchedTarget.tamil}' (${matchedTarget.english}) is already found!`,
+      });
+      setTimeout(() => setInputFeedback(null), 3000);
+      setInputAnswer("");
+      return;
+    }
+
+    // New valid word found!
+    if (soundEnabled) playSound.wordFound();
+
+    const placement = generatedGrid.placedWords.find(
+      (p) => p.word === matchedTarget.tamil
+    );
+    const cells: [number, number][] = placement ? placement.cells : [];
+
+    const newFoundWords = [...foundWords, matchedTarget.tamil];
+    const newFoundCells = {
+      ...foundWordCells,
+      [matchedTarget.tamil]: cells,
+    };
+
+    setFoundWords(newFoundWords);
+    setFoundWordCells(newFoundCells);
+    setInputAnswer("");
+    setSelectedCells([]);
+    setActiveHint(null);
+
+    setInputFeedback({
+      type: "success",
+      message:
+        lang === "ta"
+          ? `✓ '${matchedTarget.tamil}' (${matchedTarget.english}) சரியாகக் கண்டறியப்பட்டது!`
+          : `✓ '${matchedTarget.tamil}' (${matchedTarget.english}) correctly found!`,
+    });
+    setTimeout(() => setInputFeedback(null), 3500);
+
+    // Check for win
+    if (newFoundWords.length === targetWords.length) {
+      handlePuzzleComplete(newFoundWords, newFoundCells);
+    }
+  };
+
+  // Hint button clicked (Max 5 hints)
   const handleUseHint = () => {
-    if (hintsUsed >= 3) return;
+    if (hintsUsed >= MAX_HINTS) return;
 
     // Find first target word not yet found
     const remainingWords = targetWords.filter(
@@ -433,6 +560,8 @@ export default function WordFinderGame({
     setHintsUsed(0);
     setActiveHint(null);
     setSelectedCells([]);
+    setInputAnswer("");
+    setInputFeedback(null);
     setIsGameCompleted(false);
     setIsTimeOut(false);
     setFinalScore(0);
@@ -493,25 +622,25 @@ export default function WordFinderGame({
             <span className="font-mono text-sm tracking-wider">{formattedTime}</span>
           </div>
 
-          {/* Hint Button (Max 3) */}
+          {/* Hint Button (Max 5) */}
           <button
             onClick={handleUseHint}
-            disabled={hintsUsed >= 3 || isGameCompleted || isTimeOut}
+            disabled={hintsUsed >= MAX_HINTS || isGameCompleted || isTimeOut}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
-              hintsUsed >= 3
+              hintsUsed >= MAX_HINTS
                 ? "bg-stone-100 text-stone-400 border-stone-200 cursor-not-allowed"
                 : "bg-amber-100 hover:bg-amber-200 text-amber-900 border-amber-300 shadow-xs"
             }`}
             title={
-              hintsUsed >= 3
-                ? "அனைத்து 3 உதவிகளும் பயன்படுத்தப்பட்டுவிட்டன"
-                : `உதவி பெறு (-5 புள்ளிகள்). மீதம்: ${3 - hintsUsed}`
+              hintsUsed >= MAX_HINTS
+                ? "அனைத்து 5 உதவிகளும் பயன்படுத்தப்பட்டுவிட்டன"
+                : `உதவி பெறு (-5 புள்ளிகள்). மீதம்: ${MAX_HINTS - hintsUsed}`
             }
           >
-            <Lightbulb className={`w-3.5 h-3.5 ${hintsUsed < 3 ? "text-amber-600" : "text-stone-400"}`} />
+            <Lightbulb className={`w-3.5 h-3.5 ${hintsUsed < MAX_HINTS ? "text-amber-600" : "text-stone-400"}`} />
             <span>{lang === "ta" ? "உதவி" : "Hint"}</span>
             <span className="bg-amber-200/80 px-1.5 py-0.2 rounded-full text-[10px] font-mono">
-              {3 - hintsUsed}
+              {MAX_HINTS - hintsUsed}
             </span>
           </button>
         </div>

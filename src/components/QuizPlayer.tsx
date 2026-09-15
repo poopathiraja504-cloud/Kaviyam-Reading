@@ -11,6 +11,7 @@ interface QuizPlayerProps {
   onCancelQuiz: () => void;
   onRequireLogin?: (quizId: string) => void;
   onRequireRegister?: (quizId: string) => void;
+  onGoogleLogin?: () => void;
   lang: Language;
 }
 
@@ -21,6 +22,7 @@ export default function QuizPlayer({
   onCancelQuiz,
   onRequireLogin,
   onRequireRegister,
+  onGoogleLogin,
   lang,
 }: QuizPlayerProps) {
   const isGuest = !currentUser || currentUser.id === "guest-user-session" || currentUser.role === "guest";
@@ -30,12 +32,14 @@ export default function QuizPlayer({
     return (
       <div className="py-8">
         <LoginRequiredScreen
-          title={lang === "ta" ? "வினாடி வினா எழுத உள்நுழையவும்" : "Login Required to Take Quiz"}
+          title={lang === "ta" ? "வினாடி வினா எழுத Google உள்நுழைவு தேவை" : "Google Sign-In Required to Take Quiz"}
           message={
             lang === "ta"
-              ? "வினாடி வினாவில் பங்கேற்க, உங்கள் முன்னேற்றத்தைச் சேமிக்க மற்றும் புள்ளிகளைப் பெற உங்கள் கணக்கில் உள்நுழைய வேண்டும்."
-              : "To take this quiz, save your progress, and earn XP and rewards, please log in to your account."
+              ? "அனைத்து வினாடி வினாக்களையும் அணுகவும், உங்கள் முன்னேற்றத்தைச் சேமிக்கவும், XP புள்ளிகளைப் பெறவும் Google உள்நுழைவு அவசியம்."
+              : "Google sign-in is required to access and attend all quizzes, save your progress, and earn XP."
           }
+          onGoogleLogin={onGoogleLogin}
+          onBack={onCancelQuiz}
           onLogin={() => {
             if (onRequireLogin) {
               onRequireLogin(quiz.quizId);
@@ -58,7 +62,6 @@ export default function QuizPlayer({
               window.location.href = "/login";
             }
           }}
-          onBack={onCancelQuiz}
           lang={lang}
         />
       </div>
@@ -189,22 +192,42 @@ export default function QuizPlayer({
   return (
     <div className="max-w-4xl mx-auto space-y-6 font-sans">
       {/* Top Header Bar */}
-      <div className="bg-[#3B0B12] text-white p-4 sm:p-6 rounded-3xl border border-[#D4AF37]/30 shadow-lg flex items-center justify-between gap-4">
-        <div>
-          <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-[#D4AF37]">
-            {quiz.category} • {lang === "ta" ? `வினாடி வினா ${quiz.quizId.replace("quiz_", "")}` : quiz.quizId.replace("quiz_", "Quiz ")}
-          </span>
-          <h2 className="font-serif text-lg sm:text-xl font-bold text-amber-50 line-clamp-1">
-            {quiz.title}
-          </h2>
+      <div className="bg-[#3B0B12] text-white p-3.5 sm:p-5 rounded-3xl border border-[#D4AF37]/30 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => {
+              if (answeredCount > 0) {
+                if (window.confirm(lang === "ta" ? "வினாடி வினாவிலிருந்து வெளியேற விரும்புகிறீர்களா? உங்கள் தற்போதைய விடைகள் சேமிக்கப்படாது." : "Are you sure you want to leave this quiz? Your current answers will not be saved.")) {
+                  onCancelQuiz();
+                }
+              } else {
+                onCancelQuiz();
+              }
+            }}
+            id="quiz-player-back-btn"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-amber-200 hover:text-white border border-white/20 text-xs font-bold transition-all shrink-0 cursor-pointer shadow-xs"
+            title={lang === "ta" ? "வினாடி வினாக்களுக்குத் திரும்பு" : "Back to Quizzes"}
+          >
+            <ArrowLeft className="w-4 h-4 shrink-0" />
+            <span>{lang === "ta" ? "திரும்பு" : "Back"}</span>
+          </button>
+
+          <div className="min-w-0">
+            <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-[#D4AF37] block">
+              {quiz.category} • {lang === "ta" ? `வினாடி வினா ${quiz.quizId.replace("quiz_", "")}` : quiz.quizId.replace("quiz_", "Quiz ")}
+            </span>
+            <h2 className="font-serif text-base sm:text-lg md:text-xl font-bold text-amber-50 line-clamp-1">
+              {quiz.title}
+            </h2>
+          </div>
         </div>
 
         {/* Countdown Timer */}
-        <div className={`flex items-center gap-2 px-4 py-2 rounded-2xl border ${
+        <div className={`flex items-center justify-center gap-2 px-4 py-2 rounded-2xl border self-end sm:self-auto shrink-0 ${
           timeLeft <= 120 ? "bg-red-950/80 border-red-500 text-red-200 animate-pulse" : "bg-[#5C121E] border-[#D4AF37]/40 text-amber-300"
         }`}>
-          <Clock className="w-4 h-4" />
-          <span className="font-mono text-xs sm:text-xs text-stone-300 mr-1 block uppercase font-bold">
+          <Clock className="w-4 h-4 shrink-0" />
+          <span className="font-mono text-xs text-stone-300 mr-1 block uppercase font-bold whitespace-nowrap">
             {lang === "ta" ? "மீதமுள்ள நேரம்:" : "Time Left:"}
           </span>
           <span className="font-mono text-sm sm:text-base font-extrabold tracking-wider">
@@ -217,7 +240,7 @@ export default function QuizPlayer({
       <div className="bg-white p-4 rounded-2xl border border-[#E2DDD5] shadow-xs space-y-3">
         <div className="flex items-center justify-between text-xs font-bold text-stone-600">
           <span>
-            {lang === "ta" ? `கேள்வி ${currentIdx + 1} / ${quiz.totalQuestions}` : `Question {currentIdx + 1} of ${quiz.totalQuestions}`}
+            {lang === "ta" ? `கேள்வி ${currentIdx + 1} / ${quiz.totalQuestions}` : `Question ${currentIdx + 1} of ${quiz.totalQuestions}`}
           </span>
           <span>
             {Math.round(((currentIdx + 1) / quiz.totalQuestions) * 100)}
