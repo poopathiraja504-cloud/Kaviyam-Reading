@@ -281,6 +281,7 @@ export default function App() {
   const [resetToken, setResetToken] = useState<string | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [isIntroOpen, setIsIntroOpen] = useState(false);
+  const [hasShownLoginIntro, setHasShownLoginIntro] = useState(false);
 
   // Monitor Window Scroll Position for Scroll To Top button
   useEffect(() => {
@@ -349,11 +350,26 @@ export default function App() {
       setQuizPlaying(false);
     }
     if (!bookId) setReaderMode(false);
+    if (tab !== "login") {
+      setHasShownLoginIntro(false);
+      setIsIntroOpen(false);
+    }
     const path = tabToPath(tab, bookId, quizId);
     if (typeof window !== "undefined" && window.location.pathname !== path) {
       window.history.pushState({}, "", path);
     }
   };
+
+  useEffect(() => {
+    if (activeTab === "login" && !hasShownLoginIntro) {
+      setIsIntroOpen(true);
+      setHasShownLoginIntro(true);
+    }
+
+    if (activeTab !== "login") {
+      setHasShownLoginIntro(false);
+    }
+  }, [activeTab, hasShownLoginIntro]);
 
   // Post-Auth Redirect Helper
   const navigateAfterAuthSuccess = () => {
@@ -947,8 +963,18 @@ export default function App() {
     navigateTo("home");
   };
 
-  // 2. EXPLICIT AUTH ROUTE: SHOW LOGIN / SIGNUP SCREEN
+  // 2. EXPLICIT AUTH ROUTE: SHOW 5s BOOK OPENING CINEMATIC BEFORE LOGIN / SIGNUP SCREEN
   if (activeTab === "login") {
+    if (isIntroOpen) {
+      return (
+        <CinematicIntro
+          isOpen={true}
+          onClose={() => setIsIntroOpen(false)}
+          onComplete={() => setIsIntroOpen(false)}
+        />
+      );
+    }
+
     return (
       <div className="min-h-screen bg-[#FDFBF7] flex flex-col justify-center items-center font-sans">
         <Auth

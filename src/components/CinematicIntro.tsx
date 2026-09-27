@@ -20,7 +20,7 @@ interface CinematicIntroProps {
 }
 
 export default function CinematicIntro({ isOpen, onClose, onComplete }: CinematicIntroProps) {
-  const [time, setTime] = useState<number>(0); // 0 to 10 seconds
+  const [time, setTime] = useState<number>(0); // 0 to 5 seconds
   const [isPlaying, setIsPlaying] = useState<boolean>(true);
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [activeSceneIndex, setActiveSceneIndex] = useState<number>(0);
@@ -31,16 +31,11 @@ export default function CinematicIntro({ isOpen, onClose, onComplete }: Cinemati
 
   // Storyboard timeline scenes definition
   const scenes = [
-    { id: 0, timeRange: [0, 1], name: "0–1s", label: "Dark Vintage Library", desc: "Antique book on wooden table, warm candlelight, floating dust" },
-    { id: 1, timeRange: [1, 2], name: "1–2s", label: "The First Spark", desc: "Book opens automatically, golden glow shines from pages" },
-    { id: 2, timeRange: [2, 3], name: "2–3s", label: "Magical Page Turning", desc: "Book opens wider, slow-motion page flip, glowing sparks" },
-    { id: 3, timeRange: [3, 4], name: "3–4s", label: "Light Trails & 'Kaviyam'", desc: "Macro camera push-in, light trails emerge, 'Kaviyam' title floats" },
-    { id: 4, timeRange: [4, 5], name: "4–5s", label: "Logo & Brand Reveal", desc: "Golden book logo appears above title, atmospheric glow" },
-    { id: 5, timeRange: [5, 6], name: "5–6s", label: "Full Identity & Tagline", desc: "'Kaviyam Reading' with 'Books bring new worlds, new thoughts, new you.'" },
-    { id: 6, timeRange: [6, 7], name: "6–7s", label: "Library Camera Flight", desc: "Cinematic movement through library, bookshelves softly blurred" },
-    { id: 7, timeRange: [7, 8], name: "7–8s", label: "Breeze & Open Pages", desc: "Return to open glowing book, pages move gently in breeze" },
-    { id: 8, timeRange: [8, 9], name: "8–9s", label: "Cinematic Pull-Back", desc: "Camera pulls back, library visible, particles fade" },
-    { id: 9, timeRange: [9, 10], name: "9–10s", label: "Final Title Screen", desc: "Pristine brand screen, golden glow & fade to dark" },
+    { id: 0, timeRange: [0, 1], name: "0–1s", label: "Door Awakens", desc: "Golden library doors begin to open" },
+    { id: 1, timeRange: [1, 2], name: "1–2s", label: "First Spark", desc: "Book opens automatically, warm glow appears" },
+    { id: 2, timeRange: [2, 3], name: "2–3s", label: "Magical Turn", desc: "Pages glide open with a cinematic shimmer" },
+    { id: 3, timeRange: [3, 4], name: "3–4s", label: "Kaviyam Light", desc: "Brand title emerges in amber light" },
+    { id: 4, timeRange: [4, 5], name: "4–5s", label: "Reveal & Login", desc: "Final brand reveal before the login page" },
   ];
 
   // Sound Synthesizer via Web Audio API for rich cinematic sound
@@ -126,10 +121,10 @@ export default function CinematicIntro({ isOpen, onClose, onComplete }: Cinemati
       if (isPlaying) {
         setTime((prevTime) => {
           const next = prevTime + delta;
-          if (next >= 10) {
+          if (next >= 5) {
             setIsPlaying(false);
             if (onComplete) onComplete();
-            return 10;
+            return 5;
           }
           return next;
         });
@@ -150,8 +145,8 @@ export default function CinematicIntro({ isOpen, onClose, onComplete }: Cinemati
     const idx = scenes.findIndex((s) => time >= s.timeRange[0] && time < s.timeRange[1]);
     if (idx !== -1) {
       setActiveSceneIndex(idx);
-    } else if (time >= 10) {
-      setActiveSceneIndex(9);
+    } else if (time >= 5) {
+      setActiveSceneIndex(4);
     }
     playCinematicSound(time);
   }, [time]);
@@ -263,7 +258,8 @@ export default function CinematicIntro({ isOpen, onClose, onComplete }: Cinemati
   if (!isOpen) return null;
 
   // Scene calculations for camera transforms and 3D effects
-  const progress = Math.min(1, Math.max(0, time / 10));
+  const progress = Math.min(1, Math.max(0, time / 5));
+  const doorOpenProgress = Math.min(1, Math.max(0, (time - 0.4) / 2.6));
 
   // Camera zoom factor simulation
   let zoomScale = 1;
@@ -335,7 +331,7 @@ export default function CinematicIntro({ isOpen, onClose, onComplete }: Cinemati
         <div className="flex items-center gap-3">
           <span className="p-1.5 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-400 text-xs font-mono font-bold flex items-center gap-1.5">
             <Sparkles className="w-3.5 h-3.5 animate-pulse" />
-            <span>10S CINEMATIC INTRO</span>
+            <span>5S CINEMATIC INTRO</span>
           </span>
           <span className="text-xs text-amber-200/70 hidden sm:inline font-sans">
             Kaviyam Reading Luxury Brand Reveal
@@ -382,16 +378,57 @@ export default function CinematicIntro({ isOpen, onClose, onComplete }: Cinemati
         
         {/* Animated Scene Wrapper applying Cinematic Camera Zoom */}
         <div 
-          className="relative w-full max-w-4xl aspect-[16/9] flex items-center justify-center transition-transform duration-300 ease-out"
+          className="relative w-full max-w-[1200px] aspect-[16/9] flex items-center justify-center transition-transform duration-300 ease-out"
           style={{ transform: `scale(${zoomScale})` }}
         >
+
+          {/* ==================== PRE-LOGIN DOOR OPENING REVEAL ==================== */}
+          {time < 4 && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="relative w-[86%] h-[76%] max-w-[1050px] aspect-[16/9] rounded-[2rem] overflow-hidden border border-amber-500/30 bg-[#090d17] shadow-[0_20px_80px_rgba(245,158,11,0.18)]">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(245,158,11,0.20),_rgba(9,13,23,0.9)_55%,_rgba(2,6,12,1)_100%)]" />
+                <div className="absolute inset-y-6 left-0 right-0 bg-gradient-to-b from-[#0d1420]/70 via-[#111827]/20 to-[#0b1017]/80" />
+                <div className="absolute inset-x-[12%] top-[14%] bottom-[12%] rounded-[1.8rem] border border-amber-400/20 bg-black/15 backdrop-blur-[1px]" />
+                <div className="absolute left-1/2 top-[13%] bottom-[13%] w-[2px] -translate-x-1/2 bg-gradient-to-b from-transparent via-amber-200/90 to-transparent shadow-[0_0_15px_rgba(252,211,77,0.8)]" />
+
+                <div
+                  className="absolute inset-y-[13%] left-[50%] w-[42%] -translate-x-full rounded-l-[1.6rem] border-r border-amber-300/30 bg-[linear-gradient(90deg,_rgba(15,21,28,0.98),_rgba(25,21,14,0.94)_35%,_rgba(68,46,14,0.9)_100%)] shadow-[0_0_25px_rgba(245,158,11,0.15)]"
+                  style={{
+                    transform: `perspective(1400px) rotateY(${-doorOpenProgress * 110}deg) translateX(${-doorOpenProgress * 18}px)`,
+                    transformOrigin: "right center",
+                  }}
+                >
+                  <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(245,158,11,0.16),rgba(255,255,255,0.02),transparent)]" />
+                  <div className="absolute inset-y-8 left-8 right-10 flex items-center justify-center">
+                    <div className="w-20 h-20 rounded-full border border-amber-300/60 bg-amber-500/10 shadow-[0_0_30px_rgba(245,158,11,0.35)] flex items-center justify-center text-amber-200 text-2xl font-bold">K</div>
+                  </div>
+                </div>
+
+                <div
+                  className="absolute inset-y-[13%] left-[50%] w-[42%] rounded-r-[1.6rem] border-l border-amber-300/30 bg-[linear-gradient(90deg,_rgba(24,18,12,0.9),_rgba(68,46,14,0.9)_58%,_rgba(15,21,28,0.98)_100%)] shadow-[0_0_25px_rgba(245,158,11,0.15)]"
+                  style={{
+                    transform: `perspective(1400px) rotateY(${doorOpenProgress * 110}deg) translateX(${doorOpenProgress * 18}px)`,
+                    transformOrigin: "left center",
+                  }}
+                >
+                  <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.02),rgba(245,158,11,0.18))]" />
+                  <div className="absolute inset-y-8 left-10 right-8 flex items-center justify-center">
+                    <div className="w-20 h-20 rounded-full border border-amber-300/60 bg-amber-500/10 shadow-[0_0_30px_rgba(245,158,11,0.35)] flex items-center justify-center text-amber-200 text-2xl font-bold">R</div>
+                  </div>
+                </div>
+
+                <div className="absolute inset-x-[26%] bottom-[22%] h-28 rounded-full bg-amber-500/10 blur-3xl" />
+                <div className="absolute inset-x-[34%] top-[22%] h-28 rounded-full bg-amber-300/15 blur-3xl" />
+              </div>
+            </div>
+          )}
 
           {/* ==================== SCENE 0-3s & 7-8s: THE ANTIQUE BOOK ON TABLE ==================== */}
           {(time < 4 || (time >= 7 && time < 9)) && (
             <div className="absolute inset-0 flex items-center justify-center">
               
               {/* Background Vintage Library Environment */}
-              <div className="absolute inset-0 bg-gradient-to-t from-[#0d0a06] via-[#121824] to-[#080C14] rounded-3xl overflow-hidden border border-amber-900/30 shadow-2xl">
+              <div className="absolute inset-0 bg-gradient-to-t from-[#0d0a06] via-[#121824] to-[#080C14] rounded-[2rem] overflow-hidden border border-amber-900/30 shadow-2xl">
                 
                 {/* Background Library Bookshelves & Candle Light Flicker */}
                 <div className="absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_20%_30%,#f59e0b_0%,transparent_50%)] animate-pulse" />
@@ -592,14 +629,14 @@ export default function CinematicIntro({ isOpen, onClose, onComplete }: Cinemati
                 {scenes[activeSceneIndex]?.label} ({scenes[activeSceneIndex]?.name})
               </span>
               <span className="text-stone-400">
-                {time.toFixed(1)}s / 10.0s
+                {time.toFixed(1)}s / 5.0s
               </span>
             </div>
 
             <input
               type="range"
               min={0}
-              max={10}
+              max={5}
               step={0.05}
               value={time}
               onChange={(e) => {
@@ -613,7 +650,7 @@ export default function CinematicIntro({ isOpen, onClose, onComplete }: Cinemati
           <div className="shrink-0 text-right font-sans">
             <button
               onClick={() => {
-                const nextTime = Math.min(10, Math.floor(time) + 1);
+                const nextTime = Math.min(5, Math.floor(time) + 1);
                 setTime(nextTime);
               }}
               className="px-3 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 hover:text-white text-xs font-semibold transition-all cursor-pointer"

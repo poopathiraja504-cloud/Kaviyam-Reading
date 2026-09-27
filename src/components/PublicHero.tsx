@@ -28,8 +28,8 @@ export default function PublicHero({ lang, onBrowseBooks, onStartReading, onPlay
         {/* Hero Title */}
         <h1 className="font-serif text-3xl sm:text-4xl md:text-5xl font-bold leading-tight tracking-tight text-amber-50 drop-shadow-sm">
           {lang === "ta"
-            ? "பொன்னியின் செல்வன் & தமிழ் காவியங்களின் பேரனுபவம்"
-            : "Immerse Yourself in Timeless Tamil Literature & Masterpieces"}
+? "காவியம் வாசிப்பு - தமிழ் இலக்கியம், வினாடி வினா மற்றும் கற்றல் தளம்"
+: "KAVIYAM READING - Tamil Literature, Quizzes & Learning Platform"}
         </h1>
 
         {/* Hero Description */}
