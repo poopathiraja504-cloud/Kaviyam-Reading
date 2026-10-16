@@ -1,181 +1,110 @@
 import React from "react";
-import { BookOpen, Sparkles, TrendingUp, Volume2, Globe, Search, ArrowRight, Star, Shield, Award } from "lucide-react";
-import { Language, translations } from "../utils/i18n";
-import Book3D from "./Book3D";
-import TiltCard from "./TiltCard";
-import { PRESET_BOOKS } from "../booksData";
+import { BookOpen, Sparkles, Star, ArrowRight, ShieldCheck, Heart, Compass } from "lucide-react";
+import { Language } from "../utils/i18n";
 
 interface PublicHeroProps {
   lang: Language;
   onBrowseBooks: () => void;
   onStartReading: () => void;
+  onPlayIntro?: () => void;
+  onGuestLogin?: () => void;
+  isGuest?: boolean;
 }
 
-export default function PublicHero({ lang, onBrowseBooks, onStartReading }: PublicHeroProps) {
-  const t = (key: keyof typeof translations["ta"]) => translations[lang][key] || key;
-
+export default function PublicHero({
+  lang,
+  onBrowseBooks,
+  onStartReading,
+  onPlayIntro,
+  onGuestLogin,
+  isGuest = false,
+}: PublicHeroProps) {
   return (
-    <div className="relative overflow-hidden bg-gradient-to-br from-[#25060A] via-[#4A0E17] to-[#3B0B12] text-white border-b border-[#5C121E]">
+    <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#3B0B12] via-[#5C121E] to-[#2A080D] text-white p-8 sm:p-12 mb-8 shadow-2xl border border-amber-900/30">
       
-      {/* Background Glows & Pattern */}
-      <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#D4AF37_1px,transparent_1px)] [background-size:24px_24px] pointer-events-none" />
-      <div className="absolute -top-40 -left-40 w-96 h-96 bg-[#D4AF37]/15 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-red-950/40 rounded-full blur-3xl pointer-events-none" />
+      {/* Background Decorative Graphic Pattern */}
+      <div className="absolute -right-20 -bottom-20 w-80 h-80 rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />
+      <div className="absolute right-10 top-10 w-40 h-40 rounded-full bg-red-500/10 blur-2xl pointer-events-none" />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-16 relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-          
-          {/* Left Hero Text */}
-          <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
-            
-            {/* Pill Badge */}
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#5C121E]/80 border border-[#D4AF37]/40 shadow-inner">
-              <Sparkles className="w-4 h-4 text-[#D4AF37]" />
-              <span className="text-xs font-semibold tracking-wide text-amber-200">
-                {lang === "ta" ? "நவீன தமிழ் வாசிப்பு அனுபவம்" : "Next-Gen Tamil Reading Experience"}
-              </span>
-            </div>
-
-            {/* Hero Main Heading */}
-            <h1 className="font-serif text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-tight text-white drop-shadow-md">
-              {lang === "ta" ? (
-                <>
-                  தமிழ் இலக்கியத்தின் <br />
-                  <span className="bg-gradient-to-r from-[#FFE599] via-[#D4AF37] to-[#C5A059] bg-clip-text text-transparent">
-                    மொழி முத்துக்கள்
-                  </span>
-                </>
-              ) : (
-                <>
-                  Discover the Literary <br />
-                  <span className="bg-gradient-to-r from-[#FFE599] via-[#D4AF37] to-[#C5A059] bg-clip-text text-transparent">
-                    Treasures of Tamil
-                  </span>
-                </>
-              )}
-            </h1>
-
-            {/* Description */}
-            <p className="text-sm sm:text-base text-amber-100/80 max-w-2xl leading-relaxed font-sans mx-auto lg:mx-0">
-              {t("heroSubtitle")}
-            </p>
-
-            {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-2">
-              <button
-                onClick={onBrowseBooks}
-                className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-gradient-to-r from-[#D4AF37] via-[#C5A059] to-[#9A7B24] text-[#2A080E] font-bold text-sm shadow-xl hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2 group"
-              >
-                <BookOpen className="w-4 h-4" />
-                {t("browseBooks")}
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </button>
-
-              <button
-                onClick={onStartReading}
-                className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-[#2A080E]/70 hover:bg-[#3B0B12] text-amber-100 font-semibold text-sm border border-[#D4AF37]/40 shadow-md backdrop-blur-md active:scale-95 transition-all flex items-center justify-center gap-2"
-              >
-                <Sparkles className="w-4 h-4 text-[#D4AF37]" />
-                {t("startReading")}
-              </button>
-            </div>
-
-            {/* Quick Stats Pill */}
-            <div className="pt-4 flex items-center justify-center lg:justify-start gap-6 text-xs text-amber-200/70 border-t border-[#5C121E]/60">
-              <div className="flex items-center gap-1.5">
-                <Star className="w-4 h-4 text-[#D4AF37] fill-[#D4AF37]" />
-                <span><strong className="text-white">4.9/5</strong> Rating</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Shield className="w-4 h-4 text-[#D4AF37]" />
-                <span><strong className="text-white">50,000+</strong> Active Readers</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Award className="w-4 h-4 text-[#D4AF37]" />
-                <span><strong className="text-white">100%</strong> Free & Open</span>
-              </div>
-            </div>
-
-          </div>
-
-          {/* Right Hero Visual — 3D bookshelf */}
-          <div className="lg:col-span-5 relative flex items-center justify-center">
-            <div className="relative w-full max-w-md aspect-square rounded-3xl bg-gradient-to-b from-[#5C121E]/60 to-[#2A080E]/90 p-4 border border-[#D4AF37]/30 shadow-2xl overflow-hidden">
-              <div className="absolute inset-0 opacity-30 mix-blend-overlay">
-                <img
-                  src="https://images.unsplash.com/photo-1608659597669-b45511779f93?auto=format&fit=crop&q=80&w=800"
-                  alt="Tamil Heritage Temple"
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <div className="absolute inset-0 bg-gradient-to-t from-[#25060A] via-transparent to-[#3B0B12]/80" />
-
-              <div className="relative z-10 text-center pt-3">
-                <div className="inline-block px-4 py-2 rounded-2xl bg-[#3B0B12]/80 border border-[#D4AF37]/40 shadow-xl backdrop-blur-md">
-                  <span className="text-2xl tracking-widest text-[#D4AF37] font-serif block">𑿀 ௐ 𑿀</span>
-                  <p className="text-[10px] font-bold text-amber-100 tracking-wider uppercase mt-0.5">
-                    {lang === "ta" ? "காவியம் தமிழ் நூலகம்" : "Kaviyam Tamil Archives"}
-                  </p>
-                </div>
-              </div>
-
-              <div className="hero-bookshelf z-10">
-                <div className="hero-book hero-book-left">
-                  <Book3D
-                    coverUrl={PRESET_BOOKS[1]?.coverUrl || PRESET_BOOKS[0].coverUrl}
-                    title={PRESET_BOOKS[1]?.title || PRESET_BOOKS[0].title}
-                    tilt="none"
-                  />
-                </div>
-                <div className="hero-book hero-book-center">
-                  <Book3D
-                    coverUrl={PRESET_BOOKS[0].coverUrl}
-                    title={PRESET_BOOKS[0].title}
-                    tilt="pointer"
-                    float
-                  />
-                </div>
-                <div className="hero-book hero-book-right">
-                  <Book3D
-                    coverUrl={PRESET_BOOKS[2]?.coverUrl || PRESET_BOOKS[0].coverUrl}
-                    title={PRESET_BOOKS[2]?.title || PRESET_BOOKS[0].title}
-                    tilt="none"
-                  />
-                </div>
-                <div className="hero-shelf" />
-              </div>
-            </div>
-          </div>
-
+      <div className="relative z-10 max-w-3xl space-y-6">
+        
+        {/* Badge */}
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-amber-300/30 text-amber-200 text-xs font-semibold">
+          <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+          <span>{lang === "ta" ? "தமிழ் வரலாற்றுப் புதினங்கள் & காவியங்கள்" : "Classical Tamil Historical Epics"}</span>
         </div>
 
-        {/* 5 Feature Highlight Cards Bar (Bottom Row) */}
-        <div className="mt-16 grid grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4">
-          {[
-            { title: t("feature1Title"), desc: t("feature1Desc"), icon: BookOpen, tag: "5000+ Works" },
-            { title: t("feature2Title"), desc: t("feature2Desc"), icon: Sparkles, tag: "Gemini AI" },
-            { title: t("feature3Title"), desc: t("feature3Desc"), icon: TrendingUp, tag: "Analytics" },
-            { title: t("feature4Title"), desc: t("feature4Desc"), icon: Volume2, tag: "Speech Audio" },
-            { title: t("feature5Title"), desc: t("feature5Desc"), icon: Globe, tag: "தமிழ் | EN" },
-          ].map((feat, idx) => {
-            const Icon = feat.icon;
-            return (
-              <TiltCard
-                key={idx}
-                className="p-3 sm:p-4 rounded-2xl bg-[#3B0B12]/70 hover:bg-[#5C121E]/80 border border-[#D4AF37]/20 hover:border-[#D4AF37]/50 shadow-lg backdrop-blur-md"
-                intensity={8}
-              >
-                <div className="w-8 h-8 rounded-xl bg-[#5C121E] flex items-center justify-center mb-2.5 border border-[#D4AF37]/30">
-                  <Icon className="w-4 h-4 text-[#D4AF37]" />
-                </div>
-                <h3 className="text-xs sm:text-sm font-bold text-white leading-snug">{feat.title}</h3>
-                <p className="text-[11px] text-amber-200/60 mt-0.5 font-sans">{feat.desc}</p>
-                <span className="inline-block mt-2 px-2 py-0.5 rounded text-[9px] font-semibold bg-[#25060A] text-[#D4AF37] border border-[#5C121E]">
-                  {feat.tag}
-                </span>
-              </TiltCard>
-            );
-          })}
+        {/* Hero Title */}
+        <h1 className="font-serif text-3xl sm:text-4xl md:text-5xl font-bold leading-tight tracking-tight text-amber-50 drop-shadow-sm">
+          {lang === "ta"
+            ? "பொன்னியின் செல்வன் & தமிழ் காவியங்களின் பேரனுபவம்"
+            : "Immerse Yourself in Timeless Tamil Literature & Masterpieces"}
+        </h1>
+
+        {/* Hero Description */}
+        <p className="text-stone-300 text-xs sm:text-sm md:text-base leading-relaxed font-sans max-w-2xl">
+          {lang === "ta"
+            ? "கல்கியின் பொன்னியின் செல்வன், சிவகாமியின் சபதம், திருக்குறள் மற்றும் சங்க இலக்கியங்களை 3D புத்தக அமைப்பில், AI கேள்விகளுடன் நவீன டிஜிட்டல் வாசிப்பில் அனுபவியுங்கள்."
+            : "Read Kalki's Ponniyin Selvan, Sivagamiyin Sabatham, Thirukkural, and classic epics with immersive 3D realistic book covers, AI chapter analysis, and audio reader mode."}
+        </p>
+
+        {/* Action Buttons */}
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4 pt-2">
+          <button
+            onClick={onStartReading}
+            className="px-6 py-3 rounded-2xl bg-[#D4AF37] hover:bg-[#B89628] text-stone-950 font-bold text-xs sm:text-sm shadow-lg hover:shadow-xl transition-all flex items-center gap-2 cursor-pointer"
+          >
+            <BookOpen className="w-4 h-4" />
+            <span>{lang === "ta" ? "உடனே வாசிக்கத் தொடங்குக" : "Start Reading Now"}</span>
+            <ArrowRight className="w-4 h-4 ml-1" />
+          </button>
+
+          <button
+            onClick={onBrowseBooks}
+            className="px-6 py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-semibold text-xs sm:text-sm border border-white/20 backdrop-blur-md transition-all cursor-pointer"
+          >
+            {lang === "ta" ? "நூலகத்தை பார்வையிடுக" : "Browse Tamil Library"}
+          </button>
+
+          {onGuestLogin && !isGuest && (
+            <button
+              onClick={onGuestLogin}
+              id="hero-guest-mode-btn"
+              className="px-5 py-3 rounded-2xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 hover:text-white font-semibold text-xs sm:text-sm border border-amber-400/40 backdrop-blur-md transition-all flex items-center gap-2 cursor-pointer"
+            >
+              <Compass className="w-4 h-4 text-amber-300" />
+              <span>{lang === "ta" ? "விருந்தினர் பயன்முறை" : "Guest Mode"}</span>
+            </button>
+          )}
+
+          {isGuest && (
+            <div className="px-4 py-2.5 rounded-2xl bg-white/10 border border-amber-400/30 text-amber-200 text-xs flex items-center gap-2 font-medium">
+              <Compass className="w-4 h-4 text-amber-300" />
+              <span>{lang === "ta" ? "விருந்தினர் பயன்முறை செயலில் உள்ளது" : "Guest Mode Active"}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Highlights Bar */}
+        <div className="pt-6 border-t border-white/10 grid grid-cols-3 gap-4 text-center sm:text-left">
+          <div>
+            <p className="font-serif font-bold text-lg sm:text-xl text-amber-300">100%</p>
+            <p className="text-[10px] sm:text-xs text-stone-300 font-sans">
+              {lang === "ta" ? "முழுமையான உரைகள்" : "Original Full Texts"}
+            </p>
+          </div>
+          <div>
+            <p className="font-serif font-bold text-lg sm:text-xl text-amber-300">AI Powered</p>
+            <p className="text-[10px] sm:text-xs text-stone-300 font-sans">
+              {lang === "ta" ? "காவியம் AI தோழன்" : "Gemini AI Novel Guide"}
+            </p>
+          </div>
+          <div>
+            <p className="font-serif font-bold text-lg sm:text-xl text-amber-300">Offline</p>
+            <p className="text-[10px] sm:text-xs text-stone-300 font-sans">
+              {lang === "ta" ? "உள் சேமிப்பு வசதி" : "Local Database Cache"}
+            </p>
+          </div>
         </div>
 
       </div>

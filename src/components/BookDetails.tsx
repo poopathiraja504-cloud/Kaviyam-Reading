@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { BookOpen, Star, Bookmark, Play, ArrowLeft, Volume2, MessageSquare, Share2, Clock, Check, FileText, Download } from "lucide-react";
+import { BookOpen, Star, Bookmark, Play, ArrowLeft, Volume2, MessageSquare, Share2, Clock, Check, Download, FileText, CheckCircle } from "lucide-react";
 import { Book, Chapter, Review } from "../types";
 import { Language, translations } from "../utils/i18n";
 import Book3D from "./Book3D";
@@ -8,23 +8,26 @@ interface BookDetailsProps {
   book: Book;
   onBack: () => void;
   onStartReading: (chapterNum?: number) => void;
-  onOpenPdf?: () => void;
   isBookmarked: boolean;
   onToggleBookmark: () => void;
   lang: Language;
+  onDownloadBook?: (book: Book) => void;
 }
 
 export default function BookDetails({
   book,
   onBack,
   onStartReading,
-  onOpenPdf,
   isBookmarked,
   onToggleBookmark,
   lang,
+  onDownloadBook,
 }: BookDetailsProps) {
   const [activeTab, setActiveTab] = useState<"about" | "chapters" | "reviews">("about");
-  const t = (key: keyof typeof translations["ta"]) => translations[lang][key] || key;
+  const t = (key: string): string => {
+    const res = (translations[lang] as Record<string, any>)[key];
+    return typeof res === "string" ? res : key;
+  };
 
   return (
     <div className="space-y-6 font-sans pb-12 max-w-6xl mx-auto">
@@ -111,17 +114,19 @@ export default function BookDetails({
               onClick={() => onStartReading(1)}
               className="px-8 py-3.5 rounded-xl bg-gradient-to-r from-[#4A0E17] via-[#5C121E] to-[#3B0B12] text-[#D4AF37] font-bold text-sm shadow-xl hover:brightness-110 active:scale-95 transition-all flex items-center gap-2"
             >
-              <Play className="w-4 h-4 fill-current" />
-              <span>{t("startReadingNow")}</span>
+              <BookOpen className="w-4 h-4 fill-current" />
+              <span>{book.pdfUrl ? (lang === "ta" ? "PDF படிக்க (Read Online)" : "Read PDF Online") : t("startReadingNow")}</span>
             </button>
 
-            {onOpenPdf && (
+            {book.pdfUrl && onDownloadBook && (
               <button
-                onClick={onOpenPdf}
-                className="px-6 py-3.5 rounded-xl bg-[#D4AF37] text-[#3B0B12] font-bold text-xs shadow-md hover:brightness-110 active:scale-95 transition-all flex items-center gap-2"
+                onClick={() => onDownloadBook(book)}
+                className="px-6 py-3.5 rounded-xl bg-amber-500 text-slate-950 font-bold text-xs shadow-md hover:bg-amber-400 active:scale-95 transition-all flex items-center gap-2"
+                title={`${book.title} PDF பதிவிறக்கு`}
               >
-                <FileText className="w-4 h-4" />
-                <span>{lang === "ta" ? "PDF வாசிக்க" : "Read PDF"}</span>
+                <Download className="w-4 h-4" />
+                <span>{lang === "ta" ? "PDF பதிவிறக்கம் (Download)" : "Download PDF"}</span>
+                {book.fileSize && <span className="opacity-80 text-[10px]">({book.fileSize})</span>}
               </button>
             )}
 

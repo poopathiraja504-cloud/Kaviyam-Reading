@@ -3,8 +3,8 @@ export interface UserProfile {
   bio: string;
   profilePhoto: string;
   phoneNumber?: string;
-  dob: string;
-  gender: string;
+  dob?: string;
+  gender?: string;
   privacy: {
     publicBookshelf: boolean;
     showActivity: boolean;
@@ -13,11 +13,28 @@ export interface UserProfile {
 
 export interface User {
   id: string;
+  uid?: string;
+  name?: string;
   email: string;
   username: string;
+  avatarUrl?: string;
+  phone?: string;
+  dob?: string;
+  gender?: string;
   isVerified: boolean;
-  profile: UserProfile;
-  security: {
+  role?: string;
+  photoFileName?: string;
+  bio?: string;
+  updatedAt?: string;
+  profile?: UserProfile;
+  totalXP?: number;
+  totalXp?: number;
+  levelUpAlert?: {
+    level: number;
+    levelNameTa: string;
+    xp: number;
+  };
+  security?: {
     is2FAEnabled: boolean;
     isBlocked: boolean;
     loginAttempts: number;
@@ -27,8 +44,11 @@ export interface User {
 }
 
 export interface Chapter {
-  chapterNumber: number;
-  chapterTitle: string;
+  id?: string;
+  number?: number;
+  chapterNumber?: number;
+  title?: string;
+  chapterTitle?: string;
   content: string;
 }
 
@@ -54,13 +74,11 @@ export interface Book {
   ratingCount: number;
   reviews: Review[];
   isCustomAI?: boolean;
-  pdfUrl?: string;
-  isPdf?: boolean;
 }
 
 export interface SecurityLog {
   id: string;
-  action: string; // e.g. "Login", "Sign Up", "Password Reset", "Change Email"
+  action: string;
   timestamp: string;
   device: string;
   ip: string;
@@ -77,10 +95,84 @@ export interface SimulatedEmail {
   read: boolean;
 }
 
-export interface QuizQuestion {
+export interface ProjectLink {
   id: string;
+  title: string;
+  titleTa?: string;
+  url: string;
+  category: string;
+  description?: string;
+  descriptionTa?: string;
+  tags?: string[];
+  addedBy?: string;
+  createdAt?: string;
+  uploadedAt?: string;
+  isSystem?: boolean;
+  isVerified?: boolean;
+}
+
+export interface TemplateItem {
+  id: string;
+  title?: string;
+  name?: string;
+  nameTa?: string;
+  titleTa?: string;
+  category: string;
+  previewUrl?: string;
+  previewImage?: string;
+  description: string;
+  descriptionTa?: string;
+  themeClass?: string;
+  bgColor?: string;
+  accentColor?: string;
+  isPopular?: boolean;
+  likes?: number;
+}
+
+export interface WallpaperItem {
+  id: string;
+  title: string;
+  titleTa?: string;
+  imageUrl?: string;
+  thumbnailUrl?: string;
+  category: string;
+  resolution?: string;
+  downloads: number;
+}
+
+export interface AppNotification {
+  id: string;
+  title: string;
+  titleTa?: string;
+  message: string;
+  messageTa?: string;
+  timestamp?: string;
+  time?: string;
+  read: boolean;
+  category?: string;
+  type?: "info" | "warning" | "success";
+}
+
+// Quiz System Interfaces
+export interface QuizQuestion {
+  questionId: string;
+  quizId: string;
   question: string;
+  questionTa?: string;
+  questionEn?: string;
   options: {
+    A: string;
+    B: string;
+    C: string;
+    D: string;
+  };
+  optionsTa?: {
+    A: string;
+    B: string;
+    C: string;
+    D: string;
+  };
+  optionsEn?: {
     A: string;
     B: string;
     C: string;
@@ -88,42 +180,71 @@ export interface QuizQuestion {
   };
   correctAnswer: "A" | "B" | "C" | "D";
   explanation: string;
+  explanationTa?: string;
+  explanationEn?: string;
+  difficulty: "Easy" | "Medium" | "Hard";
+  category: string;
+  categoryEn?: string;
   marks: number;
 }
 
-export interface Quiz {
-  id: string;
+export interface QuizSet {
+  quizId: string;
   title: string;
+  titleTa?: string;
+  titleEn?: string;
   description: string;
+  descriptionTa?: string;
+  descriptionEn?: string;
   category: string;
+  categoryTa?: string;
+  categoryEn?: string;
   difficulty: "Easy" | "Medium" | "Hard";
   totalQuestions: number;
   marksPerQuestion: number;
   totalMarks: number;
-  timeLimitMinutes: number;
+  timeLimit: number; // in seconds (e.g. 600)
+  associatedBookId?: string;
   questions: QuizQuestion[];
-  isPublished?: boolean;
 }
 
 export interface QuizAttempt {
-  id: string;
-  userId: string;
-  userName: string;
-  userPhoto?: string;
+  attemptId: string;
   quizId: string;
   quizTitle: string;
-  quizCategory: string;
-  answers: Record<string, "A" | "B" | "C" | "D" | "">;
+  title?: string;
+  userId: string;
+  username: string;
+  answers: Record<string, "A" | "B" | "C" | "D">;
   score: number;
-  totalMarks: number;
   percentage: number;
   correctAnswers: number;
   wrongAnswers: number;
   unansweredQuestions: number;
-  timeTakenSeconds: number;
+  timeUsed: number;
   startedAt: string;
-  completedAt: string | null;
-  status: "in_progress" | "completed" | "expired";
-  currentQuestionIndex?: number;
+  completedAt: string;
+  status: "Completed" | "Failed" | "In-Progress";
 }
 
+export interface QuizUserStats {
+  quizzesTaken: number;
+  questionsAnswered: number;
+  correctAnswers: number;
+  wrongAnswers: number;
+  averageScore: number;
+  highestScore: number;
+  completionRate: number;
+  quizStreak: number;
+  totalXp: number;
+}
+
+export interface QuizAchievement {
+  id: string;
+  title: string;
+  titleTa?: string;
+  description: string;
+  icon: string;
+  unlocked: boolean;
+  unlockedAt?: string;
+}

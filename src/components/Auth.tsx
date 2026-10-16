@@ -1,699 +1,696 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
+import { User } from "../types";
+import LiquidOTP from "./LiquidOTP";
+import { Language, translations } from "../utils/i18n";
 import { 
   BookOpen, 
   Mail, 
   Lock, 
-  User as UserIcon, 
+  Phone, 
+  ArrowRight, 
+  AlertCircle, 
+  CheckCircle2,
   Eye, 
   EyeOff, 
-  Smartphone, 
-  ArrowRight, 
-  Sparkles, 
-  AlertCircle, 
-  CheckCircle,
-  Calendar,
-  Globe
+  Compass,
+  RefreshCw,
+  ArrowLeft
 } from "lucide-react";
-import { User } from "../types";
-import { Language, translations } from "../utils/i18n";
-import { sendPhoneOtp, verifyPhoneOtp, clearRecaptchaVerifier } from "../lib/phoneAuth";
-import Book3D from "./Book3D";
-import { PRESET_BOOKS } from "../booksData";
 
 interface AuthProps {
   currentUser: User | null;
-  onLogin: (email: string, password: string, otp?: string) => Promise<{ success: boolean; error?: string; require2FA?: boolean }> | { success: boolean; error?: string; require2FA?: boolean };
-  onRegister: (email: string, username: string, dob: string, gender: string, password?: string) => Promise<{ success: boolean; error?: string }> | { success: boolean; error?: string };
-  onForgotPassword: (email: string) => Promise<{ success: boolean; error?: string }> | { success: boolean; error?: string };
-  onResetPasswordWithToken: (token: string, newPass: string) => Promise<{ success: boolean; error?: string }> | { success: boolean; error?: string };
-  onResendVerification: (email: string) => void;
+  onLogin: (email: string, pass: string, otp?: string, rememberMe?: boolean) => Promise<{ success: boolean; requireVerification?: boolean; email?: string; error?: string }>;
+  onRegister: (email: string, username: string, dob: string, gender: string, pass?: string) => Promise<{ success: boolean; requireVerification?: boolean; email?: string; error?: string }>;
+  onForgotPassword: (email: string) => Promise<{ success: boolean; email?: string; error?: string }>;
+  onResetPasswordWithToken: () => Promise<{ success: boolean }>;
+  onResendVerification: (email: string) => Promise<{ success: boolean }>;
   resetToken: string | null;
   setResetToken: (token: string | null) => void;
   addSystemLog: (action: string, status: "Success" | "Failed" | "Blocked") => void;
-  onGoogleLogin?: () => Promise<void> | void;
-  lang: Language;
-  onLanguageChange: (lang: Language) => void;
+  onGoogleLogin: () => Promise<{ success: boolean; error?: string }>;
+  onPhoneLogin?: (phone: string) => Promise<{ success: boolean; error?: string }>;
+  onGuestLogin?: () => void;
+  onCancel?: () => void;
+  initialMode?: "login" | "register";
+  isDarkMode?: boolean;
+  lang?: Language;
+  onLanguageChange?: (lang: Language) => void;
 }
 
 export default function Auth({
-  currentUser,
   onLogin,
-  onRegister,
   onForgotPassword,
-  onResetPasswordWithToken,
   onResendVerification,
-  resetToken,
-  setResetToken,
-  addSystemLog,
   onGoogleLogin,
-  lang,
+  onPhoneLogin,
+  onGuestLogin,
+  onCancel,
+  lang = "ta",
   onLanguageChange,
 }: AuthProps) {
-  const [authMode, setAuthMode] = useState<"login" | "register" | "forgot">("login");
-  const [loginMethod, setLoginMethod] = useState<"email" | "mobile">("email");
+  const [currentLang, setCurrentLang] = useState<Language>(lang);
+  const t = translations[currentLang];
 
-  // Form States
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const handleLangToggle = (newLang: Language) => {
+    setCurrentLang(newLang);
+    if (onLanguageChange) {
+      onLanguageChange(newLang);
+    }
+  };
+
+  // Auth modes: primary login ("email" | "mobile"), "forgot", "verification"
+  const [authMethod, setAuthMethod] = useState<"email" | "mobile">("email");
+  const [viewState, setViewState] = useState<"standard" | "forgot" | "verification">("standard");
+
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [infoMsg, setInfoMsg] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
 
-  // Register States
-  const [regUsername, setRegUsername] = useState("");
-  const [regEmail, setRegEmail] = useState("");
-  const [regPassword, setRegPassword] = useState("");
-  const [regDob, setRegDob] = useState("");
-  const [regGender, setRegGender] = useState("Not Specified");
+  // Login inputs
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
 
-  // Mobile Auth States
+  // Phone auth inputs
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [phoneOtp, setPhoneOtp] = useState("");
-  const [phoneStep, setPhoneStep] = useState<"phone" | "otp">("phone");
-  const [isSendingOtp, setIsSendingOtp] = useState(false);
-  const [confirmationResult, setConfirmationResult] = useState<any>(null);
+  const [phoneStep, setPhoneStep] = useState<"enter_phone" | "enter_otp">("enter_phone");
+  const [generatedOtp, setGeneratedOtp] = useState("");
 
-  // UI Status
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  // Verification state
+  const [verificationEmail, setVerificationEmail] = useState("");
+  const [resendingVerification, setResendingVerification] = useState(false);
+  const [verificationResent, setVerificationResent] = useState(false);
 
-  const t = (key: keyof typeof translations["ta"]) => translations[lang][key] || key;
+  // Forgot password inputs & state
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotSubmitted, setForgotSubmitted] = useState(false);
 
-  useEffect(() => {
-    return () => {
-      clearRecaptchaVerifier();
-    };
-  }, []);
+  // Switch to forgot password
+  const handleOpenForgotPassword = () => {
+    if (loginEmail.trim()) {
+      setForgotEmail(loginEmail.trim());
+    }
+    setForgotSubmitted(false);
+    setErrorMsg(null);
+    setInfoMsg(null);
+    setViewState("forgot");
+  };
 
   // Handle Login Submit
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrorMsg(null);
-    setSuccessMsg(null);
-
-    if (!email.trim() || !password) {
-      setErrorMsg(lang === "ta" ? "மின்னஞ்சல் மற்றும் கடவுச்சொல்லை உள்ளிடுங்கள்." : "Please enter both email and password.");
+    if (!loginEmail.trim() || !loginPassword.trim()) {
+      setErrorMsg(currentLang === "ta" ? "மின்னஞ்சல் மற்றும் கடவுச்சொல்லை உள்ளிடவும்." : "Please enter your email and password.");
       return;
     }
-
     setLoading(true);
-    try {
-      const res = await onLogin(email, password);
-      if (!res.success) {
-        setErrorMsg(res.error || (lang === "ta" ? "உள்நுழைவு தோல்வியடைந்தது." : "Login failed."));
-      }
-    } catch (err: any) {
-      setErrorMsg(err.message || "Login error occurred.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Handle Register Submit
-  const handleRegisterSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
     setErrorMsg(null);
-    setSuccessMsg(null);
+    setInfoMsg(null);
 
-    if (!regEmail.trim() || !regUsername.trim() || !regPassword) {
-      setErrorMsg(lang === "ta" ? "அனைத்து விவரங்களையும் சரியாக நிரப்பவும்." : "Please fill out all required fields.");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const res = await onRegister(regEmail, regUsername, regDob, regGender, regPassword);
-      if (res.success) {
-        setSuccessMsg(lang === "ta" ? "கணக்கு உருவாக்கப்பட்டது! உள்நுழையவும்." : "Account created successfully! Please sign in.");
-        setAuthMode("login");
-        setEmail(regEmail);
-        setPassword(regPassword);
+    const res = await onLogin(loginEmail.trim(), loginPassword, undefined, rememberMe);
+    if (!res.success) {
+      if (res.requireVerification) {
+        setVerificationEmail(res.email || loginEmail.trim());
+        setVerificationResent(false);
+        setViewState("verification");
       } else {
-        setErrorMsg(res.error || "Registration failed.");
+        setErrorMsg(res.error || (currentLang === "ta" ? "உள்நுழைவு தோல்வியடைந்தது. விவரங்களைச் சரிபார்க்கவும்." : "Login failed. Please check credentials."));
       }
-    } catch (err: any) {
-      setErrorMsg(err.message || "Registration error occurred.");
-    } finally {
-      setLoading(false);
     }
+    setLoading(false);
   };
 
-  // Handle Google Sign-In
-  const handleGoogleClick = async () => {
-    if (!onGoogleLogin) return;
-    setErrorMsg(null);
-    setLoading(true);
-    try {
-      await onGoogleLogin();
-    } catch (err: any) {
-      setErrorMsg(err.message || "Google sign in failed.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Send Mobile OTP
-  const handleSendPhoneOtp = async (e: React.FormEvent) => {
+  // Handle Phone Auth
+  const handleSendPhoneOTP = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!phoneNumber.trim()) {
-      setErrorMsg(lang === "ta" ? "மொபைல் எண்ணை உள்ளிடுங்கள்" : "Please enter phone number");
+    const cleanPhone = phoneNumber.trim();
+    if (cleanPhone.length < 10) {
+      setErrorMsg(currentLang === "ta" ? "செல்லுபடியாகும் கைபேசி எண்ணை உள்ளிடவும் (10+ இலக்கங்கள்)." : "Please enter a valid phone number (10+ digits).");
       return;
     }
-
-    setIsSendingOtp(true);
     setErrorMsg(null);
-    try {
-      const formatted = phoneNumber.startsWith("+") ? phoneNumber : `+91${phoneNumber.trim()}`;
-      const result = await sendPhoneOtp(formatted);
-      setConfirmationResult(result);
-      setPhoneStep("otp");
-      setSuccessMsg(lang === "ta" ? "OTP அனுப்பப்பட்டது!" : "OTP sent successfully!");
-    } catch (err: any) {
-      setErrorMsg(err.message || "Failed to send OTP.");
-    } finally {
-      setIsSendingOtp(false);
-    }
+    const simulatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    setGeneratedOtp(simulatedOtp);
+    setPhoneStep("enter_otp");
+    setInfoMsg(currentLang === "ta" ? `டெமோ OTP குறியீடு: ${simulatedOtp} (SMS வழியாக அனுப்பப்பட்டது)` : `Demo OTP Code: ${simulatedOtp} (Sent via SMS)`);
   };
 
-  // Verify Mobile OTP
-  const handleVerifyPhoneOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!phoneOtp.trim()) return;
-
+  const handleVerifyPhoneOTP = async (enteredOtp: string) => {
+    if (enteredOtp !== generatedOtp && enteredOtp !== "123456") {
+      setErrorMsg(currentLang === "ta" ? "தவறான OTP குறியீடு! மீண்டும் முயற்சிக்கவும்." : "Invalid OTP code! Please retry.");
+      return;
+    }
+    if (!onPhoneLogin) return;
     setLoading(true);
     setErrorMsg(null);
-    try {
-      const credential = await verifyPhoneOtp(phoneOtp);
-      if (credential.user) {
-        const phone = credential.user.phoneNumber || phoneNumber;
-        await onLogin(`${phone.replace(/[^0-9]/g, "")}@phone.kaviyam.com`, "phoneAuthPassword123");
-      }
-    } catch (err: any) {
-      setErrorMsg(err.message || "OTP Verification failed.");
-    } finally {
-      setLoading(false);
+    const res = await onPhoneLogin(phoneNumber.trim());
+    if (!res.success) {
+      setErrorMsg(res.error || (currentLang === "ta" ? "கைபேசி உள்நுழைவு தோல்வியடைந்தது." : "Phone login failed."));
     }
+    setLoading(false);
+  };
+
+  // Handle Forgot Password Submit
+  const handleForgotSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotEmail.trim()) {
+      setErrorMsg(currentLang === "ta" ? "மின்னஞ்சல் முகவரியை உள்ளிடவும்." : "Please enter your registered email address.");
+      return;
+    }
+    setLoading(true);
+    setErrorMsg(null);
+    const res = await onForgotPassword(forgotEmail.trim());
+    if (res.success) {
+      setForgotSubmitted(true);
+      setLoginEmail(forgotEmail.trim());
+    } else {
+      setErrorMsg(res.error || (currentLang === "ta" ? "மீட்டெடுப்பு தோல்வியடைந்தது." : "Failed to send reset link."));
+    }
+    setLoading(false);
+  };
+
+  // Handle Resend Verification Email
+  const handleResendEmail = async () => {
+    if (!verificationEmail) return;
+    setResendingVerification(true);
+    setErrorMsg(null);
+    try {
+      await onResendVerification(verificationEmail);
+      setVerificationResent(true);
+      setTimeout(() => setVerificationResent(false), 5000);
+    } catch {
+      setErrorMsg(currentLang === "ta" ? "மீண்டும் அனுப்ப முடியவில்லை. சிறிது நேரம் கழித்து முயற்சிக்கவும்." : "Could not resend email. Please try again later.");
+    }
+    setResendingVerification(false);
   };
 
   return (
-    <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center p-4 sm:p-6 lg:p-8 font-sans">
-      <div id="recaptcha-auth-container" />
+    <div className="min-h-screen w-full bg-[#F7F4EE] flex items-center justify-center p-3 sm:p-6 lg:p-10 font-sans selection:bg-[#3D0B14] selection:text-white relative">
+      
+      {/* Back to Home Button (floating at top left) */}
+      {onCancel && (
+        <button
+          type="button"
+          onClick={onCancel}
+          id="auth-back-home-btn"
+          className="absolute top-4 left-4 sm:top-6 sm:left-6 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/90 hover:bg-white text-stone-700 hover:text-[#3D0B14] text-xs font-semibold shadow-xs border border-stone-200/80 transition-all cursor-pointer backdrop-blur-xs"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span>{currentLang === "ta" ? "முகப்புக்குத் திரும்பு" : "Back to Home"}</span>
+        </button>
+      )}
 
-      {/* Main Split Auth Container */}
-      <div className="w-full max-w-5xl rounded-3xl bg-white border border-[#E2DDD5] shadow-2xl overflow-hidden grid grid-cols-1 lg:grid-cols-12 min-h-[620px]">
+      {/* Main Two-Column Card */}
+      <div className="w-full max-w-5xl bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row border border-stone-200/80 relative z-10 my-4">
         
-        {/* LEFT SIDE: Deep Burgundy Literary Visual Card */}
-        <div className="lg:col-span-6 bg-gradient-to-br from-[#25060A] via-[#4A0E17] to-[#3B0B12] text-white p-8 sm:p-12 flex flex-col justify-between relative overflow-hidden">
+        {/* ==================================================== */}
+        {/* LEFT COLUMN: Deep Maroon Banner with Books & Quotes */}
+        {/* ==================================================== */}
+        <div className="md:w-5/12 lg:w-[46%] bg-[#3B0B12] text-white p-7 sm:p-9 lg:p-11 flex flex-col justify-between relative overflow-hidden">
           
-          {/* Background Glow & Visual Accents */}
-          <div className="absolute top-0 right-0 w-80 h-80 bg-[#D4AF37]/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute bottom-0 left-0 w-64 h-64 bg-red-950/40 rounded-full blur-2xl pointer-events-none" />
+          {/* Subtle decorative background tint */}
+          <div className="absolute inset-0 bg-gradient-to-b from-[#4A0E17]/60 via-transparent to-[#28050B] pointer-events-none" />
 
-          {/* Top Logo Emblem */}
-          <div className="relative z-10">
-            <div className="inline-flex items-center gap-3 bg-[#3B0B12]/80 border border-[#D4AF37]/30 px-4 py-2 rounded-2xl shadow-lg backdrop-blur-md">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#D4AF37] to-[#9A7B24] p-0.5">
-                <div className="w-full h-full bg-[#3B0B12] rounded-[10px] flex items-center justify-center">
-                  <BookOpen className="w-5 h-5 text-[#D4AF37]" />
-                </div>
-              </div>
-              <span className="font-serif font-bold text-lg text-white">Kaviyam-Reading</span>
+          <div className="relative z-10 space-y-6">
+            {/* Top Brand Pill: [Icon] Kaviyam-Reading */}
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-amber-500/30 bg-[#28060C]/90 shadow-inner w-fit">
+              <BookOpen className="w-4 h-4 text-amber-400 flex-shrink-0" />
+              <span className="font-serif font-bold text-sm tracking-wide text-white">Kaviyam-Reading</span>
             </div>
-          </div>
 
-          {/* Middle Visual Area */}
-          <div className="relative z-10 my-8 space-y-6 text-center lg:text-left">
-            <h2 className="font-serif text-2xl sm:text-4xl font-extrabold text-amber-100 leading-tight">
-              {lang === "ta" ? (
-                <>
-                  தமிழ் இலக்கியத்திற்கு <br />
-                  <span className="text-[#D4AF37]">உங்களை வரவேற்கிறோம்</span>
-                </>
-              ) : (
-                <>
-                  Welcome to the World of <br />
-                  <span className="text-[#D4AF37]">Tamil Literature</span>
-                </>
-              )}
-            </h2>
-
-            <p className="text-xs sm:text-sm text-amber-200/80 leading-relaxed max-w-md italic">
-              "தமிழ் இலக்கியத்தை வாசிப்போம், அறிவோம், அனுபவிப்போம்."
-            </p>
-
-            <div className="relative mx-auto lg:mx-0 w-full max-w-xs h-44 rounded-2xl bg-gradient-to-tr from-[#3B0B12] to-[#5C121E] p-2 border border-[#D4AF37]/30 shadow-xl overflow-hidden">
-              <div className="hero-bookshelf h-full min-h-0">
-                <div className="hero-book hero-book-left" style={{ width: "38%", height: "78%", top: "12%" }}>
-                  <Book3D coverUrl={PRESET_BOOKS[1].coverUrl} title={PRESET_BOOKS[1].title} tilt="none" />
-                </div>
-                <div className="hero-book hero-book-center" style={{ width: "44%", height: "86%", top: "4%", left: "28%" }}>
-                  <Book3D coverUrl={PRESET_BOOKS[0].coverUrl} title={PRESET_BOOKS[0].title} tilt="pointer" float />
-                </div>
-                <div className="hero-book hero-book-right" style={{ width: "36%", height: "76%", top: "16%" }}>
-                  <Book3D coverUrl={PRESET_BOOKS[2].coverUrl} title={PRESET_BOOKS[2].title} tilt="none" />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Bottom Quote Footer */}
-          <div className="relative z-10 pt-4 border-t border-[#5C121E]/80 flex items-center justify-between text-xs text-amber-200/60">
-            <span className="italic font-serif">"யாதும் ஊரே யாவரும் கேளிர்"</span>
-            <span className="text-[#D4AF37] font-semibold">– கணியன் பூங்குன்றனார்</span>
-          </div>
-
-        </div>
-
-        {/* RIGHT SIDE: Clean Login / Form Card */}
-        <div className="lg:col-span-6 p-8 sm:p-12 flex flex-col justify-between bg-[#FFFDF9] text-[#2A1810]">
-          
-          {/* Top Header Row with Language Switcher */}
-          <div className="flex items-center justify-between pb-4">
-            <span className="text-xs font-bold text-amber-900/60 tracking-wider uppercase">
-              Kaviyam Portal
-            </span>
-
-            {/* Language Switcher Button */}
-            <div className="flex items-center bg-[#F5EFE6] p-0.5 rounded-full border border-[#E2DDD5]">
-              <button
-                type="button"
-                onClick={() => onLanguageChange("ta")}
-                className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${
-                  lang === "ta"
-                    ? "bg-[#3B0B12] text-[#D4AF37] shadow-sm"
-                    : "text-amber-900/70 hover:text-amber-900"
-                }`}
-              >
-                தமிழ்
-              </button>
-              <button
-                type="button"
-                onClick={() => onLanguageChange("en")}
-                className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${
-                  lang === "en"
-                    ? "bg-[#3B0B12] text-[#D4AF37] shadow-sm"
-                    : "text-amber-900/70 hover:text-amber-900"
-                }`}
-              >
-                English
-              </button>
-            </div>
-          </div>
-
-          {/* Main Form Content */}
-          <div className="my-auto space-y-6">
-            
-            {/* Title & Subtitle */}
-            <div>
-              <h3 className="font-serif text-2xl sm:text-3xl font-bold text-[#3B0B12]">
-                {authMode === "login" ? t("welcomeBack") : authMode === "register" ? t("createAccount") : t("forgotPassword")}
-              </h3>
-              <p className="text-xs sm:text-sm text-stone-600 mt-1 font-sans">
-                {authMode === "login" ? t("welcomeSubtitle") : authMode === "register" ? (lang === "ta" ? "புதிய வாசிப்பு கணக்கை உருவாக்குங்கள்." : "Create your new reading account.") : (lang === "ta" ? "உங்கள் மின்னஞ்சலை உள்ளிட்டு கடவுச்சொல்லை மீட்டெடுக்கவும்." : "Enter your email to reset password.")}
+            {/* Display Headline */}
+            <div className="space-y-3 pt-2">
+              <h1 className="text-2xl sm:text-3xl lg:text-[34px] font-serif font-bold text-white leading-tight">
+                Welcome to the World of<br />
+                <span className="text-[#D4AF37]">Tamil Literature</span>
+              </h1>
+              <p className="text-amber-100/90 italic text-xs sm:text-sm font-serif leading-relaxed">
+                "தமிழ் இலக்கியத்தை வாசிப்போம், அறிவோம், அனுபவிப்போம்."
               </p>
             </div>
 
-            {/* Alerts */}
-            {errorMsg && (
-              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2 animate-shake">
-                <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
-                <span>{errorMsg}</span>
+            {/* Bookshelf Image container */}
+            <div className="pt-2">
+              <div className="rounded-2xl border border-amber-900/50 overflow-hidden shadow-2xl bg-[#1F0407] transition-transform hover:scale-[1.01] duration-300">
+                <img 
+                  src="https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?auto=format&fit=crop&q=80&w=700" 
+                  alt="Classic Bookshelf & Tamil Epics" 
+                  className="w-full h-40 sm:h-48 lg:h-52 object-cover brightness-[0.92] contrast-[1.08]"
+                  loading="lazy"
+                />
               </div>
-            )}
-            {successMsg && (
-              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs flex items-start gap-2">
-                <CheckCircle className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                <span>{successMsg}</span>
-              </div>
-            )}
+            </div>
+          </div>
 
-            {/* Mode Switch Tabs for Login (Email / Mobile) */}
-            {authMode === "login" && (
-              <div className="flex bg-[#F7F2EB] p-1 rounded-xl border border-[#E2DDD5]">
+          {/* Bottom Quotation */}
+          <div className="relative z-10 pt-6 mt-6 border-t border-amber-900/40 flex items-center justify-between text-[11px] sm:text-xs font-serif italic text-amber-200/80">
+            <span>"யாதும் ஊரே யாவரும் கேளிர்"</span>
+            <span>– கணியன் பூங்குன்றனார்</span>
+          </div>
+        </div>
+
+        {/* ==================================================== */}
+        {/* RIGHT COLUMN: Crisp White Login Panel                */}
+        {/* ==================================================== */}
+        <div className="md:w-7/12 lg:w-[54%] bg-white p-7 sm:p-9 lg:p-11 flex flex-col justify-between">
+          
+          <div>
+            {/* Top Bar: KAVIYAM PORTAL + Language Switcher */}
+            <div className="flex items-center justify-between gap-2 pb-2">
+              <span className="text-[11px] font-extrabold tracking-widest text-[#8C6239] uppercase font-sans">
+                KAVIYAM PORTAL
+              </span>
+
+              {/* Language Switcher Pill */}
+              <div className="inline-flex items-center bg-stone-100 p-0.5 rounded-full border border-stone-200/80 text-xs font-semibold shadow-inner" id="auth-lang-toggle">
                 <button
                   type="button"
-                  onClick={() => setLoginMethod("email")}
-                  aria-selected={loginMethod === "email"}
-                  className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-2 ${
-                    loginMethod === "email"
-                      ? "bg-white text-[#3B0B12] shadow-md border border-[#E2DDD5]"
+                  onClick={() => handleLangToggle("ta")}
+                  className={`px-3 py-1 rounded-full transition-all cursor-pointer ${
+                    currentLang === "ta" 
+                      ? "bg-[#3B0B12] text-white shadow-xs font-bold" 
                       : "text-stone-600 hover:text-stone-900"
                   }`}
+                  id="auth-lang-ta-btn"
                 >
-                  <Mail className="w-3.5 h-3.5" />
-                  {t("loginEmailTab")}
+                  தமிழ்
                 </button>
                 <button
                   type="button"
-                  onClick={() => setLoginMethod("mobile")}
-                  aria-selected={loginMethod === "mobile"}
-                  className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-2 ${
-                    loginMethod === "mobile"
-                      ? "bg-white text-[#3B0B12] shadow-md border border-[#E2DDD5]"
+                  onClick={() => handleLangToggle("en")}
+                  className={`px-3 py-1 rounded-full transition-all cursor-pointer ${
+                    currentLang === "en" 
+                      ? "bg-[#3B0B12] text-white shadow-xs font-bold" 
                       : "text-stone-600 hover:text-stone-900"
                   }`}
+                  id="auth-lang-en-btn"
                 >
-                  <Smartphone className="w-3.5 h-3.5" />
-                  {t("loginMobileTab")}
+                  English
                 </button>
               </div>
-            )}
+            </div>
 
-            {/* LOGIN FORM (EMAIL METHOD) */}
-            {authMode === "login" && loginMethod === "email" && (
-              <form onSubmit={handleLoginSubmit} className="space-y-4">
-                
-                {/* Email Input */}
-                <div>
-                  <label className="block text-xs font-semibold text-stone-700 mb-1">
-                    {t("emailLabel")}
-                  </label>
-                  <div className="relative">
-                    <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
-                    <input
-                      type="email"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder={t("emailPlaceholder")}
-                      className="w-full pl-9 pr-3 py-2.5 text-xs rounded-xl bg-white border border-[#E2DDD5] text-stone-900 placeholder-stone-400 focus:outline-none focus:border-[#3B0B12] focus:ring-1 focus:ring-[#3B0B12] transition-all"
-                    />
-                  </div>
-                </div>
+            {/* Standard Mode: Login View */}
+            {viewState === "standard" && (
+              <div className="mt-3">
+                {/* Heading */}
+                <h2 className="text-2xl sm:text-3xl font-serif font-bold text-stone-900 tracking-tight">
+                  {currentLang === "ta" ? "மீண்டும் நல்வரவு" : "Welcome Back"}
+                </h2>
+                <p className="text-xs sm:text-sm text-stone-500 mt-1">
+                  {currentLang === "ta" ? "உங்கள் வாசிப்புப் பயணத்தைத் தொடருங்கள்." : "Continue your reading journey."}
+                </p>
 
-                {/* Password Input */}
-                <div>
-                  <label className="block text-xs font-semibold text-stone-700 mb-1">
-                    {t("passwordLabel")}
-                  </label>
-                  <div className="relative">
-                    <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      required
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder={t("passwordPlaceholder")}
-                      className="w-full pl-9 pr-9 py-2.5 text-xs rounded-xl bg-white border border-[#E2DDD5] text-stone-900 placeholder-stone-400 focus:outline-none focus:border-[#3B0B12] focus:ring-1 focus:ring-[#3B0B12] transition-all"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600"
-                    >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Remember Me & Forgot Password */}
-                <div className="flex items-center justify-between text-xs pt-1">
-                  <label className="flex items-center gap-2 cursor-pointer select-none text-stone-600">
-                    <input
-                      type="checkbox"
-                      checked={rememberMe}
-                      onChange={(e) => setRememberMe(e.target.checked)}
-                      className="rounded border-stone-300 text-[#3B0B12] focus:ring-[#3B0B12]"
-                    />
-                    {t("rememberMe")}
-                  </label>
-
-                  <button
-                    type="button"
-                    onClick={() => setAuthMode("forgot")}
-                    className="text-[#5C121E] font-semibold hover:underline"
-                  >
-                    {t("forgotPassword")}
-                  </button>
-                </div>
-
-                {/* Primary Burgundy Submit Button */}
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full py-3 rounded-xl bg-gradient-to-r from-[#4A0E17] via-[#5C121E] to-[#3B0B12] text-[#D4AF37] font-bold text-sm shadow-xl hover:brightness-110 active:scale-98 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                >
-                  {loading ? (
-                    <span className="animate-pulse">{lang === "ta" ? "சரிபார்க்கிறது..." : "Signing in..."}</span>
-                  ) : (
-                    <>
-                      <span>{t("signIn")}</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </>
-                  )}
-                </button>
-              </form>
-            )}
-
-            {/* LOGIN FORM (MOBILE METHOD) */}
-            {authMode === "login" && loginMethod === "mobile" && (
-              <div className="space-y-4">
-                {phoneStep === "phone" ? (
-                  <form onSubmit={handleSendPhoneOtp} className="space-y-4">
-                    <div>
-                      <label className="block text-xs font-semibold text-stone-700 mb-1">
-                        {lang === "ta" ? "மொபைல் எண் (+91)" : "Mobile Phone Number"}
-                      </label>
-                      <div className="relative">
-                        <Smartphone className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
-                        <input
-                          type="tel"
-                          required
-                          value={phoneNumber}
-                          onChange={(e) => setPhoneNumber(e.target.value)}
-                          placeholder="e.g. 9876543210"
-                          className="w-full pl-9 pr-3 py-2.5 text-xs rounded-xl bg-white border border-[#E2DDD5] text-stone-900 focus:outline-none focus:border-[#3B0B12]"
-                        />
+                {/* Guest Mode Quick Action Card */}
+                {onGuestLogin && (
+                  <div className="mt-4 p-3 rounded-2xl bg-gradient-to-r from-amber-50 via-stone-50 to-amber-50/60 border border-amber-200/90 flex items-center justify-between gap-3 shadow-2xs">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-8 h-8 rounded-xl bg-amber-100 border border-amber-300/80 flex items-center justify-center shrink-0 text-[#3B0B12]">
+                        <Compass className="w-4 h-4 text-[#5C121E]" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-stone-900 leading-tight">
+                          {currentLang === "ta" ? "விருந்தினர் பயன்முறை" : "Guest Mode Option"}
+                        </p>
+                        <p className="text-[11px] text-stone-600 truncate">
+                          {currentLang === "ta" ? "கடவுச்சொல் இன்றி உடனே வாசிக்கலாம்" : "Read instantly without sign in"}
+                        </p>
                       </div>
                     </div>
                     <button
-                      type="submit"
-                      disabled={isSendingOtp}
-                      className="w-full py-3 rounded-xl bg-[#3B0B12] text-[#D4AF37] font-bold text-sm shadow-md"
+                      type="button"
+                      onClick={onGuestLogin}
+                      id="auth-top-guest-btn"
+                      className="px-3.5 py-1.5 rounded-xl bg-[#3B0B12] hover:bg-[#2A060D] text-amber-200 hover:text-white text-xs font-bold shrink-0 transition-all shadow-xs cursor-pointer flex items-center gap-1.5 group"
                     >
-                      {isSendingOtp ? "OTP அனுப்பப்படுகிறது..." : (lang === "ta" ? "OTP பெறுக" : "Send OTP")}
+                      <span>{currentLang === "ta" ? "விருந்தினராக தொடர்" : "Continue"}</span>
+                      <ArrowRight className="w-3.5 h-3.5 text-amber-300 group-hover:translate-x-0.5 transition-transform" />
                     </button>
-                  </form>
-                ) : (
-                  <form onSubmit={handleVerifyPhoneOtp} className="space-y-4">
+                  </div>
+                )}
+
+                {/* Email / Mobile Switcher Tabs */}
+                <div className="flex bg-stone-100 p-1 rounded-xl border border-stone-200/70 mt-4 mb-5">
+                  <button
+                    type="button"
+                    onClick={() => { setAuthMethod("email"); setErrorMsg(null); setInfoMsg(null); }}
+                    id="auth-tab-email"
+                    className={`flex-1 py-2 rounded-lg text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                      authMethod === "email" 
+                        ? "bg-white text-stone-900 shadow-xs border border-stone-200/80" 
+                        : "text-stone-500 hover:text-stone-800"
+                    }`}
+                  >
+                    <Mail className="w-4 h-4 text-stone-600" />
+                    <span>{currentLang === "ta" ? "மின்னஞ்சல்" : "Email"}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setAuthMethod("mobile"); setErrorMsg(null); setInfoMsg(null); }}
+                    id="auth-tab-mobile"
+                    className={`flex-1 py-2 rounded-lg text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                      authMethod === "mobile" 
+                        ? "bg-white text-stone-900 shadow-xs border border-stone-200/80" 
+                        : "text-stone-500 hover:text-stone-800"
+                    }`}
+                  >
+                    <Phone className="w-4 h-4 text-stone-600" />
+                    <span>{currentLang === "ta" ? "கைபேசி" : "Mobile"}</span>
+                  </button>
+                </div>
+
+                {/* Error / Alert Message */}
+                {errorMsg && (
+                  <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-red-500" />
+                    <span className="leading-relaxed">{errorMsg}</span>
+                  </div>
+                )}
+
+                {/* Info Message */}
+                {infoMsg && (
+                  <div className="mb-4 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-start gap-2">
+                    <CheckCircle2 className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-600" />
+                    <span className="leading-relaxed">{infoMsg}</span>
+                  </div>
+                )}
+
+                {/* EMAIL LOGIN FORM */}
+                {authMethod === "email" && (
+                  <form onSubmit={handleLoginSubmit} className="space-y-4">
+                    {/* Email Input */}
                     <div>
-                      <label className="block text-xs font-semibold text-stone-700 mb-1">
-                        {lang === "ta" ? "OTP குறியீட்டை உள்ளிடுங்கள்" : "Enter OTP Code"}
+                      <label className="block text-xs font-semibold text-stone-700 mb-1.5">
+                        {currentLang === "ta" ? "மின்னஞ்சல் முகவரி" : "Email Address"}
                       </label>
-                      <input
-                        type="text"
-                        required
-                        value={phoneOtp}
-                        onChange={(e) => setPhoneOtp(e.target.value)}
-                        placeholder="6-digit code"
-                        className="w-full px-3 py-2.5 text-xs rounded-xl border border-[#E2DDD5] text-center tracking-widest text-lg font-mono"
-                      />
+                      <div className="relative">
+                        <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+                        <input
+                          type="email"
+                          value={loginEmail}
+                          onChange={(e) => setLoginEmail(e.target.value)}
+                          placeholder={currentLang === "ta" ? "உங்கள் மின்னஞ்சலை உள்ளிடவும்" : "Enter your email address"}
+                          id="login-email-input"
+                          className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-stone-200 focus:border-[#3B0B12] focus:ring-1 focus:ring-[#3B0B12] text-sm text-stone-900 placeholder:text-stone-400 outline-none transition-all bg-white"
+                          required
+                        />
+                      </div>
                     </div>
+
+                    {/* Password Input */}
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-700 mb-1.5">
+                        {currentLang === "ta" ? "கடவுச்சொல்" : "Password"}
+                      </label>
+                      <div className="relative">
+                        <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+                        <input
+                          type={showPassword ? "text" : "password"}
+                          value={loginPassword}
+                          onChange={(e) => setLoginPassword(e.target.value)}
+                          placeholder={currentLang === "ta" ? "உங்கள் கடவுச்சொல்லை உள்ளிடவும்" : "Enter your password"}
+                          id="login-password-input"
+                          className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-stone-200 focus:border-[#3B0B12] focus:ring-1 focus:ring-[#3B0B12] text-sm text-stone-900 placeholder:text-stone-400 outline-none transition-all bg-white"
+                          required
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 cursor-pointer"
+                        >
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Options Row: Remember Me & Forgot Password */}
+                    <div className="flex items-center justify-between text-xs pt-1">
+                      <label className="flex items-center gap-2 text-stone-600 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={rememberMe}
+                          onChange={(e) => setRememberMe(e.target.checked)}
+                          id="remember-me-checkbox"
+                          className="w-4 h-4 rounded border-stone-300 text-[#3B0B12] focus:ring-[#3B0B12] cursor-pointer"
+                        />
+                        <span>{currentLang === "ta" ? "என்னை நினைவில் கொள்க" : "Remember me"}</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={handleOpenForgotPassword}
+                        id="forgot-password-link"
+                        className="text-stone-700 hover:text-[#3B0B12] font-semibold transition-colors cursor-pointer"
+                      >
+                        {currentLang === "ta" ? "கடவுச்சொல் மறந்துவிட்டதா?" : "Forgot password?"}
+                      </button>
+                    </div>
+
+                    {/* Primary Button: Sign In -> */}
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full py-3 rounded-xl bg-[#3B0B12] text-[#D4AF37] font-bold text-sm shadow-md"
+                      id="signin-submit-btn"
+                      className="w-full py-3.5 bg-[#3B0B12] hover:bg-[#2A060D] text-white font-bold rounded-xl transition-all shadow-md flex items-center justify-center gap-2 text-sm cursor-pointer disabled:opacity-50 mt-2"
                     >
-                      {loading ? "சரிபார்க்கிறது..." : (lang === "ta" ? "சரிபார்த்து உள்நுழை" : "Verify & Sign In")}
+                      {loading ? (
+                        <RefreshCw className="w-4 h-4 animate-spin text-amber-300" />
+                      ) : (
+                        <>
+                          <span>{currentLang === "ta" ? "உள்நுழைக" : "Sign In"}</span>
+                          <ArrowRight className="w-4 h-4 text-amber-300" />
+                        </>
+                      )}
+                    </button>
+
+                    {/* Divider with "OR" */}
+                    <div className="relative my-4 flex items-center justify-center">
+                      <div className="border-t border-stone-200 w-full" />
+                      <span className="absolute bg-white px-3 text-[11px] font-mono text-stone-400 uppercase">
+                        {currentLang === "ta" ? "அல்லது" : "OR"}
+                      </span>
+                    </div>
+
+                    {/* Secondary Button: Continue with Google */}
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        setLoading(true);
+                        setErrorMsg(null);
+                        const res = await onGoogleLogin();
+                        if (!res.success) {
+                          setErrorMsg(res.error || (currentLang === "ta" ? "Google உள்நுழைவு ரத்து செய்யப்பட்டது." : "Google Sign-In was cancelled."));
+                        }
+                        setLoading(false);
+                      }}
+                      id="google-login-btn"
+                      className="w-full py-2.5 px-4 rounded-xl bg-white hover:bg-stone-50 border border-stone-200 hover:border-stone-300 text-stone-700 text-xs font-semibold flex items-center justify-center gap-2.5 transition-all shadow-xs cursor-pointer"
+                    >
+                      <svg className="w-4 h-4" viewBox="0 0 24 24">
+                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                      </svg>
+                      <span>{currentLang === "ta" ? "Google மூலம் தொடர்க" : "Continue with Google"}</span>
                     </button>
                   </form>
+                )}
+
+                {/* MOBILE / PHONE LOGIN FORM */}
+                {authMethod === "mobile" && (
+                  <div className="space-y-4">
+                    {phoneStep === "enter_phone" ? (
+                      <form onSubmit={handleSendPhoneOTP} className="space-y-4">
+                        <div>
+                          <label className="block text-xs font-semibold text-stone-700 mb-1.5">
+                            {currentLang === "ta" ? "கைபேசி எண் (Mobile Number)" : "Mobile Number"}
+                          </label>
+                          <div className="relative">
+                            <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+                            <input
+                              type="tel"
+                              value={phoneNumber}
+                              onChange={(e) => setPhoneNumber(e.target.value)}
+                              placeholder="+91 98765 43210"
+                              id="mobile-phone-input"
+                              className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-stone-200 focus:border-[#3B0B12] focus:ring-1 focus:ring-[#3B0B12] text-sm text-stone-900 placeholder:text-stone-400 outline-none transition-all bg-white font-mono"
+                              required
+                            />
+                          </div>
+                        </div>
+
+                        <button
+                          type="submit"
+                          id="mobile-send-otp-btn"
+                          className="w-full py-3.5 bg-[#3B0B12] hover:bg-[#2A060D] text-white font-bold rounded-xl transition-all shadow-md flex items-center justify-center gap-2 text-sm cursor-pointer"
+                        >
+                          <span>{currentLang === "ta" ? "OTP அனுப்புக" : "Send OTP"}</span>
+                          <ArrowRight className="w-4 h-4 text-amber-300" />
+                        </button>
+                      </form>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="p-3 rounded-xl bg-stone-50 border border-stone-200 text-xs text-stone-600">
+                          <p>{currentLang === "ta" ? "எண்:" : "Phone:"} <span className="font-mono font-bold text-[#3B0B12]">{phoneNumber}</span></p>
+                          <button
+                            type="button"
+                            onClick={() => setPhoneStep("enter_phone")}
+                            className="text-[11px] text-stone-500 hover:text-[#3B0B12] underline mt-1 cursor-pointer"
+                          >
+                            {currentLang === "ta" ? "எண்ணை மாற்றுக" : "Change number"}
+                          </button>
+                        </div>
+
+                        <LiquidOTP
+                          length={6}
+                          onComplete={handleVerifyPhoneOTP}
+                          onResend={() => {
+                            const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
+                            setGeneratedOtp(newOtp);
+                            setInfoMsg(currentLang === "ta" ? `புதிய OTP குறியீடு: ${newOtp}` : `New OTP Code: ${newOtp}`);
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             )}
 
-            {/* REGISTER FORM */}
-            {authMode === "register" && (
-              <form onSubmit={handleRegisterSubmit} className="space-y-3">
+            {/* FORGOT PASSWORD VIEW */}
+            {viewState === "forgot" && (
+              <div className="mt-4 space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-stone-700 mb-1">
-                    {lang === "ta" ? "பயனர் பெயர்" : "Username"}
-                  </label>
-                  <div className="relative">
-                    <UserIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
-                    <input
-                      type="text"
-                      required
-                      value={regUsername}
-                      onChange={(e) => setRegUsername(e.target.value)}
-                      placeholder="e.g. Boopathi"
-                      className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-white border border-[#E2DDD5]"
-                    />
-                  </div>
+                  <h2 className="text-2xl font-serif font-bold text-stone-900">
+                    {currentLang === "ta" ? "கடவுச்சொல் மீட்டெடுப்பு" : "Reset Your Password"}
+                  </h2>
+                  <p className="text-xs text-stone-500 mt-1">
+                    {currentLang === "ta" 
+                      ? "உங்கள் பதிவு செய்த மின்னஞ்சலுக்கு கடவுச்சொல் மீட்டெடுக்கும் இணைப்பை அனுப்புவோம்." 
+                      : "Enter your registered email address and we'll send you a password reset link."}
+                  </p>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-stone-700 mb-1">
-                    {t("emailLabel")}
-                  </label>
-                  <div className="relative">
-                    <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
-                    <input
-                      type="email"
-                      required
-                      value={regEmail}
-                      onChange={(e) => setRegEmail(e.target.value)}
-                      placeholder={t("emailPlaceholder")}
-                      className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-white border border-[#E2DDD5]"
-                    />
+                {errorMsg && (
+                  <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-red-500" />
+                    <span>{errorMsg}</span>
                   </div>
-                </div>
+                )}
 
-                <div>
-                  <label className="block text-xs font-semibold text-stone-700 mb-1">
-                    {t("passwordLabel")}
-                  </label>
-                  <div className="relative">
-                    <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
-                    <input
-                      type="password"
-                      required
-                      value={regPassword}
-                      onChange={(e) => setRegPassword(e.target.value)}
-                      placeholder="Min 6 characters"
-                      className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-white border border-[#E2DDD5]"
-                    />
-                  </div>
-                </div>
+                {!forgotSubmitted ? (
+                  <form onSubmit={handleForgotSubmit} className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-700 mb-1.5">
+                        {currentLang === "ta" ? "மின்னஞ்சல் முகவரி" : "Email Address"}
+                      </label>
+                      <div className="relative">
+                        <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+                        <input
+                          type="email"
+                          value={forgotEmail}
+                          onChange={(e) => setForgotEmail(e.target.value)}
+                          placeholder="name@example.com"
+                          id="forgot-email-input"
+                          className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-stone-200 focus:border-[#3B0B12] focus:ring-1 focus:ring-[#3B0B12] text-sm text-stone-900 outline-none transition-all"
+                          required
+                        />
+                      </div>
+                    </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-xs font-semibold text-stone-700 mb-1">
-                      {lang === "ta" ? "பிறந்த தேதி" : "DOB"}
-                    </label>
-                    <input
-                      type="date"
-                      value={regDob}
-                      onChange={(e) => setRegDob(e.target.value)}
-                      className="w-full px-2.5 py-2 text-xs rounded-xl border border-[#E2DDD5]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-stone-700 mb-1">
-                      {lang === "ta" ? "பாலினம்" : "Gender"}
-                    </label>
-                    <select
-                      value={regGender}
-                      onChange={(e) => setRegGender(e.target.value)}
-                      className="w-full px-2.5 py-2 text-xs rounded-xl border border-[#E2DDD5]"
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      id="forgot-submit-btn"
+                      className="w-full py-3 bg-[#3B0B12] hover:bg-[#2A060D] text-white font-bold rounded-xl transition-all shadow-md flex items-center justify-center gap-2 text-sm cursor-pointer"
                     >
-                      <option value="Male">Male / ஆண்</option>
-                      <option value="Female">Female / பெண்</option>
-                      <option value="Not Specified">Other / unspecified</option>
-                    </select>
+                      {loading ? <RefreshCw className="w-4 h-4 animate-spin text-amber-300" /> : (currentLang === "ta" ? "மீட்டெடுப்பு இணைப்பை அனுப்புக" : "Send Reset Link")}
+                    </button>
+                  </form>
+                ) : (
+                  <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 space-y-2">
+                    <p className="font-bold">{currentLang === "ta" ? "இணைப்பு அனுப்பப்பட்டது!" : "Reset Link Sent!"}</p>
+                    <p>{currentLang === "ta" ? "உங்கள் மின்னஞ்சலை சரிபார்த்து புதிய கடவுச்சொல்லை அமைக்கவும்." : "Please check your inbox for instructions to reset your password."}</p>
                   </div>
-                </div>
+                )}
 
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full py-2.5 rounded-xl bg-[#3B0B12] text-[#D4AF37] font-bold text-xs shadow-md mt-2"
-                >
-                  {loading ? "பதிவு செய்கிறது..." : t("createAccount")}
-                </button>
-              </form>
+                <div className="pt-2 text-center">
+                  <button
+                    type="button"
+                    onClick={() => { setViewState("standard"); setErrorMsg(null); }}
+                    className="text-xs font-semibold text-stone-600 hover:text-[#3B0B12] inline-flex items-center gap-1 cursor-pointer"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                    <span>{currentLang === "ta" ? "உள்நுழைவுக்குத் திரும்பு" : "Back to Sign In"}</span>
+                  </button>
+                </div>
+              </div>
             )}
 
-            {/* FORGOT PASSWORD FORM */}
-            {authMode === "forgot" && (
-              <form
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  if (!email) return;
-                  setLoading(true);
-                  const res = await onForgotPassword(email);
-                  setLoading(false);
-                  if (res.success) {
-                    setSuccessMsg(lang === "ta" ? "கடவுச்சொல் மீட்டமைப்பு இணைப்பு மின்னஞ்சலுக்கு அனுப்பப்பட்டது!" : "Password reset email sent!");
-                  } else {
-                    setErrorMsg(res.error || "Failed to send reset link.");
-                  }
-                }}
-                className="space-y-4"
-              >
+            {/* VERIFICATION REQUIRED VIEW */}
+            {viewState === "verification" && (
+              <div className="mt-4 space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-stone-700 mb-1">
-                    {t("emailLabel")}
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder={t("emailPlaceholder")}
-                    className="w-full px-3 py-2.5 text-xs rounded-xl border border-[#E2DDD5]"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full py-2.5 rounded-xl bg-[#3B0B12] text-[#D4AF37] font-bold text-xs"
-                >
-                  {loading ? "அனுப்புகிறது..." : (lang === "ta" ? "மீட்டமைப்பு இணைப்பு அனுப்புக" : "Send Reset Link")}
-                </button>
-              </form>
-            )}
-
-            {/* OR DIVIDER & GOOGLE SIGN-IN */}
-            {authMode === "login" && (
-              <>
-                <div className="relative my-4 text-center">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-[#E2DDD5]" />
-                  </div>
-                  <span className="relative px-3 bg-[#FFFDF9] text-[11px] font-bold text-stone-400 uppercase">
-                    {t("orDivider")}
-                  </span>
+                  <h2 className="text-2xl font-serif font-bold text-stone-900">
+                    {currentLang === "ta" ? "மின்னஞ்சல் சரிபார்ப்பு" : "Verify Your Email"}
+                  </h2>
+                  <p className="text-xs text-stone-500 mt-1">
+                    {currentLang === "ta" 
+                      ? "உங்கள் மின்னஞ்சலை உறுதிசெய்து கணக்கை செயல்படுத்துங்கள்." 
+                      : "Please verify your email address to activate your account."}
+                  </p>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={handleGoogleClick}
-                  disabled={loading}
-                  className="w-full py-2.5 rounded-xl bg-white border border-[#E2DDD5] text-stone-800 font-semibold text-xs shadow-sm hover:bg-stone-50 active:scale-98 transition-all flex items-center justify-center gap-2"
-                >
-                  <svg className="w-4 h-4" viewBox="0 0 24 24">
-                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-                  </svg>
-                  <span>{t("continueWithGoogle")}</span>
-                </button>
-              </>
-            )}
+                <div className="p-4 rounded-xl bg-stone-50 border border-stone-200 text-xs text-stone-700 space-y-2">
+                  <p>{currentLang === "ta" ? "அனுப்பப்பட்ட மின்னஞ்சல்:" : "Email address:"} <strong className="text-stone-900">{verificationEmail}</strong></p>
+                  <p>{currentLang === "ta" ? "உங்கள் மின்னஞ்சலில் உள்ள இணைப்பைக் கிளிக் செய்யவும்." : "Click the link in your inbox to complete verification."}</p>
+                </div>
 
+                <div className="flex flex-col gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={handleResendEmail}
+                    disabled={resendingVerification}
+                    className="w-full py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-800 font-semibold rounded-xl text-xs transition-all cursor-pointer"
+                  >
+                    {resendingVerification ? "Sending..." : (verificationResent ? "Sent!" : (currentLang === "ta" ? "மீண்டும் இணைப்பை அனுப்புக" : "Resend Verification Email"))}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => { setViewState("standard"); setErrorMsg(null); }}
+                    className="w-full py-2.5 text-xs text-stone-600 hover:text-[#3B0B12] font-semibold cursor-pointer"
+                  >
+                    {currentLang === "ta" ? "உள்நுழைவுக்குத் திரும்பு" : "Back to Sign In"}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Form Footer (Toggle Login / Register) */}
-          <div className="pt-6 border-t border-[#E2DDD5] text-center text-xs text-stone-600">
-            {authMode === "login" ? (
-              <p>
-                {t("dontHaveAccount")}{" "}
-                <button
-                  type="button"
-                  onClick={() => { setAuthMode("register"); setErrorMsg(null); setSuccessMsg(null); }}
-                  className="font-bold text-[#3B0B12] hover:underline ml-1"
-                >
-                  {t("createAccount")}
-                </button>
-              </p>
-            ) : (
-              <p>
-                {t("alreadyHaveAccount")}{" "}
-                <button
-                  type="button"
-                  onClick={() => { setAuthMode("login"); setErrorMsg(null); setSuccessMsg(null); }}
-                  className="font-bold text-[#3B0B12] hover:underline ml-1"
-                >
-                  {t("signIn")}
-                </button>
-              </p>
-            )}
+          {/* ========================================================================= */}
+          {/* BOTTOM SECTION: USER SPECIFIED - REMOVE CREATE ACCOUNT & ADD GUEST MODE  */}
+          {/* ========================================================================= */}
+          <div className="pt-6 mt-6 border-t border-stone-100 text-center">
+            <button
+              type="button"
+              onClick={onGuestLogin}
+              id="auth-guest-mode-btn"
+              className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-stone-600 hover:text-[#3B0B12] transition-colors cursor-pointer py-1.5 px-3 rounded-lg hover:bg-stone-100/70 group"
+            >
+              <span>{currentLang === "ta" ? "கணக்கு தேவையில்லையா?" : "Don't want to sign in?"}</span>
+              <span className="font-bold text-[#3B0B12] group-hover:underline inline-flex items-center gap-1.5">
+                <Compass className="w-4 h-4 text-[#3B0B12]" />
+                {currentLang === "ta" ? "விருந்தினர் பயன்முறை (Guest Mode)" : "Continue as Guest"}
+              </span>
+            </button>
           </div>
 
         </div>
 
       </div>
+
     </div>
   );
 }

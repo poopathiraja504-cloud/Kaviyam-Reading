@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 580" width="100%" height="100%">
+  <defs>
+    <linearGradient id="gradGreen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#15803d"/>
+      <stop offset="35%" stop-color="#166534"/>
+      <stop offset="100%" stop-color="#14532d"/>
+    </linearGradient>
+    <linearGradient id="goldGrad3" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fef08a"/>
+      <stop offset="50%" stop-color="#facc15"/>
+      <stop offset="100%" stop-color="#ca8a04"/>
+    </linearGradient>
+    <filter id="shadow3" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- Book Spine / Background -->
+  <rect width="400" height="580" rx="12" fill="#0f172a"/>
+  
+  <!-- Cover Base -->
+  <rect x="12" y="6" width="382" height="568" rx="8" fill="#ffffff"/>
+  
+  <!-- Left Spine Shadow -->
+  <rect x="12" y="6" width="22" height="568" rx="4" fill="#000" opacity="0.15"/>
+  <line x1="34" y1="6" x2="34" y2="574" stroke="#e2e8f0" stroke-width="1.5"/>
+
+  <!-- Top Forest Green Banner -->
+  <rect x="24" y="14" width="362" height="152" rx="6" fill="url(#gradGreen)"/>
+  
+  <text x="36" y="36" fill="#bbf7d0" font-family="system-ui, sans-serif" font-size="10.5" font-weight="600">செந்தமிழ்ச் சொற்பிறப்பியல் அகரமுதலித் திட்டம்</text>
+  <text x="372" y="36" fill="#fef08a" font-family="system-ui, sans-serif" font-size="11" text-anchor="end">செபுதம்பர் 2026</text>
+  
+  <text x="36" y="52" fill="#dcfce7" font-family="system-ui, sans-serif" font-size="9">தி.ஆ. 2057 · மடங்கல் (ஆவணி) · திங்கள் மின்னிதழ்</text>
+  <text x="372" y="52" fill="#fef08a" font-family="system-ui, sans-serif" font-size="9" text-anchor="end">வயல்: 7 · விளைச்சல்: 76</text>
+
+  <!-- Big Title -->
+  <text x="205" y="112" fill="url(#goldGrad3)" font-family="'Noto Sans Tamil', serif" font-size="44" font-weight="bold" text-anchor="middle" filter="url(#shadow3)">சொல்வயல்</text>
+  <text x="205" y="134" fill="#ffffff" font-family="system-ui, sans-serif" font-size="11.5" font-weight="600" text-anchor="middle">சொல்வளமே மொழிவளம் · நெல்வளமே நாட்டின்வளம்</text>
+  <text x="205" y="149" fill="#bbf7d0" font-family="system-ui, sans-serif" font-size="9" text-anchor="middle">ISBN: 978-81-958032-0-0 · இயக்கக வெளியீடு</text>
+
+  <!-- Athletes / Linguistic Art Area -->
+  <rect x="34" y="176" width="342" height="185" rx="6" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1"/>
+  
+  <!-- Silhouette figures playing badminton, running, tennis -->
+  <g opacity="0.85">
+    <!-- Runner 1 -->
+    <circle cx="115" cy="225" r="9" fill="#0284c7"/>
+    <path d="M 115 234 L 110 255 L 98 275 M 110 255 L 124 272 M 115 240 L 102 248 M 115 240 L 128 238" stroke="#0284c7" stroke-width="4.5" stroke-linecap="round"/>
+    
+    <!-- Sports Player 2 (Racquet) -->
+    <circle cx="185" cy="210" r="9" fill="#16a34a"/>
+    <path d="M 185 219 L 182 245 L 175 268 M 182 245 L 195 264 M 185 226 L 172 232 M 185 226 L 202 215" stroke="#16a34a" stroke-width="4.5" stroke-linecap="round"/>
+    <ellipse cx="206" cy="208" rx="6" ry="8" fill="none" stroke="#16a34a" stroke-width="2"/>
+
+    <!-- Player 3 -->
+    <circle cx="255" cy="218" r="9" fill="#ea580c"/>
+    <path d="M 255 227 L 258 252 L 248 272 M 258 252 L 268 270 M 255 233 L 242 240 M 255 233 L 270 238" stroke="#ea580c" stroke-width="4.5" stroke-linecap="round"/>
+
+    <!-- Player 4 (Jumping) -->
+    <circle cx="310" cy="230" r="9" fill="#9333ea"/>
+    <path d="M 310 239 L 305 258 L 295 278 M 305 258 L 318 275 M 310 244 L 298 250 M 310 244 L 322 242" stroke="#9333ea" stroke-width="4.5" stroke-linecap="round"/>
+  </g>
+
+  <rect x="44" y="295" width="322" height="52" rx="4" fill="#ffffff" stroke="#dcfce7" stroke-width="1"/>
+  <text x="205" y="316" fill="#15803d" font-family="'Noto Sans Tamil', sans-serif" font-size="12.5" font-weight="bold" text-anchor="middle">சிறப்புக் கட்டுரைத் தொகுதி &amp; உடற்கல்விச் சொற்கள்</text>
+  <text x="205" y="334" fill="#475569" font-family="'Noto Sans Tamil', sans-serif" font-size="10" text-anchor="middle">"சொற்குவை தேரும் பாவலர் மேவத் தொகுப்பீடம்" - திருவிளையாடற்புராணம்</text>
+
+  <!-- Bottom Articles Listing -->
+  <rect x="34" y="370" width="342" height="188" rx="6" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="46" y="392" fill="#0f766e" font-family="system-ui, sans-serif" font-size="11" font-weight="bold">★ இந்த இதழின் ஆய்வுக் கட்டுரைகள்:</text>
+  
+  <text x="46" y="412" fill="#334155" font-family="system-ui, sans-serif" font-size="10">• உடற்கல்வித்துறைக் கலைச்சொற்கள் (24 சொற்கள்)</text>
+  <text x="46" y="430" fill="#334155" font-family="system-ui, sans-serif" font-size="10">• ஆசிரியர் உரை: தமிழில் பெயர்சூட்டுவோம்!</text>
+  <text x="46" y="448" fill="#334155" font-family="system-ui, sans-serif" font-size="10">• வள்ளுவர் அறிமுகப்படுத்திய சொற்கள் - பா.ரா.சுப்பிரமணியன்</text>
+  <text x="46" y="466" fill="#334155" font-family="system-ui, sans-serif" font-size="10">• பாவாணர் ஒலிச்சொல் அறிவியல் (தொடர் 2) - இரா. திருமாவளவன்</text>
+  <text x="46" y="484" fill="#334155" font-family="system-ui, sans-serif" font-size="10">• பெயரியலின் பெயர்கள் - முனைவர் இரா.கு.ஆல்துரை</text>
+  <text x="46" y="502" fill="#334155" font-family="system-ui, sans-serif" font-size="10">• இனியவை நாற்பது மொழிபெயர்ப்பு - கவிஞர் தெசிணி</text>
+  <text x="46" y="520" fill="#334155" font-family="system-ui, sans-serif" font-size="10">• கலங்கரை விளக்கம் - முனைவர் ஆ. அரிமாப்பாமகன்</text>
+  <text x="46" y="538" fill="#334155" font-family="system-ui, sans-serif" font-size="10">• பேரகரமுதலி 7 தொகுதிகள் திருந்திய பதிப்பு விற்பனை</text>
+
+  <!-- Golden Bookmark Ribbon -->
+  <path d="M 345 6 L 375 6 L 375 55 L 360 44 L 345 55 Z" fill="#16a34a"/>
+</svg>

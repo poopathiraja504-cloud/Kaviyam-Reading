@@ -1,240 +1,439 @@
 import React, { useState, useEffect, useRef } from "react";
-import {
-  Clock, CheckCircle2, XCircle, ChevronLeft, ChevronRight,
-  ArrowLeft, AlertTriangle, Brain
-} from "lucide-react";
-import { Quiz, QuizAttempt, QuizQuestion } from "../types";
+import { Clock, ArrowLeft, ArrowRight, CheckCircle2, AlertTriangle, ShieldCheck, HelpCircle, Lock } from "lucide-react";
+import { QuizSet, QuizAttempt, User } from "../types";
+import { Language } from "../utils/i18n";
+import LoginRequiredScreen from "./LoginRequiredScreen";
 
 interface QuizPlayerProps {
-  quiz: Quiz;
-  currentUser?: any;
-  onBack: () => void;
-  onComplete: (attempt: QuizAttempt) => void;
-  lang?: string;
+  quiz: QuizSet;
+  currentUser: User | null;
+  onSubmitQuiz: (attempt: QuizAttempt) => void;
+  onCancelQuiz: () => void;
+  onRequireLogin?: (quizId: string) => void;
+  onRequireRegister?: (quizId: string) => void;
+  onGoogleLogin?: () => void;
+  onGuestLogin?: () => void;
+  lang: Language;
 }
 
 export default function QuizPlayer({
   quiz,
   currentUser,
-  onBack,
-  onComplete,
-  lang = "en"
+  onSubmitQuiz,
+  onCancelQuiz,
+  onRequireLogin,
+  onRequireRegister,
+  onGoogleLogin,
+  onGuestLogin,
+  lang,
 }: QuizPlayerProps) {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, "A" | "B" | "C" | "D">>({});
-  const [showSubmitModal, setShowSubmitModal] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(() => quiz.timeLimitMinutes * 60);
-  const [timedOut, setTimedOut] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const startTime = useRef(new Date().toISOString());
+  const isNotLoggedIn = !currentUser;
+  const isGuest = currentUser?.id === "guest-user-session" || currentUser?.role === "guest";
 
-  const question: QuizQuestion = quiz.questions[currentIndex];
-  const totalQuestions = quiz.questions.length;
-  const answered = Object.keys(answers).length;
-
-  // Countdown timer
-  useEffect(() => {
-    timerRef.current = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev <= 1) {
-          clearInterval(timerRef.current!);
-          setTimedOut(true);
-          handleSubmit(true);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(timerRef.current!);
-  }, []);
-
-  const formatTime = (secs: number) => {
-    const m = Math.floor(secs / 60);
-    const s = secs % 60;
-    return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-  };
-
-  const handleSelectAnswer = (option: "A" | "B" | "C" | "D") => {
-    setAnswers(prev => ({ ...prev, [question.id]: option }));
-  };
-
-  const handleSubmit = (auto = false) => {
-    clearInterval(timerRef.current!);
-    const correct = quiz.questions.filter(q => answers[q.id] === q.correctAnswer).length;
-    const wrong = quiz.questions.filter(q => answers[q.id] && answers[q.id] !== q.correctAnswer).length;
-    const unanswered = totalQuestions - answered;
-    const totalScore = correct * 10;
-    const percentage = Math.round((correct / totalQuestions) * 100);
-    const timeUsed = quiz.timeLimitMinutes * 60 - timeLeft;
-
-    const attempt: QuizAttempt = {
-      id: `att-${Date.now()}`,
-      quizId: quiz.id,
-      userId: currentUser?.id || "guest",
-      status: "completed",
-      answers,
-      correctAnswers: correct,
-      wrongAnswers: wrong,
-      unansweredCount: unanswered,
-      totalScore,
-      percentage,
-      timeTakenSeconds: timeUsed,
-      startedAt: startTime.current,
-      completedAt: new Date().toISOString(),
-    };
-
-    // Persist attempt
-    try {
-      const existing = JSON.parse(localStorage.getItem("kaviyam_quiz_attempts") || "[]");
-      localStorage.setItem("kaviyam_quiz_attempts", JSON.stringify([...existing, attempt]));
-    } catch (_) {}
-
-    onComplete(attempt);
-  };
-
-  const isTimeLow = timeLeft <= 60;
-
-  const optionLabels: Array<"A" | "B" | "C" | "D"> = ["A", "B", "C", "D"];
-
-  return (
-    <div className="max-w-3xl mx-auto space-y-6">
-      {/* Top Bar */}
-      <div className="bg-gradient-to-r from-[#3B0B12] to-[#5C121E] rounded-2xl p-4 text-white flex items-center justify-between">
-        <div>
-          <p className="text-xs text-amber-200 mb-0.5">{quiz.title}</p>
-          <p className="text-sm font-semibold">
-            Question {currentIndex + 1} of {totalQuestions}
-          </p>
-        </div>
-        <div className={`flex items-center gap-2 px-4 py-2 rounded-xl font-mono font-bold text-lg ${isTimeLow ? "bg-red-500 animate-pulse" : "bg-white/15"}`}>
-          <Clock className="w-4 h-4" />
-          {formatTime(timeLeft)}
-        </div>
-      </div>
-
-      {/* Progress */}
-      <div className="h-2 bg-[#E2DDD5] rounded-full overflow-hidden">
-        <div
-          className="h-full bg-gradient-to-r from-[#D4AF37] to-[#5C121E] transition-all duration-300"
-          style={{ width: `${((currentIndex + 1) / totalQuestions) * 100}%` }}
+  // If user has not even started a guest session, display Login / Guest prompt
+  if (isNotLoggedIn) {
+    return (
+      <div className="py-8">
+        <LoginRequiredScreen
+          title={lang === "ta" ? "வினாடி வினா எழுத உள்நுழைவு அல்லது விருந்தினர் பயன்முறை" : "Sign In or Choose Guest Mode to Take Quiz"}
+          message={
+            lang === "ta"
+              ? "வினாடி வினாக்களை எழுதி உங்கள் அறிவைச் சோதிக்க Google மூலம் உள்நுழையவும் அல்லது விருந்தினர் பயன்முறையில் உடனடியாகத் தொடங்கவும்."
+              : "Sign in with Google to record your XP and ranking, or continue instantly in Guest Mode."
+          }
+          onGoogleLogin={onGoogleLogin}
+          onGuestLogin={onGuestLogin}
+          onBack={onCancelQuiz}
+          onLogin={() => {
+            if (onRequireLogin) {
+              onRequireLogin(quiz.quizId);
+            } else {
+              localStorage.setItem("pendingQuizId", quiz.quizId);
+              localStorage.setItem("kaviyam_pending_quiz_id", quiz.quizId);
+              localStorage.setItem("pendingQuizRoute", `/quizzes/${quiz.quizId}`);
+              localStorage.setItem("kaviyam_pending_quiz_route", `/quizzes/${quiz.quizId}`);
+              window.location.href = "/login";
+            }
+          }}
+          onRegister={() => {
+            if (onRequireRegister) {
+              onRequireRegister(quiz.quizId);
+            } else {
+              localStorage.setItem("pendingQuizId", quiz.quizId);
+              localStorage.setItem("kaviyam_pending_quiz_id", quiz.quizId);
+              localStorage.setItem("pendingQuizRoute", `/quizzes/${quiz.quizId}`);
+              localStorage.setItem("kaviyam_pending_quiz_route", `/quizzes/${quiz.quizId}`);
+              window.location.href = "/login";
+            }
+          }}
+          lang={lang}
         />
       </div>
+    );
+  }
 
-      {/* Question */}
-      <div className="bg-white rounded-2xl border border-[#E2DDD5] p-6 shadow-sm">
-        <div className="flex items-start gap-3 mb-6">
-          <span className="w-8 h-8 rounded-full bg-[#3B0B12] text-white text-sm font-bold flex items-center justify-center flex-shrink-0">
-            {currentIndex + 1}
-          </span>
-          <p className="text-stone-800 font-medium leading-relaxed">{question.question}</p>
+  const [currentIdx, setCurrentIdx] = useState(0);
+  const [answers, setAnswers] = useState<Record<string, "A" | "B" | "C" | "D">>(() => {
+    const saved = localStorage.getItem(`kaviyam_quiz_draft_${quiz.quizId}`);
+    return saved ? JSON.parse(saved) : {};
+  });
+
+  const [startTime] = useState<number>(() => {
+    const savedTime = localStorage.getItem(`kaviyam_quiz_startTime_${quiz.quizId}`);
+    if (savedTime) return parseInt(savedTime, 10);
+    const now = Date.now();
+    localStorage.setItem(`kaviyam_quiz_startTime_${quiz.quizId}`, now.toString());
+    return now;
+  });
+
+  const [timeLeft, setTimeLeft] = useState<number>(() => {
+    const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+    const remaining = quiz.timeLimit - elapsedSeconds;
+    return remaining > 0 ? remaining : 0;
+  });
+
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Timer Countdown Effect
+  useEffect(() => {
+    timerRef.current = setInterval(() => {
+      const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+      const remaining = quiz.timeLimit - elapsedSeconds;
+
+      if (remaining <= 0) {
+        setTimeLeft(0);
+        if (timerRef.current) clearInterval(timerRef.current);
+        // Auto submit when time runs out
+        handleFinalSubmission(true);
+      } else {
+        setTimeLeft(remaining);
+      }
+    }, 1000);
+
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [startTime, quiz.timeLimit]);
+
+  // Persist draft answers to localStorage
+  const handleSelectAnswer = (optionKey: "A" | "B" | "C" | "D") => {
+    const currentQ = quiz.questions[currentIdx];
+    const newAnswers = { ...answers, [currentQ.questionId]: optionKey };
+    setAnswers(newAnswers);
+    localStorage.setItem(`kaviyam_quiz_draft_${quiz.quizId}`, JSON.stringify(newAnswers));
+  };
+
+  // Format Timer string (e.g. 09:59)
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+  };
+
+  // Calculate score and complete submission
+  const handleFinalSubmission = (autoSubmitted = false) => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+
+    if (timerRef.current) clearInterval(timerRef.current);
+
+    let correctCount = 0;
+    let wrongCount = 0;
+    let unansweredCount = 0;
+
+    quiz.questions.forEach((q) => {
+      const chosen = answers[q.questionId];
+      if (!chosen) {
+        unansweredCount++;
+      } else if (chosen === q.correctAnswer) {
+        correctCount++;
+      } else {
+        wrongCount++;
+      }
+    });
+
+    const score = correctCount * quiz.marksPerQuestion;
+    const percentage = Math.round((score / quiz.totalMarks) * 100);
+    const timeUsed = Math.min(quiz.timeLimit, Math.floor((Date.now() - startTime) / 1000));
+
+    // Cleanup draft localStorage
+    localStorage.removeItem(`kaviyam_quiz_draft_${quiz.quizId}`);
+    localStorage.removeItem(`kaviyam_quiz_startTime_${quiz.quizId}`);
+
+    const attempt: QuizAttempt = {
+      attemptId: `att_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+      quizId: quiz.quizId,
+      quizTitle: quiz.title,
+      userId: currentUser?.id || "guest",
+      username: currentUser?.username || "Guest Reader",
+      answers,
+      score,
+      percentage,
+      correctAnswers: correctCount,
+      wrongAnswers: wrongCount,
+      unansweredQuestions: unansweredCount,
+      timeUsed,
+      startedAt: new Date(startTime).toISOString(),
+      completedAt: new Date().toISOString(),
+      status: "Completed",
+    };
+
+    if (autoSubmitted) {
+      alert(lang === "ta" ? "நேரம் முடிந்தது! உங்கள் வினாடி வினா தானாகவே சமர்ப்பிக்கப்பட்டது." : "Time's up! Your quiz has been submitted automatically.");
+    }
+
+    onSubmitQuiz(attempt);
+  };
+
+  const currentQuestion = quiz.questions[currentIdx];
+  const selectedOption = answers[currentQuestion.questionId];
+
+  const answeredCount = Object.keys(answers).length;
+  const unansweredCount = quiz.totalQuestions - answeredCount;
+
+  return (
+    <div className="max-w-4xl mx-auto space-y-6 font-sans">
+      {/* Guest Mode Notice */}
+      {isGuest && (
+        <div className="p-3 px-4 rounded-2xl bg-amber-50 border border-amber-300/80 text-amber-900 text-xs font-semibold flex items-center justify-between gap-3 shadow-2xs">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+            <span>
+              {lang === "ta"
+                ? "விருந்தினர் பயன்முறை: வினாடி வினா முடிவுகள் உங்கள் உலாவியில் சேமிக்கப்படும்."
+                : "Guest Mode: Quiz results and certificates will be saved locally in this browser."}
+            </span>
+          </div>
+          {onRequireLogin && (
+            <button
+              onClick={() => onRequireLogin(quiz.quizId)}
+              className="text-xs text-[#5C121E] font-bold hover:underline shrink-0 cursor-pointer"
+            >
+              {lang === "ta" ? "கணக்கில் உள்நுழைக" : "Sign In to Save"}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Top Header Bar */}
+      <div className="bg-[#3B0B12] text-white p-3.5 sm:p-5 rounded-3xl border border-[#D4AF37]/30 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => {
+              if (answeredCount > 0) {
+                if (window.confirm(lang === "ta" ? "வினாடி வினாவிலிருந்து வெளியேற விரும்புகிறீர்களா? உங்கள் தற்போதைய விடைகள் சேமிக்கப்படாது." : "Are you sure you want to leave this quiz? Your current answers will not be saved.")) {
+                  onCancelQuiz();
+                }
+              } else {
+                onCancelQuiz();
+              }
+            }}
+            id="quiz-player-back-btn"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-amber-200 hover:text-white border border-white/20 text-xs font-bold transition-all shrink-0 cursor-pointer shadow-xs"
+            title={lang === "ta" ? "வினாடி வினாக்களுக்குத் திரும்பு" : "Back to Quizzes"}
+          >
+            <ArrowLeft className="w-4 h-4 shrink-0" />
+            <span>{lang === "ta" ? "திரும்பு" : "Back"}</span>
+          </button>
+
+          <div className="min-w-0">
+            <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-[#D4AF37] block">
+              {quiz.category} • {lang === "ta" ? `வினாடி வினா ${quiz.quizId.replace("quiz_", "")}` : quiz.quizId.replace("quiz_", "Quiz ")}
+            </span>
+            <h2 className="font-serif text-base sm:text-lg md:text-xl font-bold text-amber-50 line-clamp-1">
+              {quiz.title}
+            </h2>
+          </div>
         </div>
 
-        <div className="space-y-3">
-          {optionLabels.map((opt) => {
-            const optText = question[`option${opt}` as keyof QuizQuestion] as string;
-            const isSelected = answers[question.id] === opt;
+        {/* Countdown Timer */}
+        <div className={`flex items-center justify-center gap-2 px-4 py-2 rounded-2xl border self-end sm:self-auto shrink-0 ${
+          timeLeft <= 120 ? "bg-red-950/80 border-red-500 text-red-200 animate-pulse" : "bg-[#5C121E] border-[#D4AF37]/40 text-amber-300"
+        }`}>
+          <Clock className="w-4 h-4 shrink-0" />
+          <span className="font-mono text-xs text-stone-300 mr-1 block uppercase font-bold whitespace-nowrap">
+            {lang === "ta" ? "மீதமுள்ள நேரம்:" : "Time Left:"}
+          </span>
+          <span className="font-mono text-sm sm:text-base font-extrabold tracking-wider">
+            {formatTime(timeLeft)}
+          </span>
+        </div>
+      </div>
+
+      {/* Progress & Navigator Bar */}
+      <div className="bg-white p-4 rounded-2xl border border-[#E2DDD5] shadow-xs space-y-3">
+        <div className="flex items-center justify-between text-xs font-bold text-stone-600">
+          <span>
+            {lang === "ta" ? `கேள்வி ${currentIdx + 1} / ${quiz.totalQuestions}` : `Question ${currentIdx + 1} of ${quiz.totalQuestions}`}
+          </span>
+          <span>
+            {Math.round(((currentIdx + 1) / quiz.totalQuestions) * 100)}
+            {lang === "ta" ? "% முடிந்தது" : "% Completed"}
+          </span>
+        </div>
+
+        {/* Progress Bar */}
+        <div className="w-full bg-stone-100 h-2.5 rounded-full overflow-hidden border border-stone-200">
+          <div
+            className="bg-gradient-to-r from-[#5C121E] to-[#D4AF37] h-full transition-all duration-300 rounded-full"
+            style={{ width: `${((currentIdx + 1) / quiz.totalQuestions) * 100}%` }}
+          />
+        </div>
+
+        {/* Question Numbers Navigator */}
+        <div className="flex items-center justify-between gap-1 overflow-x-auto pt-2 custom-scrollbar">
+          {quiz.questions.map((q, idx) => {
+            const isAnswered = !!answers[q.questionId];
+            const isCurrent = idx === currentIdx;
+
             return (
               <button
-                key={opt}
-                onClick={() => handleSelectAnswer(opt)}
-                className={`w-full text-left px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all ${
-                  isSelected
-                    ? "border-[#D4AF37] bg-amber-50 text-[#3B0B12]"
-                    : "border-[#E2DDD5] hover:border-[#D4AF37]/50 hover:bg-amber-50/50 text-stone-700"
+                key={q.questionId}
+                onClick={() => setCurrentIdx(idx)}
+                className={`w-8 h-8 rounded-xl font-bold text-xs flex items-center justify-center transition-all cursor-pointer shrink-0 ${
+                  isCurrent
+                    ? "bg-[#5C121E] text-white ring-2 ring-[#D4AF37] shadow-sm"
+                    : isAnswered
+                    ? "bg-emerald-100 border border-emerald-300 text-emerald-800"
+                    : "bg-stone-100 border border-stone-200 text-stone-600 hover:bg-stone-200"
                 }`}
               >
-                <span className={`inline-block w-6 h-6 rounded-full text-xs font-bold mr-3 text-center leading-6 ${
-                  isSelected ? "bg-[#D4AF37] text-[#3B0B12]" : "bg-[#E2DDD5] text-stone-600"
-                }`}>{opt}</span>
-                {optText}
+                {idx + 1}
+                {isAnswered && !isCurrent && <span className="ml-0.5 text-[8px]">✓</span>}
               </button>
             );
           })}
         </div>
       </div>
 
-      {/* Navigation */}
-      <div className="flex items-center justify-between">
-        <button
-          onClick={() => setCurrentIndex(i => Math.max(0, i - 1))}
-          disabled={currentIndex === 0}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl border border-[#E2DDD5] text-sm font-semibold text-stone-600 hover:bg-stone-50 disabled:opacity-40"
-        >
-          <ChevronLeft className="w-4 h-4" />
-          Previous
-        </button>
-
-        {/* Question Dots */}
-        <div className="flex gap-1 flex-wrap justify-center max-w-xs">
-          {quiz.questions.map((q, i) => (
-            <button
-              key={i}
-              onClick={() => setCurrentIndex(i)}
-              className={`w-6 h-6 rounded-full text-xs font-bold transition-all ${
-                i === currentIndex
-                  ? "bg-[#3B0B12] text-white"
-                  : answers[q.id]
-                  ? "bg-[#D4AF37] text-[#3B0B12]"
-                  : "bg-[#E2DDD5] text-stone-500"
-              }`}
-            >
-              {i + 1}
-            </button>
-          ))}
+      {/* Question Card */}
+      <div className="bg-white rounded-3xl border border-[#E2DDD5] p-6 sm:p-8 shadow-md space-y-6">
+        <div className="flex items-start justify-between gap-4 pb-4 border-b border-stone-100">
+          <div className="space-y-1">
+            <span className="text-[10px] font-bold text-amber-700 uppercase tracking-widest bg-amber-50 px-2.5 py-1 rounded-md border border-amber-200">
+              {lang === "ta" ? `கேள்வி ${currentIdx + 1}` : `Question ${currentIdx + 1}`}
+            </span>
+            <h3 className="font-serif text-lg sm:text-xl font-bold text-[#3B0B12] pt-1 leading-snug">
+              {currentQuestion.question}
+            </h3>
+          </div>
+          <span className="text-xs font-bold text-stone-500 bg-stone-100 px-2.5 py-1 rounded-full shrink-0 border border-stone-200">
+            {lang === "ta" ? "10 மதிப்பெண்கள்" : "10 Marks"}
+          </span>
         </div>
 
-        {currentIndex < totalQuestions - 1 ? (
+        {/* Options List */}
+        <div className="space-y-3">
+          {(["A", "B", "C", "D"] as const).map((key) => {
+            const optionText = currentQuestion.options[key];
+            const isSelected = selectedOption === key;
+
+            return (
+              <button
+                key={key}
+                onClick={() => handleSelectAnswer(key)}
+                className={`w-full p-4 rounded-2xl border text-left flex items-center gap-4 transition-all cursor-pointer ${
+                  isSelected
+                    ? "bg-[#5C121E]/5 border-[#5C121E] text-[#3B0B12] shadow-xs ring-2 ring-[#5C121E]/20"
+                    : "bg-stone-50/60 border-stone-200 hover:border-stone-300 text-stone-800 hover:bg-stone-100/80"
+                }`}
+              >
+                <span
+                  className={`w-7 h-7 rounded-xl font-bold text-xs flex items-center justify-center shrink-0 ${
+                    isSelected
+                      ? "bg-[#5C121E] text-white"
+                      : "bg-stone-200 text-stone-700"
+                  }`}
+                >
+                  {key}
+                </span>
+                <span className="text-xs sm:text-sm font-medium flex-1 leading-relaxed">
+                  {optionText}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Navigation Actions */}
+        <div className="pt-6 flex items-center justify-between border-t border-stone-100 gap-3">
           <button
-            onClick={() => setCurrentIndex(i => Math.min(totalQuestions - 1, i + 1))}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#3B0B12] text-white text-sm font-semibold hover:bg-[#5C121E] transition-colors"
+            onClick={() => setCurrentIdx(Math.max(0, currentIdx - 1))}
+            disabled={currentIdx === 0}
+            className="px-4 py-2.5 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 text-stone-700 text-xs font-bold flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
           >
-            Next
-            <ChevronRight className="w-4 h-4" />
+            <ArrowLeft className="w-4 h-4" />
+            <span>{lang === "ta" ? "முந்தையது" : "Previous"}</span>
           </button>
-        ) : (
-          <button
-            onClick={() => setShowSubmitModal(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors"
-          >
-            Submit Quiz
-            <CheckCircle2 className="w-4 h-4" />
-          </button>
-        )}
+
+          {currentIdx === quiz.totalQuestions - 1 ? (
+            <button
+              onClick={() => setShowSubmitModal(true)}
+              className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-2 shadow-md transition-all cursor-pointer"
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              <span>{lang === "ta" ? "சமர்ப்பிக்கவும்" : "Submit Quiz"}</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => setCurrentIdx(Math.min(quiz.totalQuestions - 1, currentIdx + 1))}
+              className="px-6 py-2.5 rounded-xl bg-[#5C121E] hover:bg-[#3B0B12] text-white text-xs font-bold flex items-center gap-2 shadow-sm transition-all cursor-pointer"
+            >
+              <span>{lang === "ta" ? "அடுத்து" : "Next"}</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Answered count */}
-      <p className="text-center text-xs text-stone-400">
-        {answered}/{totalQuestions} answered • {totalQuestions - answered} remaining
-      </p>
-
-      {/* Submit Confirm Modal */}
+      {/* Confirmation Modal */}
       {showSubmitModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl">
-            <div className="flex items-center gap-3 mb-4">
-              <AlertTriangle className="w-6 h-6 text-amber-500" />
-              <h3 className="font-bold text-[#3B0B12]">Submit Quiz?</h3>
-            </div>
-            <p className="text-sm text-stone-600 mb-2">
-              You have answered <strong>{answered}</strong> of <strong>{totalQuestions}</strong> questions.
-            </p>
-            {answered < totalQuestions && (
-              <p className="text-xs text-amber-600 mb-4">
-                ⚠ {totalQuestions - answered} question{totalQuestions - answered !== 1 ? "s" : ""} unanswered.
+        <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 space-y-6 shadow-2xl border border-[#E2DDD5] animate-in fade-in zoom-in-95">
+            <div className="text-center space-y-2">
+              <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center mx-auto">
+                <HelpCircle className="w-6 h-6" />
+              </div>
+              <h3 className="font-serif text-xl font-bold text-[#3B0B12]">
+                {lang === "ta" ? "வினாடி வினா சமர்ப்பிப்பு" : "Submit Quiz Confirmation"}
+              </h3>
+              <p className="text-xs text-stone-600">
+                {lang === "ta" ? "உங்கள் பதில்களை இறுதி செய்து சமர்ப்பிக்க விரும்புகிறீர்களா?" : "Are you sure you want to finalize and submit your answers?"}
               </p>
-            )}
-            <div className="flex gap-3">
+            </div>
+
+            <div className="bg-stone-50 p-4 rounded-2xl border border-stone-200 grid grid-cols-2 gap-4 text-center">
+              <div>
+                <span className="block text-stone-500 text-[10px] font-bold uppercase">
+                  {lang === "ta" ? "பதிலளித்தவை" : "Answered"}
+                </span>
+                <span className="text-lg font-bold text-emerald-600">{answeredCount} / {quiz.totalQuestions}</span>
+              </div>
+              <div className="border-l border-stone-200">
+                <span className="block text-stone-500 text-[10px] font-bold uppercase">
+                  {lang === "ta" ? "பதிலளிக்காதவை" : "Unanswered"}
+                </span>
+                <span className="text-lg font-bold text-amber-600">{unansweredCount}</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
               <button
                 onClick={() => setShowSubmitModal(false)}
-                className="flex-1 px-4 py-2 border border-[#E2DDD5] rounded-xl text-sm font-semibold text-stone-600 hover:bg-stone-50"
+                className="flex-1 py-3 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 text-stone-700 text-xs font-bold transition-all cursor-pointer"
               >
-                Cancel
+                {lang === "ta" ? "வினாடி வினாவைத் தொடர்" : "Continue Quiz"}
               </button>
               <button
-                onClick={() => { setShowSubmitModal(false); handleSubmit(); }}
-                className="flex-1 px-4 py-2 bg-emerald-600 rounded-xl text-white text-sm font-semibold hover:bg-emerald-700"
+                onClick={() => {
+                  setShowSubmitModal(false);
+                  handleFinalSubmission(false);
+                }}
+                className="flex-1 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md transition-all cursor-pointer"
               >
-                Submit
+                {lang === "ta" ? "உறுதிசெய்து சமர்ப்பி" : "Confirm & Submit"}
               </button>
             </div>
           </div>

@@ -1,24 +1,8 @@
-import React, { useState } from "react";
-import { 
-  BookOpen, 
-  Search, 
-  Bell, 
-  User as UserIcon, 
-  LogIn, 
-  LogOut, 
-  Menu, 
-  X, 
-  Database, 
-  HelpCircle, 
-  Mail, 
-  Shield,
-  BookMarked,
-  TrendingUp,
-  Sparkles,
-  Library as LibraryIcon
-} from "lucide-react";
-import { Language, translations } from "../utils/i18n";
+import React, { useState, useRef, useEffect } from "react";
+import { Search, Globe, LogOut, User as UserIcon, Mail, Menu, X, Sparkles, BookOpen, Brain, Trophy, Home, Compass } from "lucide-react";
 import { User } from "../types";
+import { Language } from "../utils/i18n";
+import KaviyamBrandLogo from "./KaviyamBrandLogo";
 
 interface HeaderProps {
   activeTab: string;
@@ -28,10 +12,13 @@ interface HeaderProps {
   currentUser: User | null;
   onSignInClick: () => void;
   onSignOutClick: () => void;
+  onGuestLogin?: () => void;
   searchQuery: string;
-  onSearchChange: (query: string) => void;
+  onSearchChange: (q: string) => void;
   unreadEmailCount?: number;
-  onToggleMobileSidebar?: () => void;
+  onToggleMobileMenu?: () => void;
+  isMobileMenuOpen?: boolean;
+  onPlayIntro?: () => void;
 }
 
 export default function Header({
@@ -42,228 +29,305 @@ export default function Header({
   currentUser,
   onSignInClick,
   onSignOutClick,
+  onGuestLogin,
   searchQuery,
   onSearchChange,
   unreadEmailCount = 0,
-  onToggleMobileSidebar,
+  onToggleMobileMenu,
+  isMobileMenuOpen = false,
+  onPlayIntro,
 }: HeaderProps) {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
+  const [isGuestMenuOpen, setIsGuestMenuOpen] = useState(false);
+  const guestMenuRef = useRef<HTMLDivElement>(null);
 
-  const t = (key: keyof typeof translations["ta"]) => translations[lang][key] || key;
+  // Close guest menu on outside click
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (guestMenuRef.current && !guestMenuRef.current.contains(event.target as Node)) {
+        setIsGuestMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
-  // Section 18: Simplified top navbar
-  const mainNavItems = [
-    { id: "home", label: t("navHome") },
-    { id: "explore", label: "Explore" },
-    { id: "catalog", label: t("navCatalogLibrary") },
-    { id: "quizzes", label: "Quizzes" },
-    { id: "aifeatures", label: "Kaviyam AI" },
-    { id: "notifications", label: "Notifications" },
-    { id: "profile", label: t("navProfileSettings") },
+  const quickNavItems = [
+    { id: "home", labelEn: "Home", labelTa: "முகப்பு", icon: Home },
+    { id: "tamil-library", labelEn: "Library", labelTa: "நூலகம்", icon: BookOpen },
+    { id: "quizzes", labelEn: "Quizzes", labelTa: "வினாடி வினா", icon: Brain },
+    { id: "word-finder", labelEn: "Word Finder", labelTa: "சொல் வேட்டை", icon: Sparkles },
   ];
 
   return (
-    <header className="sticky top-0 z-40 bg-[#3B0B12] text-white border-b border-[#5C121E] shadow-lg">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
+    <header className="sticky top-0 z-40 bg-[#FDFBF7]/95 backdrop-blur-md border-b border-[#E2DDD5] transition-colors w-full">
+      {/* Main Navigation Row */}
+      <div className="max-w-7xl mx-auto px-2 sm:px-6 py-2 flex items-center justify-between gap-1.5 sm:gap-4 min-w-0">
         
-        {/* Brand Logo */}
-        <div 
-          className="flex items-center gap-2.5 cursor-pointer select-none flex-shrink-0"
-          onClick={() => onSelectTab("home")}
-          id="header-logo"
-        >
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#D4AF37] to-[#9A7B24] p-0.5 shadow-md">
-            <div className="w-full h-full bg-[#3B0B12] rounded-[10px] flex items-center justify-center">
-              <BookOpen className="w-5 h-5 text-[#D4AF37]" />
+        {/* Left: Mobile Menu Trigger + Brand Logo */}
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0 min-w-0">
+          {/* Mobile Hamburger Button */}
+          <button
+            onClick={onToggleMobileMenu}
+            className="md:hidden p-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 transition-colors cursor-pointer shrink-0"
+            title="Toggle Menu"
+            aria-label="Toggle Menu"
+          >
+            {isMobileMenuOpen ? <X className="w-5 h-5 text-[#5C121E]" /> : <Menu className="w-5 h-5 text-[#5C121E]" />}
+          </button>
+
+          <div
+            onClick={() => onSelectTab("home")}
+            className="cursor-pointer flex items-center gap-1.5 group shrink-0"
+          >
+            <KaviyamBrandLogo size="md" showWordmark={false} />
+            <div className="block">
+              <h1 className="font-serif font-bold text-xs sm:text-base md:text-lg text-[#3B0B12] leading-none tracking-tight group-hover:text-[#5C121E] transition-colors whitespace-nowrap">
+                {lang === "ta" ? "காவியம் வாசிப்பு" : "KAVIYAM READING"}
+              </h1>
+              <p className="text-[8px] sm:text-[10px] text-stone-500 font-sans tracking-wider uppercase mt-0.5 hidden xs:block">
+                {lang === "ta" ? "தமிழ் இலக்கிய நாவல்கள்" : "Tamil Classical Literature"}
+              </p>
             </div>
-          </div>
-          <div>
-            <h1 className="font-serif font-bold text-base sm:text-lg tracking-wide text-white leading-none">
-              Kaviyam<span className="text-[#D4AF37] font-normal">-Reading</span>
-            </h1>
-            <p className="text-[9px] text-amber-200/70 font-sans tracking-wider hidden sm:block">
-              {lang === "ta" ? "தமிழ் டிஜிட்டல் நூலகம்" : "Tamil Digital Platform"}
-            </p>
           </div>
         </div>
 
-        {/* Desktop Main Navigation Links (Item #1) */}
-        <nav className="hidden lg:flex items-center space-x-1">
-          {mainNavItems.map((item) => {
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => onSelectTab(item.id)}
-                id={`header-nav-${item.id}`}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 relative ${
-                  isActive
-                    ? "bg-[#5C121E] text-[#D4AF37] border border-[#D4AF37]/40 shadow-inner"
-                    : "text-amber-100/80 hover:text-white hover:bg-white/10"
-                }`}
-              >
-                {item.label}
-                {item.id === "mailbox" && unreadEmailCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-400 rounded-full animate-pulse" />
-                )}
-              </button>
-            );
-          })}
-        </nav>
-
-        {/* Right Section: Search, Language Switcher, Notifications, Profile */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          
-          {/* Search Input Bar */}
-          <div className="relative hidden md:block w-40 xl:w-56">
-            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-amber-200/50" />
+        {/* Center: Search Input (Desktop & Tablets) */}
+        <div className="hidden sm:block flex-1 max-w-md mx-2">
+          <div className="relative w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400 pointer-events-none" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
-              placeholder={t("searchPlaceholder")}
-              className="w-full pl-8 pr-3 py-1.5 text-xs rounded-full bg-[#25060A] text-amber-100 placeholder-amber-200/40 border border-[#5C121E] focus:outline-none focus:border-[#D4AF37]"
+              placeholder={lang === "ta" ? "நூல்கள், ஆசிரியர்கள், வினாடிகளைத் தேடுக..." : "Search books, authors, quizzes..."}
+              className="w-full pl-9 pr-4 py-1.5 bg-stone-100/90 border border-stone-200 focus:border-[#5C121E] focus:bg-white rounded-full text-xs text-stone-800 placeholder-stone-400 focus:outline-none transition-all shadow-inner"
             />
           </div>
+        </div>
 
-          {/* Language Switcher Pill (Item #12) */}
-          <div className="flex items-center bg-[#25060A] p-0.5 rounded-full border border-[#5C121E]">
+        {/* Right Actions: Search (Mobile), Language, Mailbox, User Auth */}
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+          
+          {/* Mobile Search Icon Button */}
+          <button
+            onClick={() => setIsMobileSearchOpen(!isMobileSearchOpen)}
+            className="sm:hidden p-1.5 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-700 transition-colors cursor-pointer shrink-0"
+            title="Search / தேடுக"
+            aria-label="Toggle Search"
+          >
+            <Search className="w-4 h-4 text-[#5C121E]" />
+          </button>
+
+          {/* Language Switcher */}
+          <button
+            onClick={() => onLanguageChange(lang === "ta" ? "en" : "ta")}
+            className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-semibold border border-stone-200 transition-colors cursor-pointer shrink-0"
+            title="Toggle Language / மொழி மாற்றுக"
+          >
+            <Globe className="w-3.5 h-3.5 text-[#5C121E] shrink-0" />
+            <span className="text-[11px] sm:text-xs font-bold whitespace-nowrap">{lang === "ta" ? "தமிழ்" : "EN"}</span>
+          </button>
+
+          {/* Mailbox / Inbox Quick Button */}
+          {currentUser && (
             <button
-              onClick={() => onLanguageChange("ta")}
-              id="lang-btn-ta"
-              className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-all ${
-                lang === "ta"
-                  ? "bg-gradient-to-r from-[#D4AF37] to-[#C5A059] text-[#25060A] shadow-xs"
-                  : "text-amber-200/70 hover:text-white"
-              }`}
+              onClick={() => onSelectTab("mailbox")}
+              className="relative p-1.5 sm:p-2 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-700 hover:text-stone-900 transition-colors cursor-pointer shrink-0"
+              title="Mailbox / அஞ்சல் பெட்டி"
             >
-              தமிழ்
+              <Mail className="w-4 h-4 sm:w-5 sm:h-5 text-stone-700" />
+              {unreadEmailCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#5C121E] text-white text-[9px] font-bold flex items-center justify-center animate-pulse">
+                  {unreadEmailCount}
+                </span>
+              )}
             </button>
-            <button
-              onClick={() => onLanguageChange("en")}
-              id="lang-btn-en"
-              className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-all ${
-                lang === "en"
-                  ? "bg-gradient-to-r from-[#D4AF37] to-[#C5A059] text-[#25060A] shadow-xs"
-                  : "text-amber-200/70 hover:text-white"
-              }`}
-            >
-              English
-            </button>
-          </div>
+          )}
 
-          {/* Notifications Button */}
-          <div className="relative">
-            <button
-              onClick={() => setNotificationsOpen(!notificationsOpen)}
-              className="p-2 rounded-full text-amber-100/80 hover:text-white hover:bg-white/10 relative"
-              id="header-notif-btn"
-            >
-              <Bell className="w-4 h-4" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-[#D4AF37] rounded-full" />
-            </button>
-
-            {notificationsOpen && (
-              <div className="absolute right-0 mt-2 w-72 bg-[#4A0E17] border border-[#D4AF37]/30 rounded-xl shadow-2xl z-50 p-3 text-xs">
-                <div className="flex items-center justify-between pb-2 border-b border-[#5C121E]">
-                  <span className="font-bold text-amber-100">{t("notifications")}</span>
-                  <span className="text-[10px] text-[#D4AF37]">2 new</span>
-                </div>
-                <div className="py-2 space-y-1.5 text-amber-200/90 text-[11px]">
-                  <p>• Ponniyin Selvan chapter 2 released</p>
-                  <p>• 7-day reading streak achieved!</p>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* User Profile / Sign In */}
-          {currentUser ? (
-            <div className="relative">
+          {/* User Profile / Guest Mode / Login State */}
+          {currentUser && currentUser.id !== "guest-user-session" ? (
+            <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
               <button
-                onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-                id="header-profile-avatar"
-                className="flex items-center gap-1.5 p-0.5 rounded-full border border-[#D4AF37]/40 hover:border-[#D4AF37]"
+                onClick={() => onSelectTab("profile")}
+                className="flex items-center gap-1.5 p-1 rounded-full hover:bg-stone-100 border border-stone-200 transition-colors cursor-pointer"
+                title={currentUser.username}
               >
                 <img
-                  src={currentUser.profile.profilePhoto || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"}
+                  src={
+                    currentUser.profile?.profilePhoto ||
+                    "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"
+                  }
                   alt={currentUser.username}
-                  className="w-8 h-8 rounded-full object-cover"
+                  className="w-6 h-6 sm:w-7 sm:h-7 rounded-full object-cover border border-amber-400 shrink-0"
                 />
+                <span className="hidden md:inline font-sans text-xs font-semibold text-stone-800 truncate max-w-[80px]">
+                  {currentUser.username}
+                </span>
+              </button>
+              <button
+                onClick={onSignOutClick}
+                className="p-1.5 rounded-full bg-stone-100 hover:bg-red-50 text-stone-600 hover:text-red-700 transition-colors cursor-pointer shrink-0 border border-stone-200/60"
+                title={lang === "ta" ? "வெளியேறு (Logout)" : "Sign Out"}
+                aria-label="Logout"
+              >
+                <LogOut className="w-3.5 h-3.5 text-stone-600 hover:text-red-600" />
+              </button>
+            </div>
+          ) : currentUser && currentUser.id === "guest-user-session" ? (
+            <div className="relative flex items-center gap-1 sm:gap-1.5 shrink-0" ref={guestMenuRef}>
+              {/* Guest Mode Indicator Button */}
+              <button
+                onClick={() => setIsGuestMenuOpen(!isGuestMenuOpen)}
+                id="header-guest-badge"
+                className="px-2 sm:px-3 py-1.5 rounded-full bg-amber-50 hover:bg-amber-100 border border-amber-300/80 text-[#5C121E] text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer group"
+                title={lang === "ta" ? "விருந்தினர் பயன்முறை செயலில் உள்ளது" : "Guest Mode Active"}
+              >
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+                <Compass className="w-3.5 h-3.5 text-amber-700 shrink-0 group-hover:rotate-45 transition-transform" />
+                <span className="hidden xs:inline text-[11px] sm:text-xs">
+                  {lang === "ta" ? "விருந்தினர்" : "Guest"}
+                </span>
               </button>
 
-              {profileDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-52 bg-[#4A0E17] border border-[#D4AF37]/30 rounded-xl shadow-2xl z-50 p-2 text-xs">
-                  <div className="px-3 py-2 border-b border-[#5C121E]">
-                    <p className="font-bold text-white truncate">{currentUser.username}</p>
-                    <p className="text-amber-200/60 text-[10px] truncate">{currentUser.email}</p>
+              {/* Direct Sign-In Button next to Guest badge */}
+              <button
+                onClick={onSignInClick}
+                className="px-2.5 sm:px-3.5 py-1.5 rounded-full bg-[#5C121E] hover:bg-[#3B0B12] text-white text-xs font-semibold shadow-xs transition-all flex items-center gap-1 shrink-0 whitespace-nowrap cursor-pointer"
+                title={lang === "ta" ? "கணக்கில் உள்நுழைக" : "Sign In to Account"}
+              >
+                <UserIcon className="w-3.5 h-3.5 shrink-0" />
+                <span className="text-[11px] sm:text-xs font-bold whitespace-nowrap">
+                  {lang === "ta" ? "உள்நுழைக" : "Sign In"}
+                </span>
+              </button>
+
+              {/* Guest Menu Popover */}
+              {isGuestMenuOpen && (
+                <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-2xl shadow-xl border border-amber-200/80 p-4 z-50 text-left space-y-3 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="flex items-center gap-2 border-b border-stone-100 pb-2.5">
+                    <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-800 shrink-0">
+                      <Compass className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-stone-900 leading-tight">
+                        {lang === "ta" ? "விருந்தினர் பயன்முறை" : "Guest Explorer Mode"}
+                      </h4>
+                      <p className="text-[10px] text-amber-800 font-medium">
+                        {lang === "ta" ? "தற்காலிக வாசிப்பு அமர்வு" : "Temporary reading session"}
+                      </p>
+                    </div>
                   </div>
-                  <div className="py-1">
+
+                  <p className="text-[11px] text-stone-600 leading-relaxed font-sans">
+                    {lang === "ta"
+                      ? "நீங்கள் விருந்தினராக நூல்களை வாசிக்கலாம் மற்றும் வினாடி வினாக்களை சோதிக்கலாம். வாசிப்பு சாதனைகள் மற்றும் XP புள்ளிகளை மேகக்கணியில் நிரந்தரமாகப் பாதுகாக்க கணக்கில் உள்நுழையவும்."
+                      : "You can read books and try quizzes in guest mode. Sign in to permanently save your progress, bookmarks, and quiz XP to the cloud."}
+                  </p>
+
+                  <div className="flex flex-col gap-1.5 pt-1">
                     <button
-                      onClick={() => { onSelectTab("profile"); setProfileDropdownOpen(false); }}
-                      className="w-full text-left px-3 py-2 text-amber-100 hover:bg-[#5C121E] rounded-lg flex items-center gap-2"
+                      onClick={() => {
+                        setIsGuestMenuOpen(false);
+                        onSignInClick();
+                      }}
+                      className="w-full py-2 px-3 rounded-xl bg-[#5C121E] hover:bg-[#3B0B12] text-white text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
                     >
-                      <UserIcon className="w-3.5 h-3.5 text-[#D4AF37]" />
-                      {t("navProfileSettings")}
+                      <UserIcon className="w-3.5 h-3.5" />
+                      <span>{lang === "ta" ? "கணக்கில் உள்நுழைக" : "Sign In Now"}</span>
                     </button>
                     <button
-                      onClick={() => { onSelectTab("mailbox"); setProfileDropdownOpen(false); }}
-                      className="w-full text-left px-3 py-2 text-amber-100 hover:bg-[#5C121E] rounded-lg flex items-center gap-2"
+                      onClick={() => {
+                        setIsGuestMenuOpen(false);
+                        onSignOutClick();
+                      }}
+                      className="w-full py-1.5 px-3 rounded-xl text-stone-600 hover:text-red-700 hover:bg-red-50 text-xs font-semibold transition-colors flex items-center justify-center gap-1 cursor-pointer"
                     >
-                      <Mail className="w-3.5 h-3.5 text-[#D4AF37]" />
-                      {t("navMailbox")}
-                    </button>
-                    <button
-                      onClick={() => { onSelectTab("settings"); setProfileDropdownOpen(false); }}
-                      className="w-full text-left px-3 py-2 text-amber-100 hover:bg-[#5C121E] rounded-lg"
-                    >
-                      {t("navSettings")}
-                    </button>
-                  </div>
-                  <div className="pt-1 border-t border-[#5C121E]">
-                    <button
-                      onClick={() => { onSignOutClick(); setProfileDropdownOpen(false); }}
-                      className="w-full text-left px-3 py-2 text-red-300 hover:bg-red-950/40 rounded-lg flex items-center gap-2"
-                    >
-                      <LogOut className="w-3.5 h-3.5" />
-                      {t("signOut")}
+                      <LogOut className="w-3 h-3" />
+                      <span>{lang === "ta" ? "விருந்தினர் அமர்விலிருந்து வெளியேறு" : "Exit Guest Mode"}</span>
                     </button>
                   </div>
                 </div>
               )}
             </div>
           ) : (
-            <button
-              onClick={onSignInClick}
-              id="header-signin-btn"
-              className="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-[#D4AF37] to-[#C5A059] text-[#2A080E] font-bold text-xs hover:brightness-110 shadow-md flex items-center gap-1.5"
-            >
-              <LogIn className="w-3.5 h-3.5" />
-              <span>{t("signIn")}</span>
-            </button>
+            <div className="flex items-center gap-1.5 shrink-0">
+              {/* Dedicated Guest Mode Option Button */}
+              {onGuestLogin && (
+                <button
+                  onClick={onGuestLogin}
+                  id="header-guest-mode-btn"
+                  className="px-2.5 sm:px-3 py-1.5 rounded-full bg-amber-50 hover:bg-amber-100 text-[#5C121E] hover:text-[#3B0B12] border border-amber-300/80 text-xs font-bold transition-all flex items-center gap-1 shadow-2xs cursor-pointer"
+                  title={lang === "ta" ? "விருந்தினர் பயன்முறை (பதிவின்றி வாசியுங்கள்)" : "Guest Mode (Read without signing in)"}
+                >
+                  <Compass className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                  <span className="text-[11px] sm:text-xs whitespace-nowrap">
+                    {lang === "ta" ? "விருந்தினர்" : "Guest"}
+                  </span>
+                </button>
+              )}
+
+              {/* Standard Sign In Button */}
+              <button
+                onClick={onSignInClick}
+                id="header-signin-btn"
+                className="px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full bg-[#5C121E] hover:bg-[#3B0B12] text-white text-xs font-semibold shadow-sm transition-all flex items-center gap-1 shrink-0 whitespace-nowrap cursor-pointer"
+              >
+                <UserIcon className="w-3.5 h-3.5 shrink-0" />
+                <span className="text-[11px] sm:text-xs font-bold whitespace-nowrap">
+                  {lang === "ta" ? "உள்நுழைக" : "Sign In"}
+                </span>
+              </button>
+            </div>
           )}
-
-          {/* Mobile Sidebar Hamburger Trigger */}
-          <button
-            onClick={() => {
-              if (onToggleMobileSidebar) {
-                onToggleMobileSidebar();
-              } else {
-                setMobileMenuOpen(!mobileMenuOpen);
-              }
-            }}
-            className="lg:hidden p-2 rounded-lg text-amber-100 hover:bg-white/10"
-            aria-label="Open navigation menu"
-          >
-            <Menu className="w-6 h-6" />
-          </button>
-
         </div>
-
       </div>
 
+      {/* Expandable Mobile Search Bar */}
+      {isMobileSearchOpen && (
+        <div className="sm:hidden px-3 py-2 bg-stone-100/95 border-t border-stone-200 flex items-center gap-2 animate-in slide-in-from-top-2 duration-150">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              autoFocus
+              onChange={(e) => onSearchChange(e.target.value)}
+              placeholder={lang === "ta" ? "நூல்கள், வினாடிகளைத் தேடுக..." : "Search books, quizzes..."}
+              className="w-full pl-9 pr-3 py-1.5 bg-white border border-stone-300 rounded-full text-xs text-stone-900 focus:outline-none focus:border-[#5C121E]"
+            />
+          </div>
+          <button
+            onClick={() => setIsMobileSearchOpen(false)}
+            className="p-1.5 rounded-full text-stone-500 hover:text-stone-800 hover:bg-stone-200"
+            aria-label="Close search"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Mobile Top Header Navigation Shortcuts Row */}
+      <div className="md:hidden border-t border-stone-200/60 bg-[#FAF7F2] px-2 py-1.5 overflow-x-auto custom-scrollbar flex items-center gap-1.5">
+        {quickNavItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = activeTab === item.id;
+          return (
+            <button
+              key={item.id}
+              onClick={() => onSelectTab(item.id)}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold whitespace-nowrap transition-all shrink-0 cursor-pointer ${
+                isActive
+                  ? "bg-[#5C121E] text-white shadow-xs"
+                  : "bg-stone-100 text-stone-700 hover:bg-stone-200 hover:text-stone-900"
+              }`}
+            >
+              <Icon className="w-3 h-3" />
+              <span>{lang === "ta" ? item.labelTa : item.labelEn}</span>
+            </button>
+          );
+        })}
+      </div>
     </header>
   );
 }
