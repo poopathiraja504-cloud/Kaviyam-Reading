@@ -1,5 +1,5 @@
-import { User, SecurityLog, Book } from "../types";
-import { Users, Shield, ShieldAlert, BarChart2, Ban, CheckCircle, Search, Trash2, Key, History, Lock, Unlock, Eye, HelpCircle } from "lucide-react";
+import { User, SecurityLog, Book, Quiz } from "../types";
+import { Users, Shield, ShieldAlert, BarChart2, Ban, CheckCircle, Search, Trash2, Key, History, Lock, Unlock, Eye, HelpCircle, Brain, Plus, Edit, Check, X } from "lucide-react";
 import React, { useState } from "react";
 import { RECOMMENDED_META_TAGS } from "../utils/securityHeaders";
 
@@ -7,8 +7,11 @@ interface AdminProps {
   usersList: User[];
   allSecurityLogs: SecurityLog[];
   booksList: Book[];
+  quizzesList?: Quiz[];
   onBlockUser: (id: string, blockState: boolean) => void;
   onDeleteUser: (id: string) => void;
+  onSaveQuiz?: (quiz: Quiz) => void;
+  onDeleteQuiz?: (quizId: string) => void;
   isSecurityHardened?: boolean;
   onToggleSecurityHardening?: () => void;
   customCsp?: string;
@@ -19,15 +22,19 @@ export default function Admin({
   usersList,
   allSecurityLogs,
   booksList,
+  quizzesList = [],
   onBlockUser,
   onDeleteUser,
+  onSaveQuiz,
+  onDeleteQuiz,
   isSecurityHardened = false,
   onToggleSecurityHardening,
   customCsp = "",
   onUpdateCustomCsp,
 }: AdminProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"users" | "analytics" | "logs">("users");
+  const [activeTab, setActiveTab] = useState<"users" | "analytics" | "logs" | "quizzes">("users");
+
 
   const filteredUsers = usersList.filter(
     (u) =>
@@ -85,6 +92,15 @@ export default function Admin({
             id="admin-tab-logs"
           >
             Global Audits
+          </button>
+          <button
+            onClick={() => setActiveTab("quizzes")}
+            className={`px-3 py-1.5 rounded-md text-xs font-semibold transition ${
+              activeTab === "quizzes" ? "bg-white text-stone-800 shadow-sm" : "text-stone-500 hover:text-stone-800"
+            }`}
+            id="admin-tab-quizzes"
+          >
+            Quiz Management ({quizzesList.length})
           </button>
         </div>
       </div>
@@ -523,6 +539,54 @@ function CspConfigurator({ customCsp, onUpdateCsp, isHardened }: CspConfigurator
           </div>
         </div>
       </form>
+      {activeTab === "quizzes" && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center gap-4">
+            <h3 className="font-serif font-bold text-stone-800 text-base">
+              Quiz & Question Management ({quizzesList.length} Quizzes)
+            </h3>
+            <span className="text-xs text-stone-500 font-mono">
+              Total Questions: {quizzesList.reduce((acc, q) => acc + q.questions.length, 0)}
+            </span>
+          </div>
+
+          <div className="border border-[#e8e2cf] rounded-xl overflow-hidden bg-white">
+            <table className="w-full text-xs text-left">
+              <thead className="bg-[#faf8f3] text-stone-600 font-mono text-[10px] uppercase tracking-wider border-b border-[#e8e2cf]">
+                <tr>
+                  <th className="p-3">Quiz Title</th>
+                  <th className="p-3">Category</th>
+                  <th className="p-3">Difficulty</th>
+                  <th className="p-3">Questions</th>
+                  <th className="p-3">Timer</th>
+                  <th className="p-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#f3eee0]">
+                {quizzesList.map((quiz) => (
+                  <tr key={quiz.id} className="hover:bg-stone-50 transition">
+                    <td className="p-3 font-semibold text-stone-900">{quiz.title}</td>
+                    <td className="p-3"><span className="px-2 py-0.5 rounded-full bg-stone-100 text-stone-700 font-mono text-[10px]">{quiz.category}</span></td>
+                    <td className="p-3"><span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 text-[10px] font-bold">{quiz.difficulty}</span></td>
+                    <td className="p-3 font-mono">{quiz.questions.length} Qs (100 Marks)</td>
+                    <td className="p-3 font-mono">{quiz.timeLimitMinutes} Mins</td>
+                    <td className="p-3 text-right">
+                      <button
+                        onClick={() => onDeleteQuiz && onDeleteQuiz(quiz.id)}
+                        className="p-1 rounded text-red-600 hover:bg-red-50 transition"
+                        title="Delete Quiz"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

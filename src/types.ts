@@ -76,3 +76,54 @@ export interface SimulatedEmail {
   category: "auth" | "security" | "newsletter" | "announcement";
   read: boolean;
 }
+
+export interface QuizQuestion {
+  id: string;
+  question: string;
+  options: {
+    A: string;
+    B: string;
+    C: string;
+    D: string;
+  };
+  correctAnswer: "A" | "B" | "C" | "D";
+  explanation: string;
+  marks: number;
+}
+
+export interface Quiz {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  difficulty: "Easy" | "Medium" | "Hard";
+  totalQuestions: number;
+  marksPerQuestion: number;
+  totalMarks: number;
+  timeLimitMinutes: number;
+  questions: QuizQuestion[];
+  isPublished?: boolean;
+}
+
+export interface QuizAttempt {
+  id: string;
+  userId: string;
+  userName: string;
+  userPhoto?: string;
+  quizId: string;
+  quizTitle: string;
+  quizCategory: string;
+  answers: Record<string, "A" | "B" | "C" | "D" | "">;
+  score: number;
+  totalMarks: number;
+  percentage: number;
+  correctAnswers: number;
+  wrongAnswers: number;
+  unansweredQuestions: number;
+  timeTakenSeconds: number;
+  startedAt: string;
+  completedAt: string | null;
+  status: "in_progress" | "completed" | "expired";
+  currentQuestionIndex?: number;
+}
+

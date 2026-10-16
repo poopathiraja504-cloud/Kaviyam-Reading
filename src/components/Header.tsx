@@ -31,6 +31,7 @@ interface HeaderProps {
   searchQuery: string;
   onSearchChange: (query: string) => void;
   unreadEmailCount?: number;
+  onToggleMobileSidebar?: () => void;
 }
 
 export default function Header({
@@ -44,6 +45,7 @@ export default function Header({
   searchQuery,
   onSearchChange,
   unreadEmailCount = 0,
+  onToggleMobileSidebar,
 }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -51,20 +53,15 @@ export default function Header({
 
   const t = (key: keyof typeof translations["ta"]) => translations[lang][key] || key;
 
+  // Section 18: Simplified top navbar
   const mainNavItems = [
     { id: "home", label: t("navHome") },
-    { id: "tamil-library", label: t("navTamilLibrary") },
+    { id: "explore", label: "Explore" },
     { id: "catalog", label: t("navCatalogLibrary") },
+    { id: "quizzes", label: "Quizzes" },
+    { id: "aifeatures", label: "Kaviyam AI" },
+    { id: "notifications", label: "Notifications" },
     { id: "profile", label: t("navProfileSettings") },
-    { id: "mailbox", label: t("navMailbox") },
-    { id: "localdb", label: t("navLocalDB") },
-    { id: "help", label: t("navHelpFAQ") },
-  ];
-
-  const secondaryNavItems = [
-    { id: "mybooks", label: t("navMyBooks"), icon: BookMarked },
-    { id: "progress", label: t("navProgress"), icon: TrendingUp },
-    { id: "aifeatures", label: t("navAIFeatures"), icon: Sparkles },
   ];
 
   return (
@@ -248,41 +245,24 @@ export default function Header({
             </button>
           )}
 
-          {/* Mobile Drawer Button */}
+          {/* Mobile Sidebar Hamburger Trigger */}
           <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            onClick={() => {
+              if (onToggleMobileSidebar) {
+                onToggleMobileSidebar();
+              } else {
+                setMobileMenuOpen(!mobileMenuOpen);
+              }
+            }}
             className="lg:hidden p-2 rounded-lg text-amber-100 hover:bg-white/10"
+            aria-label="Open navigation menu"
           >
-            {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            <Menu className="w-6 h-6" />
           </button>
 
         </div>
 
       </div>
-
-      {/* Mobile Drawer Links */}
-      {mobileMenuOpen && (
-        <div className="lg:hidden bg-[#2C080E] border-b border-[#5C121E] px-4 pt-3 pb-6 space-y-1">
-          {mainNavItems.concat([
-            { id: "mybooks", label: t("navMyBooks") },
-            { id: "progress", label: t("navProgress") },
-            { id: "aifeatures", label: t("navAIFeatures") },
-          ]).map((item) => (
-            <button
-              key={item.id}
-              onClick={() => {
-                onSelectTab(item.id);
-                setMobileMenuOpen(false);
-              }}
-              className={`w-full text-left px-4 py-2 rounded-lg text-xs font-semibold ${
-                activeTab === item.id ? "bg-[#5C121E] text-[#D4AF37]" : "text-amber-100/80"
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-      )}
 
     </header>
   );

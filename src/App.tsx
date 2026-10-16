@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
-import { User, Book, SimulatedEmail, SecurityLog } from "./types";
+import { User, Book, SimulatedEmail, SecurityLog, Quiz, QuizAttempt } from "./types";
 import { PRESET_BOOKS } from "./booksData";
+import { PRESET_QUIZZES } from "./quizData";
 import { Language, getStoredLanguage, setStoredLanguage } from "./utils/i18n";
 import { BookOpen } from "lucide-react";
 
@@ -18,7 +19,7 @@ import {
   sendPasswordResetEmail,
   UserCredential
 } from "firebase/auth";
-import { collection, doc, setDoc, getDocs } from "firebase/firestore";
+import { collection, doc, setDoc, getDocs, addDoc, query, where, orderBy } from "firebase/firestore";
 import { sendPhoneOtp, verifyPhoneOtp, clearRecaptchaVerifier } from "./lib/phoneAuth";
 
 // UI Components
@@ -42,6 +43,16 @@ import Admin from "./components/Admin";
 import Feedback from "./components/Feedback";
 import LocalDatabase from "./components/LocalDatabase";
 import PdfReaderModal from "./components/PdfReaderModal";
+import ComingSoonPage from "./components/ComingSoonPage";
+// Quiz System Components
+import QuizCenter from "./components/QuizCenter";
+import QuizDetailsView from "./components/QuizDetailsView";
+import QuizPlayer from "./components/QuizPlayer";
+import QuizResult from "./components/QuizResult";
+import QuizReview from "./components/QuizReview";
+import QuizHistory from "./components/QuizHistory";
+import QuizStats from "./components/QuizStats";
+import QuizLeaderboard from "./components/QuizLeaderboard";
 
 // Initial Preset Users for fallback display
 const INITIAL_USERS: User[] = [
@@ -67,39 +78,77 @@ const INITIAL_USERS: User[] = [
 function tabToPath(tab: string, bookId?: string | null): string {
   if (bookId) return `/book/${bookId}`;
   switch (tab) {
-    case "home": return "/home";
+    case "home": return "/";
     case "tamil-library": return "/tamil-library";
     case "catalog": return "/catalog";
     case "mybooks": return "/my-books";
     case "progress": return "/progress";
-    case "aifeatures": return "/ai-features";
+    case "aifeatures": return "/ai";
     case "profile": return "/profile";
     case "mailbox": return "/mailbox";
     case "localdb": return "/local-db";
     case "help": return "/help";
     case "settings": return "/settings";
     case "admin": return "/admin";
-    default: return "/home";
+    case "explore": return "/explore";
+    case "discover": return "/discover";
+    case "trending": return "/trending";
+    case "book-of-the-day": return "/book-of-the-day";
+    case "quizzes": return "/quizzes";
+    case "quiz-history": return "/quiz-history";
+    case "quiz-stats": return "/quiz-stats";
+    case "quiz-leaderboard": return "/quiz-leaderboard";
+    case "achievements": return "/achievements";
+    case "notifications": return "/notifications";
+    case "community": return "/community";
+    case "clubs": return "/clubs";
+    case "premium": return "/premium";
+    case "streak": return "/streak";
+    case "rewards": return "/rewards";
+    case "about": return "/about";
+    default: return "/";
   }
 }
 
-function pathToTab(pathname: string): { tab: string; bookId?: string } {
+function pathToTab(pathname: string): { tab: string; bookId?: string; quizId?: string; attemptId?: string; subview?: string } {
   const clean = pathname.toLowerCase().replace(/\/$/, "") || "/";
   if (clean === "/login") return { tab: "login" };
-  if (clean === "/home" || clean === "/") return { tab: "home" };
+  if (clean === "/" || clean === "/home") return { tab: "home" };
   if (clean === "/tamil-library") return { tab: "tamil-library" };
   if (clean === "/catalog" || clean === "/books" || clean === "/library") return { tab: "catalog" };
   if (clean === "/my-books" || clean === "/mybooks") return { tab: "mybooks" };
   if (clean === "/progress") return { tab: "progress" };
-  if (clean === "/ai-features" || clean === "/aifeatures") return { tab: "aifeatures" };
+  if (clean === "/ai" || clean === "/ai-features" || clean === "/aifeatures" || clean.startsWith("/ai/")) return { tab: "aifeatures" };
   if (clean === "/profile") return { tab: "profile" };
   if (clean === "/mailbox") return { tab: "mailbox" };
   if (clean === "/local-db" || clean === "/localdb") return { tab: "localdb" };
   if (clean === "/help" || clean === "/faq") return { tab: "help" };
   if (clean === "/settings") return { tab: "settings" };
   if (clean === "/admin") return { tab: "admin" };
+  if (clean === "/explore") return { tab: "explore" };
+  if (clean === "/discover") return { tab: "discover" };
+  if (clean === "/trending") return { tab: "trending" };
+  if (clean === "/book-of-the-day") return { tab: "book-of-the-day" };
+  if (clean === "/quizzes") return { tab: "quizzes" };
+  if (clean === "/quiz-history") return { tab: "quiz-history" };
+  if (clean === "/quiz-stats") return { tab: "quiz-stats" };
+  if (clean === "/quiz-leaderboard") return { tab: "quiz-leaderboard" };
+  if (clean === "/achievements") return { tab: "achievements" };
+  if (clean === "/notifications") return { tab: "notifications" };
+  if (clean === "/community") return { tab: "community" };
+  if (clean === "/clubs") return { tab: "clubs" };
+  if (clean === "/premium") return { tab: "premium" };
+  if (clean === "/streak") return { tab: "streak" };
+  if (clean === "/rewards") return { tab: "rewards" };
+  if (clean === "/about") return { tab: "about" };
   if (clean.startsWith("/book/")) return { tab: "catalog", bookId: clean.replace("/book/", "") };
   if (clean.startsWith("/reader/")) return { tab: "catalog", bookId: clean.replace("/reader/", "") };
+  if (clean.startsWith("/quizzes/")) {
+    const rest = clean.replace("/quizzes/", "");
+    if (rest.includes("/play")) return { tab: "quiz-play", quizId: rest.replace("/play", "") };
+    return { tab: "quiz-detail", quizId: rest };
+  }
+  if (clean.startsWith("/quiz-result/")) return { tab: "quiz-result", attemptId: clean.replace("/quiz-result/", "") };
   return { tab: "home" };
 }
 
@@ -128,8 +177,14 @@ export default function App() {
   const [readingChapterNum, setReadingChapterNum] = useState<number>(1);
   const [pdfBook, setPdfBook] = useState<Book | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [resetToken, setResetToken] = useState<string | null>(null);
+
+  // Quiz State
+  const [selectedQuizId, setSelectedQuizId] = useState<string | null>(null);
+  const [quizAttempt, setQuizAttempt] = useState<QuizAttempt | null>(null);
+  const [quizSubview, setQuizSubview] = useState<"detail" | "play" | "result" | "review" | null>(null);
 
   // Data State
   const [books, setBooks] = useState<Book[]>([]);
@@ -595,6 +650,7 @@ export default function App() {
           }
         }}
         unreadEmailCount={emails.filter(e => !e.read).length}
+        onToggleMobileSidebar={() => setMobileSidebarOpen(prev => !prev)}
       />
 
       {/* Main Workspace Layout (Sidebar + Content Body) */}
@@ -603,12 +659,22 @@ export default function App() {
         {/* Left Sidebar Navigation */}
         <Sidebar
           activeTab={activeTab}
-          onSelectTab={(tab) => navigateTo(tab)}
+          onSelectTab={(tab) => {
+            navigateTo(tab);
+            setMobileSidebarOpen(false);
+            // reset quiz subview when navigating away from quiz section
+            if (!tab.startsWith("quiz")) {
+              setSelectedQuizId(null);
+              setQuizSubview(null);
+            }
+          }}
           lang={lang}
           currentUser={currentUser}
           onSignOut={handleLogout}
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+          mobileOpen={mobileSidebarOpen}
+          onCloseMobile={() => setMobileSidebarOpen(false)}
         />
 
         {/* Content Body Container */}
@@ -752,6 +818,137 @@ export default function App() {
                         : "Kaviyam-Reading is a modern digital platform designed to preserve, promote, and revolutionize the reading experience of Tamil literature."}
                     </p>
                   </div>
+                )}
+
+                {/* ROUTE: EXPLORE / DISCOVER / TRENDING / BOOK OF THE DAY */}
+                {(activeTab === "explore" || activeTab === "discover" || activeTab === "trending" || activeTab === "book-of-the-day") && (
+                  <ComingSoonPage
+                    title={activeTab === "explore" ? "Explore" : activeTab === "discover" ? "Discover" : activeTab === "trending" ? "Trending" : "Book of the Day"}
+                    description="This feature is coming soon! Stay tuned for an amazing experience."
+                    onBack={() => navigateTo("home")}
+                  />
+                )}
+
+                {/* ROUTE: QUIZ CENTER (/quizzes) */}
+                {activeTab === "quizzes" && !selectedQuizId && (
+                  <QuizCenter
+                    quizzes={PRESET_QUIZZES}
+                    currentUser={currentUser}
+                    onSelectQuiz={(quizId) => {
+                      setSelectedQuizId(quizId);
+                      setQuizSubview("detail");
+                    }}
+                    onViewHistory={() => navigateTo("quiz-history")}
+                    onViewStats={() => navigateTo("quiz-stats")}
+                    onViewLeaderboard={() => navigateTo("quiz-leaderboard")}
+                    lang={lang}
+                  />
+                )}
+
+                {/* ROUTE: QUIZ DETAIL VIEW */}
+                {activeTab === "quizzes" && selectedQuizId && quizSubview === "detail" && (() => {
+                  const quiz = PRESET_QUIZZES.find(q => q.id === selectedQuizId);
+                  return quiz ? (
+                    <QuizDetailsView
+                      quiz={quiz}
+                      currentUser={currentUser}
+                      onBack={() => { setSelectedQuizId(null); setQuizSubview(null); }}
+                      onStartQuiz={() => setQuizSubview("play")}
+                      lang={lang}
+                    />
+                  ) : null;
+                })()}
+
+                {/* ROUTE: QUIZ PLAYER */}
+                {activeTab === "quizzes" && selectedQuizId && quizSubview === "play" && (() => {
+                  const quiz = PRESET_QUIZZES.find(q => q.id === selectedQuizId);
+                  return quiz ? (
+                    <QuizPlayer
+                      quiz={quiz}
+                      currentUser={currentUser}
+                      onBack={() => setQuizSubview("detail")}
+                      onComplete={(attempt) => {
+                        setQuizAttempt(attempt);
+                        setQuizSubview("result");
+                      }}
+                      lang={lang}
+                    />
+                  ) : null;
+                })()}
+
+                {/* ROUTE: QUIZ RESULT */}
+                {activeTab === "quizzes" && quizSubview === "result" && quizAttempt && (() => {
+                  const quiz = PRESET_QUIZZES.find(q => q.id === quizAttempt.quizId);
+                  return quiz ? (
+                    <QuizResult
+                      attempt={quizAttempt}
+                      quiz={quiz}
+                      currentUser={currentUser}
+                      onReviewAnswers={() => setQuizSubview("review")}
+                      onRetry={() => { setQuizAttempt(null); setQuizSubview("play"); }}
+                      onGoToQuizzes={() => { setSelectedQuizId(null); setQuizAttempt(null); setQuizSubview(null); }}
+                      onViewHistory={() => navigateTo("quiz-history")}
+                      lang={lang}
+                    />
+                  ) : null;
+                })()}
+
+                {/* ROUTE: QUIZ REVIEW */}
+                {activeTab === "quizzes" && quizSubview === "review" && quizAttempt && (() => {
+                  const quiz = PRESET_QUIZZES.find(q => q.id === quizAttempt.quizId);
+                  return quiz ? (
+                    <QuizReview
+                      attempt={quizAttempt}
+                      quiz={quiz}
+                      onBack={() => setQuizSubview("result")}
+                      onRetry={() => { setQuizAttempt(null); setQuizSubview("play"); }}
+                      lang={lang}
+                    />
+                  ) : null;
+                })()}
+
+                {/* ROUTE: QUIZ HISTORY (/quiz-history) */}
+                {activeTab === "quiz-history" && (
+                  <QuizHistory
+                    currentUser={currentUser}
+                    quizzes={PRESET_QUIZZES}
+                    onSelectQuiz={(quizId) => {
+                      setSelectedQuizId(quizId);
+                      setQuizSubview("detail");
+                      navigateTo("quizzes");
+                    }}
+                    onViewStats={() => navigateTo("quiz-stats")}
+                    lang={lang}
+                  />
+                )}
+
+                {/* ROUTE: QUIZ STATS (/quiz-stats) */}
+                {activeTab === "quiz-stats" && (
+                  <QuizStats
+                    currentUser={currentUser}
+                    quizzes={PRESET_QUIZZES}
+                    onGoToQuizzes={() => navigateTo("quizzes")}
+                    lang={lang}
+                  />
+                )}
+
+                {/* ROUTE: QUIZ LEADERBOARD (/quiz-leaderboard) */}
+                {activeTab === "quiz-leaderboard" && (
+                  <QuizLeaderboard
+                    currentUser={currentUser}
+                    quizzes={PRESET_QUIZZES}
+                    onGoToQuizzes={() => navigateTo("quizzes")}
+                    lang={lang}
+                  />
+                )}
+
+                {/* ROUTE: ACHIEVEMENTS / NOTIFICATIONS / COMMUNITY / CLUBS / PREMIUM / STREAK / REWARDS */}
+                {["achievements", "notifications", "community", "clubs", "premium", "streak", "rewards"].includes(activeTab) && (
+                  <ComingSoonPage
+                    title={activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
+                    description="This feature is under development. It will be live soon!"
+                    onBack={() => navigateTo("home")}
+                  />
                 )}
 
                 {/* ROUTE: ADMIN */}
