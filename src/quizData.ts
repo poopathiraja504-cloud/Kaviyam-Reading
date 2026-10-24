@@ -1099,3 +1099,18 @@ extraCategories.forEach((catInfo, idx) => {
     questions
   });
 });
+
+export const QUIZ_DATABASE = PRESET_QUIZZES.map((q) => {
+  const qId = q.id || (q as any).quizId;
+  return {
+    ...q,
+    quizId: qId,
+    timeLimit: (q as any).timeLimit || (q.timeLimitMinutes ? q.timeLimitMinutes * 60 : 600),
+    questions: (q.questions || []).map((qu: any, idx: number) => ({
+      ...qu,
+      questionId: qu.id || qu.questionId || `q-${qId}-${idx + 1}`,
+      quizId: qId,
+      marks: qu.marks || 10,
+    }))
+  };
+});

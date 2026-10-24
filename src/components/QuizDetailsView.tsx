@@ -6,7 +6,8 @@ import { Language } from "../utils/i18n";
 interface QuizDetailsViewProps {
   quiz: Quiz;
   currentUser?: any;
-  onStartQuiz: () => void;
+  userAttempts?: any;
+  onStartQuiz: (qId?: any) => void;
   onBack: () => void;
   lang?: Language;
 }

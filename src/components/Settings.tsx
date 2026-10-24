@@ -7,6 +7,7 @@ interface SettingsProps {
   onLanguageChange: (lang: Language) => void;
   isDarkMode: boolean;
   onToggleDarkMode: () => void;
+  onBack?: () => void;
 }
 
 export default function Settings({

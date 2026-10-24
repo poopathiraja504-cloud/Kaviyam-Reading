@@ -4,27 +4,38 @@ import { QuizAttempt, Quiz } from "../types";
 
 interface QuizHistoryProps {
   currentUser?: any;
-  quizzes: Quiz[];
-  onSelectQuiz: (quizId: string) => void;
+  quizzes?: Quiz[];
+  attempts?: QuizAttempt[];
+  onSelectQuiz?: (quizId: string) => void;
+  onSelectAttempt?: (att: any) => void;
+  onBackToCenter?: () => void;
+  onRequireLogin?: () => void;
   onViewStats?: () => void;
-  lang?: string;
+  lang?: any;
 }
 
 export default function QuizHistory({
   currentUser,
-  quizzes,
+  quizzes = [],
+  attempts: initialAttempts,
   onSelectQuiz,
+  onSelectAttempt,
+  onBackToCenter,
   onViewStats,
-  lang = "en"
+  lang = "en",
 }: QuizHistoryProps) {
-  const [attempts, setAttempts] = useState<QuizAttempt[]>([]);
+  const [attempts, setAttempts] = useState<QuizAttempt[]>(initialAttempts || []);
 
   useEffect(() => {
+    if (initialAttempts && initialAttempts.length > 0) {
+      setAttempts(initialAttempts);
+      return;
+    }
     try {
       const stored = localStorage.getItem("kaviyam_quiz_attempts");
       if (stored) setAttempts(JSON.parse(stored));
     } catch (_) {}
-  }, []);
+  }, [initialAttempts]);
 
   const userId = currentUser?.id || "guest";
   const completedAttempts = [...attempts]

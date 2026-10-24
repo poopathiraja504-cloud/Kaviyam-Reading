@@ -4,32 +4,43 @@ import { motion } from "motion/react";
 const OTP_LENGTH = 6;
 
 interface LiquidOTPProps {
-  value: string;
-  onChange: (val: string) => void;
+  value?: string;
+  onChange?: (val: string) => void;
+  length?: number;
+  onComplete?: (enteredOtp: string) => Promise<void> | void;
+  onResend?: () => void;
   isDarkMode?: boolean;
 }
 
-export default function LiquidOTP({ value, onChange, isDarkMode = false }: LiquidOTPProps) {
-  const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(""));
+export default function LiquidOTP({
+  value = "",
+  onChange,
+  length = OTP_LENGTH,
+  onComplete,
+  onResend,
+  isDarkMode = false,
+}: LiquidOTPProps) {
+  const [otp, setOtp] = useState<string[]>(Array(length).fill(""));
   const [activeIndex, setActiveIndex] = useState(0);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   // Keep internal state in sync with external value prop
   useEffect(() => {
-    const arr = Array(OTP_LENGTH).fill("");
-    for (let i = 0; i < OTP_LENGTH; i++) {
-      arr[i] = value[i] || "";
+    if (value !== undefined) {
+      const arr = Array(length).fill("");
+      for (let i = 0; i < length; i++) {
+        arr[i] = value[i] || "";
+      }
+      setOtp(arr);
+      
+      const firstEmpty = arr.findIndex((v) => v === "");
+      if (firstEmpty !== -1) {
+        setActiveIndex(firstEmpty);
+      } else {
+        setActiveIndex(length - 1);
+      }
     }
-    setOtp(arr);
-    
-    // Set active index to first empty box or last box
-    const firstEmpty = arr.findIndex((v) => v === "");
-    if (firstEmpty !== -1) {
-      setActiveIndex(firstEmpty);
-    } else {
-      setActiveIndex(OTP_LENGTH - 1);
-    }
-  }, [value]);
+  }, [value, length]);
 
   const handleChange = (val: string, index: number) => {
     // Only accept single digits
@@ -40,10 +51,14 @@ export default function LiquidOTP({ value, onChange, isDarkMode = false }: Liqui
     setOtp(newOtp);
     
     const combined = newOtp.join("");
-    onChange(combined);
+    if (onChange) onChange(combined);
+
+    if (combined.length === length && !newOtp.includes("") && onComplete) {
+      onComplete(combined);
+    }
 
     // Auto-focus next input
-    if (val && index < OTP_LENGTH - 1) {
+    if (val && index < length - 1) {
       setActiveIndex(index + 1);
       inputRefs.current[index + 1]?.focus();
     }

@@ -1,13 +1,12 @@
 {
-  "projectId": "kaviyam-reading",
-  "appId": "1:827530199390:web:8cb697128c6c53ef700fcf",
-  "apiKey": "AIzaSyCckQcwKnj5fK0Kym83qwIwspgqXBgHaus",
-  "authDomain": "kaviyam-reading.firebaseapp.com",
-  "databaseURL": "https://kaviyam-reading-default-rtdb.asia-southeast1.firebasedatabase.app",
+  "projectId": "gold-safeguard-rdpgw",
+  "appId": "1:555443565865:web:ad8f7d98be842ba67eb338",
+  "apiKey": "AIzaSyBK7LOICflvW9_pnBf5InIvSv9oOJyXieM",
+  "authDomain": "gold-safeguard-rdpgw.firebaseapp.com",
   "firestoreDatabaseId": "ai-studio-novalreading-3ea26efa-f5b4-4412-8fcf-e35e298695c2",
-  "storageBucket": "kaviyam-reading.firebasestorage.app",
-  "messagingSenderId": "827530199390",
-  "measurementId": "G-SYPERY4MH2",
-  "oAuthClientId": "827530199390-pd91a9bsk0qksejfolpvsk19ctna1g3q.apps.googleusercontent.com",
+  "storageBucket": "gold-safeguard-rdpgw.firebasestorage.app",
+  "messagingSenderId": "555443565865",
+  "measurementId": "",
+  "oAuthClientId": "555443565865-fp688h5us8eju3n1o9t996e17smh1o2o.apps.googleusercontent.com",
   "recaptchaSiteKey": ""
 }

@@ -4,9 +4,11 @@ import { QuizAttempt, Quiz } from "../types";
 
 interface QuizLeaderboardProps {
   currentUser?: any;
-  quizzes: Quiz[];
+  quizzes?: Quiz[];
+  userAttempts?: QuizAttempt[];
   onGoToQuizzes?: () => void;
-  lang?: string;
+  onBackToCenter?: () => void;
+  lang?: any;
 }
 
 interface LeaderboardEntry {
@@ -21,18 +23,24 @@ interface LeaderboardEntry {
 
 export default function QuizLeaderboard({
   currentUser,
-  quizzes,
+  quizzes = [],
+  userAttempts,
   onGoToQuizzes,
-  lang = "en"
+  onBackToCenter,
+  lang = "en",
 }: QuizLeaderboardProps) {
-  const [attempts, setAttempts] = useState<QuizAttempt[]>([]);
+  const [attempts, setAttempts] = useState<QuizAttempt[]>(userAttempts || []);
 
   useEffect(() => {
+    if (userAttempts && userAttempts.length > 0) {
+      setAttempts(userAttempts);
+      return;
+    }
     try {
       const stored = localStorage.getItem("kaviyam_quiz_attempts");
       if (stored) setAttempts(JSON.parse(stored));
     } catch (_) {}
-  }, []);
+  }, [userAttempts]);
 
   // Aggregate by user — since all data is local, we only have the current user
   const userAggregates: Record<string, LeaderboardEntry> = {};

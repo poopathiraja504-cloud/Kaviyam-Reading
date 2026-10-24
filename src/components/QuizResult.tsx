@@ -4,12 +4,15 @@ import { Quiz, QuizAttempt } from "../types";
 
 interface QuizResultProps {
   attempt: QuizAttempt;
-  quiz: Quiz;
+  quiz: Quiz | any;
   currentUser?: any;
-  onReviewAnswers: () => void;
-  onRetry: () => void;
-  onGoToQuizzes: () => void;
-  onViewHistory: () => void;
+  onReviewAnswers?: () => void;
+  onRetry?: () => void;
+  onRetake?: () => void;
+  onNextQuiz?: () => void;
+  onGoToQuizzes?: () => void;
+  onBackToCenter?: () => void;
+  onViewHistory?: () => void;
   lang?: string;
 }
 

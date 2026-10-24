@@ -65,6 +65,7 @@ export interface Review {
 export interface Book {
   id: string;
   title: string;
+  tamilTitle?: string;
   author: string;
   description: string;
   coverUrl: string;
@@ -74,6 +75,18 @@ export interface Book {
   ratingCount: number;
   reviews: Review[];
   isCustomAI?: boolean;
+  pdfUrl?: string;
+  fileSize?: string;
+  monthYear?: string;
+  pageCount?: number;
+  publisher?: string;
+  highlights?: string[];
+  isPdf?: boolean;
+  issueNumber?: string;
+  tableOfContents?: any[];
+  price?: number | string;
+  isbn?: string;
+  downloadUrl?: string;
 }
 
 export interface SecurityLog {
@@ -189,7 +202,8 @@ export interface QuizQuestion {
 }
 
 export interface QuizSet {
-  quizId: string;
+  quizId?: string;
+  id?: string;
   title: string;
   titleTa?: string;
   titleEn?: string;
@@ -199,17 +213,22 @@ export interface QuizSet {
   category: string;
   categoryTa?: string;
   categoryEn?: string;
-  difficulty: "Easy" | "Medium" | "Hard";
+  difficulty: "Easy" | "Medium" | "Hard" | string;
   totalQuestions: number;
   marksPerQuestion: number;
   totalMarks: number;
-  timeLimit: number; // in seconds (e.g. 600)
+  timeLimit?: number; // in seconds (e.g. 600)
+  timeLimitMinutes?: number;
+  isPublished?: boolean;
   associatedBookId?: string;
-  questions: QuizQuestion[];
+  questions: QuizQuestion[] | any[];
 }
+
+export type Quiz = QuizSet;
 
 export interface QuizAttempt {
   attemptId: string;
+  id?: string;
   quizId: string;
   quizTitle: string;
   title?: string;
@@ -217,14 +236,18 @@ export interface QuizAttempt {
   username: string;
   answers: Record<string, "A" | "B" | "C" | "D">;
   score: number;
+  totalScore?: number;
+  totalMarks?: number;
   percentage: number;
   correctAnswers: number;
   wrongAnswers: number;
   unansweredQuestions: number;
+  unansweredCount?: number;
   timeUsed: number;
+  timeTakenSeconds?: number;
   startedAt: string;
   completedAt: string;
-  status: "Completed" | "Failed" | "In-Progress";
+  status: "Completed" | "Failed" | "In-Progress" | "completed" | "timed_out" | "abandoned" | string;
 }
 
 export interface QuizUserStats {

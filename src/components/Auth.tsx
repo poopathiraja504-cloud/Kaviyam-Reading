@@ -302,34 +302,6 @@ export default function Auth({
                   {currentLang === "ta" ? "உங்கள் வாசிப்புப் பயணத்தைத் தொடருங்கள்." : "Continue your reading journey."}
                 </p>
 
-                {/* Guest Mode Quick Action Card */}
-                {onGuestLogin && (
-                  <div className="mt-4 p-3 rounded-2xl bg-gradient-to-r from-amber-50 via-stone-50 to-amber-50/60 border border-amber-200/90 flex items-center justify-between gap-3 shadow-2xs">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-8 h-8 rounded-xl bg-amber-100 border border-amber-300/80 flex items-center justify-center shrink-0 text-[#3B0B12]">
-                        <Compass className="w-4 h-4 text-[#5C121E]" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-xs font-bold text-stone-900 leading-tight">
-                          {currentLang === "ta" ? "விருந்தினர் பயன்முறை" : "Guest Mode Option"}
-                        </p>
-                        <p className="text-[11px] text-stone-600 truncate">
-                          {currentLang === "ta" ? "கடவுச்சொல் இன்றி உடனே வாசிக்கலாம்" : "Read instantly without sign in"}
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={onGuestLogin}
-                      id="auth-top-guest-btn"
-                      className="px-3.5 py-1.5 rounded-xl bg-[#3B0B12] hover:bg-[#2A060D] text-amber-200 hover:text-white text-xs font-bold shrink-0 transition-all shadow-xs cursor-pointer flex items-center gap-1.5 group"
-                    >
-                      <span>{currentLang === "ta" ? "விருந்தினராக தொடர்" : "Continue"}</span>
-                      <ArrowRight className="w-3.5 h-3.5 text-amber-300 group-hover:translate-x-0.5 transition-transform" />
-                    </button>
-                  </div>
-                )}
-
                 {/* Email / Mobile Switcher Tabs */}
                 <div className="flex bg-stone-100 p-1 rounded-xl border border-stone-200/70 mt-4 mb-5">
                   <button

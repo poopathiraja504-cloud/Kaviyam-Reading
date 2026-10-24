@@ -41,12 +41,12 @@ const getValidApiKey = (envVal: string | undefined, fallback: string): string =>
 export const firebaseConfig = {
   apiKey: getValidApiKey(import.meta.env.VITE_FIREBASE_API_KEY, rawConfig.apiKey),
   authDomain: getValidConfigValue(import.meta.env.VITE_FIREBASE_AUTH_DOMAIN, rawConfig.authDomain),
-  databaseURL: getValidConfigValue(import.meta.env.VITE_FIREBASE_DATABASE_URL, (rawConfig as any).databaseURL || "https://kaviyam-reading-default-rtdb.asia-southeast1.firebasedatabase.app"),
+  databaseURL: getValidConfigValue(import.meta.env.VITE_FIREBASE_DATABASE_URL, (rawConfig as any).databaseURL || `https://${rawConfig.projectId}-default-rtdb.firebaseio.com`),
   projectId: getValidConfigValue(import.meta.env.VITE_FIREBASE_PROJECT_ID, rawConfig.projectId),
   storageBucket: getValidConfigValue(import.meta.env.VITE_FIREBASE_STORAGE_BUCKET, rawConfig.storageBucket),
   messagingSenderId: getValidConfigValue(import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID, rawConfig.messagingSenderId),
   appId: getValidConfigValue(import.meta.env.VITE_FIREBASE_APP_ID, rawConfig.appId),
-  measurementId: getValidConfigValue(import.meta.env.VITE_FIREBASE_MEASUREMENT_ID, rawConfig.measurementId || "G-SYPERY4MH2"),
+  measurementId: getValidConfigValue(import.meta.env.VITE_FIREBASE_MEASUREMENT_ID, rawConfig.measurementId || ""),
 };
 
 // Initialize Firebase App instance

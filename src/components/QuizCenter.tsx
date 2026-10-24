@@ -3,17 +3,21 @@ import {
   Brain, Trophy, BarChart3, History, ChevronRight, Star, Filter,
   Search, Zap, BookOpen, Users, Clock, Target, Award
 } from "lucide-react";
-import { Quiz, QuizAttempt } from "../types";
-import { User, Language } from "../utils/i18n";
+import { Quiz, QuizAttempt, User } from "../types";
+import { Language } from "../utils/i18n";
 
 interface QuizCenterProps {
   quizzes: Quiz[];
   currentUser: any;
+  userAttempts?: any[];
   onSelectQuiz: (quizId: string) => void;
-  onViewHistory: () => void;
-  onViewStats: () => void;
-  onViewLeaderboard: () => void;
-  lang?: string;
+  onViewHistory?: () => void;
+  onViewStats?: () => void;
+  onViewLeaderboard?: () => void;
+  onBack?: () => void;
+  onGoogleLogin?: () => void;
+  onStartQuiz?: (id: string) => void;
+  lang?: any;
 }
 
 export default function QuizCenter({

@@ -28,6 +28,8 @@ interface TamilLibraryProps {
   onToggleBookmark: (bookId: string) => void;
   onAddCustomBook: (newBook: any) => void;
   lang: Language;
+  externalCategory?: string;
+  onCategoryChange?: (cat: any) => void;
 }
 
 export default function TamilLibrary({

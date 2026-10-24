@@ -28,6 +28,7 @@ interface ReaderProps {
   isBookmarked: boolean;
   onToggleBookmark: () => void;
   lang: Language;
+  onChapterComplete?: (chapterNum: number) => Promise<void> | void;
 }
 
 export default function Reader({

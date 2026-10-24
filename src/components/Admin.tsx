@@ -459,6 +459,55 @@ export default function Admin({
           </div>
         </div>
       )}
+
+      {/* Quizzes Management Tab */}
+      {activeTab === "quizzes" && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center gap-4">
+            <h3 className="font-serif font-bold text-stone-800 text-base">
+              Quiz & Question Management ({quizzesList.length} Quizzes)
+            </h3>
+            <span className="text-xs text-stone-500 font-mono">
+              Total Questions: {quizzesList.reduce((acc, q) => acc + (q.questions || []).length, 0)}
+            </span>
+          </div>
+
+          <div className="border border-[#e8e2cf] rounded-xl overflow-hidden bg-white">
+            <table className="w-full text-xs text-left">
+              <thead className="bg-[#faf8f3] text-stone-600 font-mono text-[10px] uppercase tracking-wider border-b border-[#e8e2cf]">
+                <tr>
+                  <th className="p-3">Quiz Title</th>
+                  <th className="p-3">Category</th>
+                  <th className="p-3">Difficulty</th>
+                  <th className="p-3">Questions</th>
+                  <th className="p-3">Timer</th>
+                  <th className="p-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#f3eee0]">
+                {quizzesList.map((quiz) => (
+                  <tr key={quiz.id} className="hover:bg-stone-50 transition">
+                    <td className="p-3 font-semibold text-stone-900">{quiz.title}</td>
+                    <td className="p-3"><span className="px-2 py-0.5 rounded-full bg-stone-100 text-stone-700 font-mono text-[10px]">{quiz.category}</span></td>
+                    <td className="p-3"><span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 text-[10px] font-bold">{quiz.difficulty}</span></td>
+                    <td className="p-3 font-mono">{(quiz.questions || []).length} Qs (100 Marks)</td>
+                    <td className="p-3 font-mono">{quiz.timeLimitMinutes || 15} Mins</td>
+                    <td className="p-3 text-right">
+                      <button
+                        onClick={() => onDeleteQuiz && onDeleteQuiz(quiz.id || (quiz as any).quizId)}
+                        className="p-1 rounded text-red-600 hover:bg-red-50 transition"
+                        title="Delete Quiz"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -539,54 +588,6 @@ function CspConfigurator({ customCsp, onUpdateCsp, isHardened }: CspConfigurator
           </div>
         </div>
       </form>
-      {activeTab === "quizzes" && (
-        <div className="space-y-4">
-          <div className="flex justify-between items-center gap-4">
-            <h3 className="font-serif font-bold text-stone-800 text-base">
-              Quiz & Question Management ({quizzesList.length} Quizzes)
-            </h3>
-            <span className="text-xs text-stone-500 font-mono">
-              Total Questions: {quizzesList.reduce((acc, q) => acc + q.questions.length, 0)}
-            </span>
-          </div>
-
-          <div className="border border-[#e8e2cf] rounded-xl overflow-hidden bg-white">
-            <table className="w-full text-xs text-left">
-              <thead className="bg-[#faf8f3] text-stone-600 font-mono text-[10px] uppercase tracking-wider border-b border-[#e8e2cf]">
-                <tr>
-                  <th className="p-3">Quiz Title</th>
-                  <th className="p-3">Category</th>
-                  <th className="p-3">Difficulty</th>
-                  <th className="p-3">Questions</th>
-                  <th className="p-3">Timer</th>
-                  <th className="p-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#f3eee0]">
-                {quizzesList.map((quiz) => (
-                  <tr key={quiz.id} className="hover:bg-stone-50 transition">
-                    <td className="p-3 font-semibold text-stone-900">{quiz.title}</td>
-                    <td className="p-3"><span className="px-2 py-0.5 rounded-full bg-stone-100 text-stone-700 font-mono text-[10px]">{quiz.category}</span></td>
-                    <td className="p-3"><span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 text-[10px] font-bold">{quiz.difficulty}</span></td>
-                    <td className="p-3 font-mono">{quiz.questions.length} Qs (100 Marks)</td>
-                    <td className="p-3 font-mono">{quiz.timeLimitMinutes} Mins</td>
-                    <td className="p-3 text-right">
-                      <button
-                        onClick={() => onDeleteQuiz && onDeleteQuiz(quiz.id)}
-                        className="p-1 rounded text-red-600 hover:bg-red-50 transition"
-                        title="Delete Quiz"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
     </div>
   );
 }
