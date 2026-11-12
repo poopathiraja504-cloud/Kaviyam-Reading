@@ -39,7 +39,7 @@ export default function QuizHistory({
 
   const userId = currentUser?.id || "guest";
   const completedAttempts = [...attempts]
-    .filter(a => a.userId === userId && a.status === "completed")
+    .filter(a => (a.userId === userId || userId === "guest") && ((a.status || "").toLowerCase() === "completed"))
     .sort((a, b) => new Date(b.completedAt || b.startedAt).getTime() - new Date(a.completedAt || a.startedAt).getTime());
 
   const formatSecs = (secs: number) => {
@@ -64,7 +64,7 @@ export default function QuizHistory({
           </div>
         </div>
         {onViewStats && (
-          <button onClick={onViewStats} className="text-xs text-[#D4AF37] hover:underline font-semibold">
+          <button onClick={onViewStats} className="text-xs text-[#D4AF37] hover:underline font-semibold cursor-pointer">
             View Stats →
           </button>
         )}
@@ -79,11 +79,12 @@ export default function QuizHistory({
       ) : (
         <div className="space-y-3">
           {completedAttempts.map((attempt) => {
-            const quiz = quizzes.find(q => q.id === attempt.quizId);
-            const isPassed = attempt.percentage >= 50;
+            const quiz = quizzes.find(q => q.id === attempt.quizId || (q as any).quizId === attempt.quizId);
+            const isPassed = (attempt.percentage ?? 0) >= 50;
+            const timeTaken = attempt.timeUsed ?? attempt.timeTakenSeconds ?? 0;
             return (
               <div
-                key={attempt.id}
+                key={attempt.attemptId || attempt.id || Math.random().toString()}
                 className="bg-white rounded-xl border border-[#E2DDD5] p-4 flex items-center justify-between gap-4"
               >
                 <div className="flex items-center gap-3 min-w-0">
@@ -91,12 +92,12 @@ export default function QuizHistory({
                     <Trophy className={`w-5 h-5 ${isPassed ? "text-emerald-600" : "text-red-400"}`} />
                   </div>
                   <div className="min-w-0">
-                    <p className="font-semibold text-sm text-[#3B0B12] truncate">{quiz?.title || `Quiz ${attempt.quizId}`}</p>
+                    <p className="font-semibold text-sm text-[#3B0B12] truncate">{quiz?.title || attempt.quizTitle || `Quiz ${attempt.quizId}`}</p>
                     <p className="text-xs text-stone-400 flex items-center gap-2 mt-0.5">
                       <Calendar className="w-3 h-3" />
                       {formatDate(attempt.completedAt || attempt.startedAt)}
                       <Clock className="w-3 h-3" />
-                      {formatSecs(attempt.timeTakenSeconds || 0)}
+                      {formatSecs(timeTaken)}
                     </p>
                   </div>
                 </div>
@@ -105,11 +106,19 @@ export default function QuizHistory({
                     <div className={`text-lg font-black ${isPassed ? "text-emerald-600" : "text-red-500"}`}>
                       {attempt.percentage}%
                     </div>
-                    <div className="text-xs text-stone-400">{attempt.correctAnswers}/{attempt.correctAnswers + attempt.wrongAnswers + (attempt.unansweredCount || 0)}</div>
+                    <div className="text-xs text-stone-400">
+                      {attempt.correctAnswers}/{((attempt.correctAnswers || 0) + (attempt.wrongAnswers || 0) + (attempt.unansweredQuestions || attempt.unansweredCount || 0)) || 10}
+                    </div>
                   </div>
                   <button
-                    onClick={() => quiz && onSelectQuiz(quiz.id)}
-                    className="p-2 rounded-lg bg-[#3B0B12] text-white hover:bg-[#5C121E] transition-colors"
+                    onClick={() => {
+                      if (onSelectQuiz && (quiz?.id || attempt.quizId)) {
+                        onSelectQuiz(quiz?.id || attempt.quizId);
+                      } else if (onSelectAttempt) {
+                        onSelectAttempt(attempt);
+                      }
+                    }}
+                    className="p-2 rounded-lg bg-[#3B0B12] text-white hover:bg-[#5C121E] transition-colors cursor-pointer"
                     title="Retry Quiz"
                   >
                     <RotateCcw className="w-4 h-4" />

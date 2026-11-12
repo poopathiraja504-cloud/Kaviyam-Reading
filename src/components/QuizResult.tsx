@@ -49,7 +49,7 @@ export default function QuizResult({
       <div className={`rounded-2xl p-8 text-center ${isPassed ? "bg-gradient-to-b from-emerald-50 to-white border-2 border-emerald-200" : "bg-gradient-to-b from-red-50 to-white border-2 border-red-200"}`}>
         <div className="text-5xl mb-3">{g.emoji}</div>
         <h2 className={`text-2xl font-bold font-serif mb-1 ${g.color}`}>{g.label}</h2>
-        <p className="text-stone-500 text-sm mb-6">{quiz.title}</p>
+        <p className="text-stone-500 text-sm mb-6">{quiz?.title || attempt.quizTitle || "Quiz"}</p>
 
         {/* Score Circle */}
         <div className={`inline-flex flex-col items-center justify-center w-32 h-32 rounded-full border-4 mb-6 ${isPassed ? "border-emerald-400 bg-emerald-50" : "border-red-400 bg-red-50"}`}>

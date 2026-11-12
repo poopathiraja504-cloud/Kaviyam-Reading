@@ -27,7 +27,7 @@ export default function QuizStats({
   }, []);
 
   const userId = currentUser?.id || "guest";
-  const completedAttempts = attempts.filter(a => a.userId === userId && a.status === "completed");
+  const completedAttempts = attempts.filter(a => (a.userId === userId || userId === "guest") && ((a.status || "").toLowerCase() === "completed"));
 
   const totalAttempts = completedAttempts.length;
   const totalCorrect = completedAttempts.reduce((acc, a) => acc + a.correctAnswers, 0);

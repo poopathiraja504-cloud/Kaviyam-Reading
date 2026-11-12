@@ -45,7 +45,7 @@ export default function QuizLeaderboard({
   // Aggregate by user — since all data is local, we only have the current user
   const userAggregates: Record<string, LeaderboardEntry> = {};
   attempts
-    .filter(a => a.status === "completed")
+    .filter(a => (a.status || "").toLowerCase() === "completed")
     .forEach(att => {
       const uid = att.userId || "anonymous";
       if (!userAggregates[uid]) {

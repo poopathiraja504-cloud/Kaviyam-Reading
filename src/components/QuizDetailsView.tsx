@@ -120,17 +120,17 @@ export default function QuizDetailsView({
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row gap-3 pt-2">
           <button
-            onClick={onStartQuiz}
-            className="flex-1 py-3 px-6 rounded-2xl bg-gradient-to-r from-[#3B0B12] to-[#5C121E] text-white font-bold text-sm shadow-md hover:brightness-110 flex items-center justify-center gap-2 transition-all"
+            onClick={() => onStartQuiz(quiz.id || (quiz as any).quizId)}
+            className="flex-1 py-3 px-6 rounded-2xl bg-gradient-to-r from-[#3B0B12] to-[#5C121E] text-white font-bold text-sm shadow-md hover:brightness-110 flex items-center justify-center gap-2 transition-all cursor-pointer"
           >
             <Play className="w-4 h-4 text-[#D4AF37] fill-[#D4AF37]" />
-            <span>Start Quiz Now</span>
+            <span>{lang === "ta" ? "வினாடி வினாவைத் தொடங்குக" : "Start Quiz Now"}</span>
           </button>
           <button
             onClick={onBack}
-            className="py-3 px-6 rounded-2xl bg-stone-100 text-stone-700 font-semibold text-sm hover:bg-stone-200 transition-colors"
+            className="py-3 px-6 rounded-2xl bg-stone-100 text-stone-700 font-semibold text-sm hover:bg-stone-200 transition-colors cursor-pointer"
           >
-            Back to Quizzes
+            {lang === "ta" ? "வினாடி வினா மையத்திற்குத் திரும்பு" : "Back to Quizzes"}
           </button>
         </div>
 

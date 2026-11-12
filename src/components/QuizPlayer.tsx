@@ -27,6 +27,31 @@ export default function QuizPlayer({
   onGuestLogin,
   lang,
 }: QuizPlayerProps) {
+  // Guard against missing or malformed quiz data
+  if (!quiz || !quiz.questions || quiz.questions.length === 0) {
+    return (
+      <div className="max-w-xl mx-auto py-16 px-6 text-center font-sans space-y-4 bg-white rounded-3xl border border-[#E2DDD5] shadow-lg">
+        <h3 className="font-serif text-2xl font-bold text-[#3B0B12]">
+          {lang === "ta" ? "வினாடி வினா கிடைக்கவில்லை" : "Quiz Not Found"}
+        </h3>
+        <p className="text-xs sm:text-sm text-stone-600 max-w-sm mx-auto">
+          {lang === "ta" 
+            ? "கோரப்பட்ட வினாடி வினாவை ஏற்ற முடியவில்லை. தயவுசெய்து வினாடி வினா மையத்திற்குச் சென்று மீண்டும் முயற்சிக்கவும்." 
+            : "The requested quiz could not be loaded. Please return to the Quiz Center and select a quiz."}
+        </p>
+        <button
+          onClick={onCancelQuiz}
+          className="px-6 py-2.5 rounded-xl bg-[#5C121E] hover:bg-[#3B0B12] text-white font-bold text-xs tracking-wider uppercase transition-colors shadow-md cursor-pointer"
+        >
+          {lang === "ta" ? "வினாடி வினா மையம்" : "Back to Quizzes"}
+        </button>
+      </div>
+    );
+  }
+
+  const effectiveQuizId = quiz.quizId || (quiz as any).id || "quiz-001";
+  const effectiveTimeLimit = quiz.timeLimit || (quiz.timeLimitMinutes ? quiz.timeLimitMinutes * 60 : 600);
+
   const isNotLoggedIn = !currentUser;
   const isGuest = currentUser?.id === "guest-user-session" || currentUser?.role === "guest";
 
@@ -46,23 +71,23 @@ export default function QuizPlayer({
           onBack={onCancelQuiz}
           onLogin={() => {
             if (onRequireLogin) {
-              onRequireLogin(quiz.quizId);
+              onRequireLogin(effectiveQuizId);
             } else {
-              localStorage.setItem("pendingQuizId", quiz.quizId);
-              localStorage.setItem("kaviyam_pending_quiz_id", quiz.quizId);
-              localStorage.setItem("pendingQuizRoute", `/quizzes/${quiz.quizId}`);
-              localStorage.setItem("kaviyam_pending_quiz_route", `/quizzes/${quiz.quizId}`);
+              localStorage.setItem("pendingQuizId", effectiveQuizId);
+              localStorage.setItem("kaviyam_pending_quiz_id", effectiveQuizId);
+              localStorage.setItem("pendingQuizRoute", `/quizzes/${effectiveQuizId}`);
+              localStorage.setItem("kaviyam_pending_quiz_route", `/quizzes/${effectiveQuizId}`);
               window.location.href = "/login";
             }
           }}
           onRegister={() => {
             if (onRequireRegister) {
-              onRequireRegister(quiz.quizId);
+              onRequireRegister(effectiveQuizId);
             } else {
-              localStorage.setItem("pendingQuizId", quiz.quizId);
-              localStorage.setItem("kaviyam_pending_quiz_id", quiz.quizId);
-              localStorage.setItem("pendingQuizRoute", `/quizzes/${quiz.quizId}`);
-              localStorage.setItem("kaviyam_pending_quiz_route", `/quizzes/${quiz.quizId}`);
+              localStorage.setItem("pendingQuizId", effectiveQuizId);
+              localStorage.setItem("kaviyam_pending_quiz_id", effectiveQuizId);
+              localStorage.setItem("pendingQuizRoute", `/quizzes/${effectiveQuizId}`);
+              localStorage.setItem("kaviyam_pending_quiz_route", `/quizzes/${effectiveQuizId}`);
               window.location.href = "/login";
             }
           }}
@@ -74,21 +99,21 @@ export default function QuizPlayer({
 
   const [currentIdx, setCurrentIdx] = useState(0);
   const [answers, setAnswers] = useState<Record<string, "A" | "B" | "C" | "D">>(() => {
-    const saved = localStorage.getItem(`kaviyam_quiz_draft_${quiz.quizId}`);
+    const saved = localStorage.getItem(`kaviyam_quiz_draft_${effectiveQuizId}`);
     return saved ? JSON.parse(saved) : {};
   });
 
   const [startTime] = useState<number>(() => {
-    const savedTime = localStorage.getItem(`kaviyam_quiz_startTime_${quiz.quizId}`);
+    const savedTime = localStorage.getItem(`kaviyam_quiz_startTime_${effectiveQuizId}`);
     if (savedTime) return parseInt(savedTime, 10);
     const now = Date.now();
-    localStorage.setItem(`kaviyam_quiz_startTime_${quiz.quizId}`, now.toString());
+    localStorage.setItem(`kaviyam_quiz_startTime_${effectiveQuizId}`, now.toString());
     return now;
   });
 
   const [timeLeft, setTimeLeft] = useState<number>(() => {
     const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
-    const remaining = quiz.timeLimit - elapsedSeconds;
+    const remaining = effectiveTimeLimit - elapsedSeconds;
     return remaining > 0 ? remaining : 0;
   });
 
@@ -115,14 +140,15 @@ export default function QuizPlayer({
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [startTime, quiz.timeLimit]);
+  }, [startTime, effectiveTimeLimit]);
 
   // Persist draft answers to localStorage
   const handleSelectAnswer = (optionKey: "A" | "B" | "C" | "D") => {
     const currentQ = quiz.questions[currentIdx];
+    if (!currentQ) return;
     const newAnswers = { ...answers, [currentQ.questionId]: optionKey };
     setAnswers(newAnswers);
-    localStorage.setItem(`kaviyam_quiz_draft_${quiz.quizId}`, JSON.stringify(newAnswers));
+    localStorage.setItem(`kaviyam_quiz_draft_${effectiveQuizId}`, JSON.stringify(newAnswers));
   };
 
   // Format Timer string (e.g. 09:59)
@@ -133,7 +159,7 @@ export default function QuizPlayer({
   };
 
   // Calculate score and complete submission
-  const handleFinalSubmission = (autoSubmitted = false) => {
+  const handleFinalSubmission = (_autoSubmitted = false) => {
     if (isSubmitting) return;
     setIsSubmitting(true);
 
@@ -154,20 +180,22 @@ export default function QuizPlayer({
       }
     });
 
-    const score = correctCount * quiz.marksPerQuestion;
-    const percentage = Math.round((score / quiz.totalMarks) * 100);
-    const timeUsed = Math.min(quiz.timeLimit, Math.floor((Date.now() - startTime) / 1000));
+    const marksPerQ = quiz.marksPerQuestion || 10;
+    const totalMarks = quiz.totalMarks || (quiz.questions.length * marksPerQ);
+    const score = correctCount * marksPerQ;
+    const percentage = totalMarks > 0 ? Math.round((score / totalMarks) * 100) : 0;
+    const timeUsed = Math.min(effectiveTimeLimit, Math.floor((Date.now() - startTime) / 1000));
 
     // Cleanup draft localStorage
-    localStorage.removeItem(`kaviyam_quiz_draft_${quiz.quizId}`);
-    localStorage.removeItem(`kaviyam_quiz_startTime_${quiz.quizId}`);
+    localStorage.removeItem(`kaviyam_quiz_draft_${effectiveQuizId}`);
+    localStorage.removeItem(`kaviyam_quiz_startTime_${effectiveQuizId}`);
 
     const attempt: QuizAttempt = {
       attemptId: `att_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
-      quizId: quiz.quizId,
+      quizId: effectiveQuizId,
       quizTitle: quiz.title,
       userId: currentUser?.id || "guest",
-      username: currentUser?.username || "Guest Reader",
+      username: currentUser?.username || (lang === "ta" ? "விருந்தினர் வாசகர்" : "Guest Reader"),
       answers,
       score,
       percentage,
@@ -180,18 +208,14 @@ export default function QuizPlayer({
       status: "Completed",
     };
 
-    if (autoSubmitted) {
-      alert(lang === "ta" ? "நேரம் முடிந்தது! உங்கள் வினாடி வினா தானாகவே சமர்ப்பிக்கப்பட்டது." : "Time's up! Your quiz has been submitted automatically.");
-    }
-
     onSubmitQuiz(attempt);
   };
 
-  const currentQuestion = quiz.questions[currentIdx];
-  const selectedOption = answers[currentQuestion.questionId];
+  const currentQuestion = quiz.questions[currentIdx] || quiz.questions[0];
+  const selectedOption = currentQuestion ? answers[currentQuestion.questionId] : undefined;
 
   const answeredCount = Object.keys(answers).length;
-  const unansweredCount = quiz.totalQuestions - answeredCount;
+  const unansweredCount = Math.max(0, quiz.questions.length - answeredCount);
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 font-sans">
@@ -240,7 +264,7 @@ export default function QuizPlayer({
 
           <div className="min-w-0">
             <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-[#D4AF37] block">
-              {quiz.category} • {lang === "ta" ? `வினாடி வினா ${quiz.quizId.replace("quiz_", "")}` : quiz.quizId.replace("quiz_", "Quiz ")}
+              {quiz.category} • {lang === "ta" ? `வினாடி வினா ${effectiveQuizId.replace(/quiz[-_]/i, "")}` : effectiveQuizId.replace(/quiz[-_]/i, "Quiz ")}
             </span>
             <h2 className="font-serif text-base sm:text-lg md:text-xl font-bold text-amber-50 line-clamp-1">
               {quiz.title}
